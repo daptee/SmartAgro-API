@@ -49,8 +49,8 @@ class AuthController extends Controller
             'last_name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email',
             'password' => 'required|string|min:8',
-            'id_locality' => 'required|string|numeric',
-            'id_profile' => 'required|string|numeric',
+            'id_locality' => 'required|numeric',
+            'id_user_profile' => 'required|numeric',
         ]);
     
         if ($validator->fails()) {
@@ -66,14 +66,14 @@ class AuthController extends Controller
 
         try {
             DB::beginTransaction();
-                $new_user = new $this->model($data['user']);
+                $new_user = new $this->model($data);
                 $new_user->save();
 
-                Audith::new($new_user->id, "Registro de usuario", $request->all(), 200, null);
+                Audith::new($new_user->id, $action, $request->all(), 200, null);
             DB::commit();
         } catch (Exception $e) {
             DB::rollBack();
-            Audith::new($new_user->id, "Registro de usuario", $request->all(), 500, $e->getMessage());
+            Audith::new(null, $action, $request->all(), 500, $e->getMessage());
             Log::debug(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()]);
             return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
         }
