@@ -119,36 +119,6 @@ class AuthController extends Controller
         return $this->respondWithToken($token);
     } 
 
-    // public function auth_account_recovery(Request $request)
-    // {
-    //     $validator = Validator::make($request->all(), [
-    //         'email' => 'required|email'
-    //     ]);
-    
-    //     if ($validator->fails()) {
-    //         return response()->json([
-    //             'message' => 'Alguna de las validaciones falló',
-    //             'errors' => $validator->errors(),
-    //         ], 422);
-    //     }
-
-    //     $user = User::where('email', $request->email)->first();
-
-    //     if(!$user)
-    //         return response()->json(['message' => 'El correo ingresado no fue encontrado.'], 400);
-
-    //     // return new RecoverPasswordMailable($user);
-    //     try {
-    //         Mail::to($user->email)->send(new RecoverPasswordMailable($user));
-    //         Audith::new($user->id, "Recupero de contraseña", $request->email, 200, null);
-    //     } catch (Exception $e) {
-    //         Audith::new($user->id, "Recupero de contraseña", $request->email, 500, $e->getMessage());
-    //         Log::debug(["message" => "Error en recupero de contraseña", "error" => $e->getMessage(), "line" => $e->getLine()]);
-    //         return response(["message" => "Error en recupero de contraseña", "error" => $e->getMessage(), "line" => $e->getLine()], 500);
-    //     }
-        
-    //     return response()->json(['message' => 'Correo enviado con exito.'], 200);
-    // }
 
     public function auth_password_recovery(Request $request)
     {
@@ -177,7 +147,7 @@ class AuthController extends Controller
             DB::beginTransaction();
             
                 $str_random_password = Str::random(10);
-                $user->password = Hash::make($str_random_password);
+                $user->password = $str_random_password;
                 $user->save();
             
                 Audith::new($user->id, $action, $request->email, 200, null);
@@ -201,83 +171,47 @@ class AuthController extends Controller
         return response()->json(['message' => 'Contraseña actualizada con exito.'], 200);
     }
 
-    // public function auth_account_confirmation(Request $request)
-    // {
-    //     $validator = Validator::make($request->all(), [
-    //         'email' => 'required',
-    //         // 'password' => 'required',
-    //     ]);
+    public function auth_password_recovery_token(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'old_password' => 'required',
+            'password' => 'required',
+        ]);
     
-    //     if ($validator->fails()) {
-    //         return response()->json([
-    //             'message' => 'Alguna de las validaciones falló',
-    //             'errors' => $validator->errors(),
-    //         ], 422);
-    //     }
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Alguna de las validaciones falló',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
 
-    //     try {
-    //         $decrypted_email = Crypt::decrypt($request->email);
+        $message = "Error al actualizar contraseña";
+        $action = "Cambio de contraseña";
+        $id_user = Auth::user()->id ?? null;
+
+        try {
             
-    //         $user = User::where('email', $decrypted_email)->first();
+            $user = User::find(Auth::user()->id);
 
-    //         if(!$user)
-    //             return response()->json(['message' => 'Datos incompletos para procesar la confirmación de la cuenta.'], 400);
+            if(!Hash::check($request->old_password, $user->password))
+                return response()->json(['message' => 'Contraseña anterior incorrecta.'], 400);
 
-    //         DB::beginTransaction();
+            DB::beginTransaction();
             
-    //             // $user->password = $request->password;
-    //             $user->email_confirmation = now()->format('Y-m-d H:i:s');
-    //             $user->save();
+                $user->password = $request->password;
+                $user->save();
             
-    //             Audith::new($user->id, "Confirmación de cuenta", $request->email, 200, null);
-    //         DB::commit();
-    //     } catch (DecryptException $e) {
-    //         DB::rollBack();
-    //         Audith::new(null, "Confirmación de cuenta", $request->email, 500, $e->getMessage());
-    //         Log::debug(["message" => "Error al realizar confirmación de cuenta.", "error" => $e->getMessage(), "line" => $e->getLine()]);
-    //         return response(["message" => "Error al realizar confirmación de cuenta", "error" => $e->getMessage(), "line" => $e->getLine()], 500);
-    //     }
+                Audith::new($id_user, $action, $user->email, 200, null);
+            DB::commit();
+        } catch (Exception $e) {
+            DB::rollBack();
+            Audith::new($id_user, $action, $user->email, 500, $e->getMessage());
+            Log::debug(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()]);
+            return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+        }
 
-    //     return response()->json(['message' => 'Confirmación de cuenta exitosa.'], 200);
-    // }
-
-    // public function auth_password_recovery_token(Request $request)
-    // {
-    //     $validator = Validator::make($request->all(), [
-    //         'old_password' => 'required',
-    //         'password' => 'required',
-    //     ]);
-    
-    //     if ($validator->fails()) {
-    //         return response()->json([
-    //             'message' => 'Alguna de las validaciones falló',
-    //             'errors' => $validator->errors(),
-    //         ], 422);
-    //     }
-
-    //     try {
-            
-    //         $user = User::find(Auth::user()->id);
-
-    //         if(!Hash::check($request->old_password, $user->password))
-    //             return response()->json(['message' => 'Contraseña anterior incorrecta.'], 400);
-
-    //         DB::beginTransaction();
-            
-    //             $user->password = $request->password;
-    //             $user->save();
-            
-    //             Audith::new($user->id, "Cambio de contraseña", $user->email, 200, null);
-    //         DB::commit();
-    //     } catch (Exception $e) {
-    //         DB::rollBack();
-    //         Audith::new(null, "Cambio de contraseña", $user->email, 500, $e->getMessage());
-    //         Log::debug(["message" => "Error al actualizar contraseña.", "error" => $e->getMessage(), "line" => $e->getLine()]);
-    //         return response(["message" => "Error al actualizar contraseña", "error" => $e->getMessage(), "line" => $e->getLine()], 500);
-    //     }
-
-    //     return response()->json(['message' => 'Contraseña actualizada con exito.'], 200);
-    // }
+        return response()->json(['message' => 'Contraseña actualizada con exito.'], 200);
+    }
 
     public function logout()
     {
@@ -290,6 +224,7 @@ class AuthController extends Controller
             return response()->json(['message' => 'Logout exitoso.']);
         }catch (Exception $e) {
             Audith::new($user_id, "Logout", $email, 500, $e->getMessage());
+            Log::debug(["message" => "Error al realizar logout", "error" => $e->getMessage(), "line" => $e->getLine()]);
             return response(["message" => "Error al realizar logout", "error" => $e->getMessage(), "line" => $e->getLine()], 500);
         }
     }

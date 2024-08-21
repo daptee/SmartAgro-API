@@ -27,6 +27,7 @@ class User extends Authenticatable implements JWTSubject
         'id_locality',
         'id_user_profile',
         'id_status',
+        'profile_picture'
     ];
 
     /**
@@ -99,9 +100,9 @@ class User extends Authenticatable implements JWTSubject
             'locality' => $this->locality,
             'profile' => $this->profile,
             'plan' => $this->plan,
-            'status' => $this->status 
+            'status' => $this->status, 
+            'profile_picture' => $this->profile_picture,
             // 'user_type' => $this->user_type,
-            // 'profile_picture' => $this->profile_picture,
             // 'email_confirmation' => $this->email_confirmation
         ];
     }
