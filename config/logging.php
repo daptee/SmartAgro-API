@@ -127,6 +127,11 @@ return [
             'path' => storage_path('logs/laravel.log'),
         ],
 
+        'excel_processed' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/excel_processed.log'),
+            'level' => 'info',
+        ],
     ],
 
 ];

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class MagSteerIndex extends Model
 {
@@ -22,5 +23,10 @@ class MagSteerIndex extends Model
         return [
             'data' => 'json',
         ];
+    }
+
+    public function plan(): HasOne
+    {
+        return $this->hasOne(Plan::class, 'id', 'id_plan');
     }
 }

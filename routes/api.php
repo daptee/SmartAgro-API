@@ -1,8 +1,9 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\GeneralImportController;
 use App\Http\Controllers\LocalityProvinceController;
-use App\Http\Controllers\NewsImportController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -28,9 +29,14 @@ Route::group(['middleware' => ['auth:api']], function ($router) {
         Route::put('users/update', 'update');
         Route::post('users/update/profile_picture', 'profile_picture');
     });
+
+    // Reports
+    Route::controller(ReportController::class)->group(function () {
+        Route::get('reports', 'reports');
+    });
 });
 
-Route::post('/import-news', [NewsImportController::class, 'import'])->name('import.news');
+Route::post('/import-reports', [GeneralImportController::class, 'import'])->name('import.reports');
 
 // Localities
 Route::get('localities', [LocalityProvinceController::class, 'get_localities']);

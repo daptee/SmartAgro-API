@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class News extends Model
 {
@@ -19,4 +20,8 @@ class News extends Model
         'id_plan',
     ];
     
+    public function plan(): HasOne
+    {
+        return $this->hasOne(Plan::class, 'id', 'id_plan');
+    }
 }

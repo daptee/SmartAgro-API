@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Insight extends Model
 {
@@ -16,4 +17,9 @@ class Insight extends Model
         'title',
         'description',
     ];
+
+    public function plan(): HasOne
+    {
+        return $this->hasOne(Plan::class, 'id', 'id_plan');
+    }
 }
