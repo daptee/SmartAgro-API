@@ -23,7 +23,6 @@ Route::group(['middleware' => ['auth:api']], function ($router) {
 
     // Users
     Route::controller(UserController::class)->group(function () {
-        Route::get('users_profiles', 'users_profiles');
         Route::post('users_change_status/{id}', 'change_status');
         Route::post('users_change_plan/{id}', 'change_plan');
         Route::put('users/update', 'update');
@@ -37,6 +36,9 @@ Route::group(['middleware' => ['auth:api']], function ($router) {
 });
 
 Route::post('/import-reports', [GeneralImportController::class, 'import'])->name('import.reports');
+
+// User profiles
+Route::get('users_profiles', [UserController::class, 'users_profiles']);
 
 // Localities
 Route::get('localities', [LocalityProvinceController::class, 'get_localities']);
