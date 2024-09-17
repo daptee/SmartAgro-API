@@ -7,6 +7,7 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Artisan;
 
 // Auth
 Route::controller(AuthController::class)->group(function () {
@@ -45,3 +46,12 @@ Route::get('localities', [LocalityProvinceController::class, 'get_localities']);
 
 // Provinces
 Route::get('provinces', [LocalityProvinceController::class, 'get_provinces']);
+
+Route::get('/clear-cache', function() {
+    Artisan::call('config:clear');
+    Artisan::call('optimize');
+
+    return response()->json([
+        "message" => "Cache cleared successfully"
+    ]);
+});
