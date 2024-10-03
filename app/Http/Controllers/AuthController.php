@@ -174,7 +174,7 @@ class AuthController extends Controller
     public function auth_password_recovery_token(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'old_password' => 'required',
+            // 'old_password' => 'required',
             'password' => 'required',
         ]);
     
@@ -193,8 +193,8 @@ class AuthController extends Controller
             
             $user = User::find(Auth::user()->id);
 
-            if(!Hash::check($request->old_password, $user->password))
-                return response()->json(['message' => 'Contraseña anterior incorrecta.'], 400);
+            // if(!Hash::check($request->old_password, $user->password))
+                // return response()->json(['message' => 'Contraseña anterior incorrecta.'], 400);
 
             DB::beginTransaction();
             
