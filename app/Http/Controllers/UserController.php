@@ -137,7 +137,38 @@ class UserController extends Controller
      */
     public function destroy(string $id)
     {
-        //
+        $message = "Error al eliminar el usuario";
+        $action = "Eliminación de usuario";
+        $id_user = Auth::user()->id;
+    
+        try {
+            DB::beginTransaction();
+            
+            $user = User::find($id);
+            if (!$user) {
+                return response()->json([
+                    'message' => 'Usuario no encontrado',
+                ], 404);
+            }
+    
+            $user->delete();
+    
+            Audith::new($id_user, $action, ['deleted_user_id' => $id], 200, null);
+            
+            DB::commit();
+        } catch (Exception $e) {
+            DB::rollBack();
+            Audith::new($id_user, $action, ['deleted_user_id' => $id], 500, $e->getMessage());
+            Log::debug(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()]);
+            return response()->json([
+                'message' => $message,
+                'error' => $e->getMessage(),
+                'line' => $e->getLine(),
+            ], 500);
+        }
+    
+        $message = "Usuario eliminado con éxito";
+        return response()->json(compact("message"));
     }
 
     public function users_profiles()

@@ -27,6 +27,7 @@ Route::group(['middleware' => ['auth:api']], function ($router) {
         Route::post('users_change_status/{id}', 'change_status');
         Route::post('users_change_plan/{id}', 'change_plan');
         Route::put('users/update', 'update');
+        Route::delete('users/delete', 'destroy');
         Route::post('users/update/profile_picture', 'profile_picture');
         Route::get('users/get_user_profile', 'get_user_profile');
     });
