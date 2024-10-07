@@ -135,7 +135,7 @@ class UserController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id)
+    public function destroy()
     {
         $message = "Error al eliminar el usuario";
         $action = "Eliminación de usuario";
@@ -144,7 +144,7 @@ class UserController extends Controller
         try {
             DB::beginTransaction();
             
-            $user = User::find($id);
+            $user = User::find($id_user);
             if (!$user) {
                 return response()->json([
                     'message' => 'Usuario no encontrado',
@@ -153,12 +153,12 @@ class UserController extends Controller
     
             $user->delete();
     
-            Audith::new($id_user, $action, ['deleted_user_id' => $id], 200, null);
+            Audith::new($id_user, $action, ['deleted_user_id' => $id_user], 200, null);
             
             DB::commit();
         } catch (Exception $e) {
             DB::rollBack();
-            Audith::new($id_user, $action, ['deleted_user_id' => $id], 500, $e->getMessage());
+            Audith::new($id_user, $action, ['deleted_user_id' => $id_user], 500, $e->getMessage());
             Log::debug(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()]);
             return response()->json([
                 'message' => $message,
