@@ -165,8 +165,9 @@ class ExcelImport implements WithMultipleSheets
     {
         $jsonData = [
             'activo' => $row[2],
-            '23/24' => $row[3],
-            '24/25' => $row[4],
+            'nomenclatura resumida' => $row[3],
+            '23/24' => $row[4],
+            '24/25' => $row[5],
         ];
         $plan = Plan::where('plan', $row[0])->first();
         return [
