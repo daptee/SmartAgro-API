@@ -70,7 +70,7 @@
                         </table>
                         <p style="font-family: 'Montserrat', sans-serif; mso-line-height-rule: exactly; margin: 0; margin-top: 24px;">
                           <span style="font-weight: 600;">Nota:</span> Ante cualquier problema no dudes en contactarnos a
-                          <a href="mailto:soprte@smartagro.io" class="hover-underline" style="font-family: 'Montserrat', sans-serif; mso-line-height-rule: exactly; color: #16A860; text-decoration: none;">soprte@smartagro.io</a>
+                          <a href="mailto:soporte@smartagro.io" class="hover-underline" style="font-family: 'Montserrat', sans-serif; mso-line-height-rule: exactly; color: #16A860; text-decoration: none;">soporte@smartagro.io</a>
                         </p>
                         <table style="width: 100%;" cellpadding="0" cellspacing="0" role="presentation">
   <tr>
