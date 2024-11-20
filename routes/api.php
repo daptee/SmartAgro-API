@@ -51,8 +51,17 @@ Route::get('localities', [LocalityProvinceController::class, 'get_localities']);
 Route::get('provinces', [LocalityProvinceController::class, 'get_provinces']);
 
 // Dolar API
-Route::get('dolar', function() {
+Route::get('dolar/oficial', function() {
     $response = Http::get("https://dolarapi.com/v1/dolares/oficial");   
+    if ($response->successful()) {
+        return $response->json();
+    } else {
+        return $response->throw();
+    }
+});
+
+Route::get('dolar/mayorista', function() {
+    $response = Http::get("https://dolarapi.com/v1/dolares/mayorista");   
     if ($response->successful()) {
         return $response->json();
     } else {
