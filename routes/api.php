@@ -8,6 +8,7 @@ use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Http;
 
 // Auth
 Route::controller(AuthController::class)->group(function () {
@@ -48,6 +49,16 @@ Route::get('localities', [LocalityProvinceController::class, 'get_localities']);
 
 // Provinces
 Route::get('provinces', [LocalityProvinceController::class, 'get_provinces']);
+
+// Dolar API
+Route::get('dolar', function() {
+    $response = Http::get("https://dolarapi.com/v1/dolares/oficial");   
+    if ($response->successful()) {
+        return $response->json();
+    } else {
+        return $response->throw();
+    }
+});
 
 Route::get('/clear-cache', function() {
     Artisan::call('config:clear');
