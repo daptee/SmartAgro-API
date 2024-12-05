@@ -79,16 +79,16 @@ class AuthController extends Controller
         }
 
 
-        // if($new_user){
-        //     try {
-        //         Mail::to($new_user->email)->send(new WelcomeUserMailable($new_user, $password));
-        //         Audith::new($new_user->id, "Envio de mail de bienvenida exitoso.", $request->all(), 200, null);
-        //     } catch (Exception $e) {
-        //         Audith::new($new_user->id, "Error al enviar mail de bienvenida.", $request->all(), 500, $e->getMessage());
-        //         Log::debug(["message" => "Error al enviar mail de bienvenida.", "error" => $e->getMessage(), "line" => $e->getLine()]);
-        //         // Retornamos que no se pudo enviar el mail o no hace falta solo queda en el log?
-        //     }
-        // }
+        if($new_user){
+            try {
+                Mail::to($new_user->email)->send(new WelcomeUserMailable($new_user));
+                Audith::new($new_user->id, "Envio de mail de bienvenida exitoso.", $request->all(), 200, null);
+            } catch (Exception $e) {
+                Audith::new($new_user->id, "Error al enviar mail de bienvenida.", $request->all(), 500, $e->getMessage());
+                Log::debug(["message" => "Error al enviar mail de bienvenida.", "error" => $e->getMessage(), "line" => $e->getLine()]);
+                // Retornamos que no se pudo enviar el mail o no hace falta solo queda en el log?
+            }
+        }
 
         $data = $this->model::getAllDataUser($new_user->id);
         $message = "Registro de {$this->s} exitoso";
@@ -174,7 +174,7 @@ class AuthController extends Controller
     public function auth_password_recovery_token(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'old_password' => 'required',
+            // 'old_password' => 'required',
             'password' => 'required',
         ]);
     
@@ -193,8 +193,8 @@ class AuthController extends Controller
             
             $user = User::find(Auth::user()->id);
 
-            if(!Hash::check($request->old_password, $user->password))
-                return response()->json(['message' => 'Contraseña anterior incorrecta.'], 400);
+            // if(!Hash::check($request->old_password, $user->password))
+                // return response()->json(['message' => 'Contraseña anterior incorrecta.'], 400);
 
             DB::beginTransaction();
             

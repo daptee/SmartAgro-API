@@ -13,14 +13,13 @@ class WelcomeUserMailable extends Mailable
 {
     use Queueable, SerializesModels;
 
-    public $user, $password;
+    public $user;
     /**
      * Create a new message instance.
      */
-    public function __construct($user, $password)
+    public function __construct($user)
     {
         $this->user = $user;
-        $this->password = $password;
     }
 
     /**
@@ -29,7 +28,7 @@ class WelcomeUserMailable extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Bienvenido a ' . config('services.clinic_name'),
+            subject: 'Bienvenido a SmartAgro',
         );
     }
 

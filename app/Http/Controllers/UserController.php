@@ -66,6 +66,24 @@ class UserController extends Controller
         //
     }
 
+    public function get_user_profile(Request $request)
+    {
+        $message = "Error al obtener registro";
+        $action = "Perfil de usuario";
+        $data = null;
+        $id_user = Auth::user()->id ?? null;
+        try {
+            $data = User::getAllDataUser($id_user);
+            Audith::new($id_user, $action, $request->all(), 200, null);
+        } catch (Exception $e) {
+            Log::debug(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()]);
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+        }
+
+        return response(compact("data"));
+    }
+
     /**
      * Update the specified resource in storage.
      */
@@ -117,9 +135,40 @@ class UserController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id)
+    public function destroy()
     {
-        //
+        $message = "Error al eliminar el usuario";
+        $action = "Eliminación de usuario";
+        $id_user = Auth::user()->id;
+    
+        try {
+            DB::beginTransaction();
+            
+            $user = User::find($id_user);
+            if (!$user) {
+                return response()->json([
+                    'message' => 'Usuario no encontrado',
+                ], 404);
+            }
+    
+            $user->delete();
+    
+            Audith::new($id_user, $action, ['deleted_user_id' => $id_user], 200, null);
+            
+            DB::commit();
+        } catch (Exception $e) {
+            DB::rollBack();
+            Audith::new($id_user, $action, ['deleted_user_id' => $id_user], 500, $e->getMessage());
+            Log::debug(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()]);
+            return response()->json([
+                'message' => $message,
+                'error' => $e->getMessage(),
+                'line' => $e->getLine(),
+            ], 500);
+        }
+    
+        $message = "Usuario eliminado con éxito";
+        return response()->json(compact("message"));
     }
 
     public function users_profiles()

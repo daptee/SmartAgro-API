@@ -60,6 +60,18 @@ class ReportController extends Controller
                 'main_grain_prices' => MainGrainPrice::where($filters)->with('plan')->get(),
             ];
 
+            // Verificar si todos los arrays están vacíos
+            $allEmpty = collect($data)->every(function ($items) {
+                return $items->isEmpty();
+            });
+
+            if ($allEmpty) {
+                return response()->json([
+                    'message' => 'No hay datos para el mes seleccionado. Por favor, cambie el mes de filtro.',
+                    'error_code' => 600
+                ], 422);
+            }
+
             // Registrar acción exitosa en auditoría
             Audith::new($id_user, $action, null, 200, null);
         } catch (Exception $e) {

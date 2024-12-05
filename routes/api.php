@@ -8,6 +8,7 @@ use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Http;
 
 // Auth
 Route::controller(AuthController::class)->group(function () {
@@ -27,7 +28,9 @@ Route::group(['middleware' => ['auth:api']], function ($router) {
         Route::post('users_change_status/{id}', 'change_status');
         Route::post('users_change_plan/{id}', 'change_plan');
         Route::put('users/update', 'update');
+        Route::delete('users/delete', 'destroy');
         Route::post('users/update/profile_picture', 'profile_picture');
+        Route::get('users/get_user_profile', 'get_user_profile');
     });
 
     // Reports
@@ -46,6 +49,25 @@ Route::get('localities', [LocalityProvinceController::class, 'get_localities']);
 
 // Provinces
 Route::get('provinces', [LocalityProvinceController::class, 'get_provinces']);
+
+// Dolar API
+Route::get('dolar/oficial', function() {
+    $response = Http::get("https://dolarapi.com/v1/dolares/oficial");   
+    if ($response->successful()) {
+        return $response->json();
+    } else {
+        return $response->throw();
+    }
+});
+
+Route::get('dolar/mayorista', function() {
+    $response = Http::get("https://dolarapi.com/v1/dolares/mayorista");   
+    if ($response->successful()) {
+        return $response->json();
+    } else {
+        return $response->throw();
+    }
+});
 
 Route::get('/clear-cache', function() {
     Artisan::call('config:clear');

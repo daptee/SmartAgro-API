@@ -165,8 +165,9 @@ class ExcelImport implements WithMultipleSheets
     {
         $jsonData = [
             'activo' => $row[2],
-            '23/24' => $row[3],
-            '24/25' => $row[4],
+            'nomenclatura resumida' => $row[3],
+            '23/24' => $row[4],
+            '24/25' => $row[5],
         ];
         $plan = Plan::where('plan', $row[0])->first();
         return [
@@ -195,10 +196,10 @@ class ExcelImport implements WithMultipleSheets
     {
         $jsonData = [
             'REGISTRO DE LLUVIAS X PROVINCIA' => $row[2],
-            'PROM Julio 23' => $row[3],
-            'ACUM Julio 23' => $row[4],
-            'PROM Julio 24' => $row[5],
-            'ACUM Julio 24' => $row[6],
+            'PROM 23' => $row[3],
+            'ACUM 23' => $row[4],
+            'PROM 24' => $row[5],
+            'ACUM 24' => $row[6],
             'Var. Acum 24 Vs 23' => $row[7],
         ];
         $plan = Plan::where('plan', $row[0])->first();
