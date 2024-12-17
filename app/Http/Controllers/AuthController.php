@@ -49,7 +49,6 @@ class AuthController extends Controller
             'last_name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email',
             'password' => 'required|string|min:8',
-            'id_locality' => 'required|numeric',
             'id_user_profile' => 'required|numeric',
             'g-recaptcha-response' => 'required'
         ]);
@@ -64,7 +63,7 @@ class AuthController extends Controller
         $message = "Error al crear {$this->s} en registro";
         $action = "Registro de usuario";
         $data = $request->all();
-        $new_user = null;
+        // $new_user = null;
 
         // Configura los parámetros para enviar en la URL
         $params = [
