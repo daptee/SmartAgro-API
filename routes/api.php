@@ -54,6 +54,7 @@ Route::get('provinces', [LocalityProvinceController::class, 'get_provinces']);
 
 Route::controller(GetsFunctionsController::class)->group(function () {
     Route::get('/countries', 'countries');
+    Route::get('/plans', 'plans');
 });
 
 // Dolar API
