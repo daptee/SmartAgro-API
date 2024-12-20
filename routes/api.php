@@ -4,6 +4,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\GeneralImportController;
 use App\Http\Controllers\GetsFunctionsController;
 use App\Http\Controllers\LocalityProvinceController;
+use App\Http\Controllers\PlanController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
@@ -56,6 +57,8 @@ Route::controller(GetsFunctionsController::class)->group(function () {
     Route::get('/countries', 'countries');
     Route::get('/plans', 'plans');
 });
+
+Route::post('/subscription', [PlanController::class, 'subscription']);
 
 // Dolar API
 Route::get('dolar/oficial', function() {
