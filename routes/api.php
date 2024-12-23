@@ -2,7 +2,9 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\GeneralImportController;
+use App\Http\Controllers\GetsFunctionsController;
 use App\Http\Controllers\LocalityProvinceController;
+use App\Http\Controllers\PlanController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
@@ -16,6 +18,7 @@ Route::controller(AuthController::class)->group(function () {
     Route::post('auth/login', 'auth_login');
     Route::post('auth/password-recovery', 'auth_password_recovery');
     Route::post('auth/password-recovery-token', 'auth_password_recovery_token');
+    Route::post('auth/account-confirmation', 'auth_account_confirmation');
 });
 
 Route::group(['middleware' => ['auth:api']], function ($router) {
@@ -49,6 +52,13 @@ Route::get('localities', [LocalityProvinceController::class, 'get_localities']);
 
 // Provinces
 Route::get('provinces', [LocalityProvinceController::class, 'get_provinces']);
+
+Route::controller(GetsFunctionsController::class)->group(function () {
+    Route::get('/countries', 'countries');
+    Route::get('/plans', 'plans');
+});
+
+Route::post('/subscription', [PlanController::class, 'subscription']);
 
 // Dolar API
 Route::get('dolar/oficial', function() {

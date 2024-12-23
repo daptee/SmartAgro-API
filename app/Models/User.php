@@ -26,9 +26,12 @@ class User extends Authenticatable implements JWTSubject
         'phone',
         'password',
         'id_locality',
+        'id_country',
         'id_user_profile',
         'id_status',
-        'profile_picture'
+        'profile_picture',
+        'locality_name',
+        'province_name'
     ];
 
     /**
@@ -54,7 +57,7 @@ class User extends Authenticatable implements JWTSubject
         ];
     }
 
-    const DATA_WITH_ALL = ['locality', 'profile', 'plan', 'status'];
+    const DATA_WITH_ALL = ['locality', 'country', 'profile', 'plan', 'status'];
 
     public static function getAllDataUser($id)
     {
@@ -64,6 +67,11 @@ class User extends Authenticatable implements JWTSubject
     public function locality(): HasOne
     {
         return $this->hasOne(Locality::class, 'id', 'id_locality');
+    }
+
+    public function country(): HasOne
+    {
+        return $this->hasOne(Country::class, 'id', 'id_country');
     }
 
     public function profile(): HasOne
@@ -103,6 +111,9 @@ class User extends Authenticatable implements JWTSubject
             'plan' => $this->plan,
             'status' => $this->status, 
             'profile_picture' => $this->profile_picture,
+            'locality_name' => $this->locality_name,
+            'province_name' => $this->province_name,
+            'country' => $this->country
             // 'user_type' => $this->user_type,
             // 'email_confirmation' => $this->email_confirmation
         ];

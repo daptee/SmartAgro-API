@@ -39,7 +39,7 @@
           <table class="sm-w-full" style="width: 600px;" cellpadding="0" cellspacing="0" role="presentation">
             <tr>
   <td class="sm-py-32 sm-px-24" style="mso-line-height-rule: exactly; padding: 48px; text-align: center; font-family: Montserrat, -apple-system, 'Segoe UI', sans-serif;">
-    <a href="https://smartagro.io" style="font-family: 'Montserrat', sans-serif; mso-line-height-rule: exactly;">
+    <a href="{{ config('services.url_front') }}" style="font-family: 'Montserrat', sans-serif; mso-line-height-rule: exactly;">
       <img src="https://smartagro.io/firmas/smartagro-logo.png" width="200" alt="Smartagro" style="max-width: 100%; vertical-align: middle; line-height: 100%; border: 0;">
     </a>
   </td>
@@ -54,11 +54,11 @@
                         <p style="font-family: 'Montserrat', sans-serif; mso-line-height-rule: exactly; margin: 0; margin-bottom: 24px;">
                           ¡Gracias por sumarte a la comunidad SmartAgro!
                         </p>
-                        <p style="font-family: 'Montserrat', sans-serif; mso-line-height-rule: exactly; margin: 0; margin-bottom: 36px;">Ingresá a la plataforma y empezá a aprovechar toda la información que tenemos para vos.</p>                 
+                        <p style="font-family: 'Montserrat', sans-serif; mso-line-height-rule: exactly; margin: 0; margin-bottom: 36px;">Activa la cuenta para poder ingresár a la plataforma y empezar a aprovechar toda la información que tenemos para vos.</p>
                         <table cellpadding="0" cellspacing="0" role="presentation">
                           <tr>
                             <td style="mso-line-height-rule: exactly; mso-padding-alt: 16px 24px; border-radius: 4px; background-color: #16A860; font-family: Montserrat, -apple-system, 'Segoe UI', sans-serif;">
-                              <a href="https://app.smartagro.io" style="font-family: 'Montserrat', sans-serif; mso-line-height-rule: exactly; display: block; padding-left: 24px; padding-right: 24px; padding-top: 16px; padding-bottom: 16px; font-size: 16px; font-weight: 600; line-height: 100%; color: #ffffff; text-decoration: none;">Acceder a la plataforma &rarr;</a>
+                              <a href="{{ config('services.app_url_front') }}/confirmacion-cuenta/{{ Crypt::encrypt($user->email) }}" style="font-family: 'Montserrat', sans-serif; mso-line-height-rule: exactly; display: block; padding-left: 24px; padding-right: 24px; padding-top: 16px; padding-bottom: 16px; font-size: 16px; font-weight: 600; line-height: 100%; color: #ffffff; text-decoration: none;">Activar cuenta</a>
                             </td>
                           </tr>
                         </table>
@@ -92,8 +92,8 @@
     </p>
     <p style="font-family: 'Montserrat', sans-serif; mso-line-height-rule: exactly; color: #263238;">
       El uso de nuestro servicio y sitio web está sujeto a nuestros 
-      <a href="https://smartagro.io/terminos-y-condiciones/" class="hover-underline" style="font-family: 'Montserrat', sans-serif; mso-line-height-rule: exactly; color: #16A860; text-decoration: none;">Términos de uso</a> y
-      <a href="https://smartagro.io/politicas-de-privacidad/" style="font-family: 'Montserrat', sans-serif; mso-line-height-rule: exactly; color: #16A860; text-decoration: none;">Política de privacidad</a>.
+      <a href="{{ config('services.url_front') }}/terminos-y-condiciones/" class="hover-underline" style="font-family: 'Montserrat', sans-serif; mso-line-height-rule: exactly; color: #16A860; text-decoration: none;">Términos de uso</a> y
+      <a href="{{ config('services.url_front') }}/politicas-de-privacidad/" style="font-family: 'Montserrat', sans-serif; mso-line-height-rule: exactly; color: #16A860; text-decoration: none;">Política de privacidad</a>.
     </p>
   </td>
 </tr>

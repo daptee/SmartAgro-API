@@ -49,8 +49,8 @@ class AuthController extends Controller
             'last_name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email',
             'password' => 'required|string|min:8',
-            'id_locality' => 'required|numeric',
             'id_user_profile' => 'required|numeric',
+            'g-recaptcha-response' => 'required'
         ]);
     
         if ($validator->fails()) {
@@ -63,36 +63,97 @@ class AuthController extends Controller
         $message = "Error al crear {$this->s} en registro";
         $action = "Registro de usuario";
         $data = $request->all();
+        // $new_user = null;
+
+        // Configura los parámetros para enviar en la URL
+        $params = [
+            'secret' => config('services.recaptcha_secret_key'),
+            'response' => $request->input('g-recaptcha-response')
+        ];
+
+        // Construye la URL con los parámetros
+        $url = 'https://www.google.com/recaptcha/api/siteverify?' . http_build_query($params);
+
+        // Realiza la solicitud GET
+        $response = file_get_contents($url);
+
+        // Decodifica la respuesta JSON
+        $responseData = json_decode($response, true);
+
+        // Verifica si la puntuación es mayor o igual a 0.5
+        if (isset($responseData['score']) && $responseData['score'] >= 0.5){  
+            try {
+                DB::beginTransaction();
+
+                        $new_user = new $this->model($data);
+                        $new_user->save();
+                        
+                        Audith::new($new_user->id, $action, $request->all(), 200, null);
+                DB::commit();
+            } catch (Exception $e) {
+                DB::rollBack();
+                Audith::new(null, $action, $request->all(), 500, $e->getMessage());
+                Log::debug(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()]);
+                return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+            }
+
+
+            if($new_user){
+                try {
+                    Mail::to($new_user->email)->send(new WelcomeUserMailable($new_user));
+                    Audith::new($new_user->id, "Envio de mail de bienvenida exitoso.", $request->all(), 200, null);
+                } catch (Exception $e) {
+                    Audith::new($new_user->id, "Error al enviar mail de bienvenida.", $request->all(), 500, $e->getMessage());
+                    Log::debug(["message" => "Error al enviar mail de bienvenida.", "error" => $e->getMessage(), "line" => $e->getLine()]);
+                    // Retornamos que no se pudo enviar el mail o no hace falta solo queda en el log?
+                }
+            }
+
+            $data = $this->model::getAllDataUser($new_user->id);
+            $message = "Registro de {$this->s} exitoso";
+        }
+
+        return response(compact("message", "data"));
+    }
+
+    public function auth_account_confirmation(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required',
+            // 'password' => 'required',
+        ]);
+    
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Alguna de las validaciones falló',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
 
         try {
+            $decrypted_email = Crypt::decrypt($request->email);
+            // dd($decrypted_email);
+            $user = User::where('email', $decrypted_email)->first();
+
+            if(!$user)
+                return response()->json(['message' => 'Datos incompletos para procesar la confirmación de la cuenta.'], 400);
+
             DB::beginTransaction();
-                $new_user = new $this->model($data);
-                $new_user->save();
-
-                Audith::new($new_user->id, $action, $request->all(), 200, null);
+            
+                // $user->password = $request->password;
+                $user->email_confirmation = now()->format('Y-m-d H:i:s');
+                $user->save();
+            
+                Audith::new($user->id, "Confirmación de cuenta", $request->email, 200, null);
             DB::commit();
-        } catch (Exception $e) {
+        } catch (DecryptException $e) {
             DB::rollBack();
-            Audith::new(null, $action, $request->all(), 500, $e->getMessage());
-            Log::debug(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()]);
-            return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+            Audith::new(null, "Confirmación de cuenta", $request->email, 500, $e->getMessage());
+            Log::debug(["message" => "Error al realizar confirmación de cuenta.", "error" => $e->getMessage(), "line" => $e->getLine()]);
+            return response(["message" => "Error al realizar confirmación de cuenta", "error" => $e->getMessage(), "line" => $e->getLine()], 500);
         }
 
-
-        if($new_user){
-            try {
-                Mail::to($new_user->email)->send(new WelcomeUserMailable($new_user));
-                Audith::new($new_user->id, "Envio de mail de bienvenida exitoso.", $request->all(), 200, null);
-            } catch (Exception $e) {
-                Audith::new($new_user->id, "Error al enviar mail de bienvenida.", $request->all(), 500, $e->getMessage());
-                Log::debug(["message" => "Error al enviar mail de bienvenida.", "error" => $e->getMessage(), "line" => $e->getLine()]);
-                // Retornamos que no se pudo enviar el mail o no hace falta solo queda en el log?
-            }
-        }
-
-        $data = $this->model::getAllDataUser($new_user->id);
-        $message = "Registro de {$this->s} exitoso";
-        return response(compact("message", "data"));
+        return response()->json(['message' => 'Confirmación de cuenta exitosa.'], 200);
     }
 
     public function auth_login(LoginRequest $request)
