@@ -106,27 +106,74 @@ class PlanController extends Controller
 
     public function handleWebhook(Request $request)
     {
-        Log::debug(['Webhook received' => $request->all()]);
-        
-        $notificationId = $request->input('id'); // ID de la notificación
+        // Log de la notificación inicial recibida
+        Log::debug('Webhook received', ['data' => $request->all()]);
 
-        $response = Http::withToken(config('services.mercado_pago_access_token'))
+        $notificationId = $request->input('id'); // ID de la notificación
+        if (!$notificationId) {
+            Log::warning('Notification ID missing in webhook request');
+            return response()->json(['message' => 'Notification ID is missing'], 400);
+        }
+
+        try {
+            // Consultar detalles del pago
+            $paymentResponse = Http::withToken(config('services.mercado_pago_access_token'))
                 ->get("https://api.mercadopago.com/v1/payments/{$notificationId}");
 
-        if ($response->successful()) {
-            Log::debug(['response json payment ID' => $response->json()]);
-        } else {
-            Log::debug(['error response json payment ID' => $response->throw()]);
-        }
+            if ($paymentResponse->successful()) {
+                $paymentData = $paymentResponse->json();
+                Log::debug('Payment details received', ['data' => $paymentData]);
+            } else {
+                Log::error('Error fetching payment details', ['error' => $paymentResponse->json()]);
+            }
 
-        $responseSP = Http::withToken(config('services.mercado_pago_access_token'))
+            // Consultar detalles de suscripción (Preapproval Plan)
+            $subscriptionResponse = Http::withToken(config('services.mercado_pago_access_token'))
                 ->get("https://api.mercadopago.com/preapproval_plan/{$notificationId}");
 
-        if ($responseSP->successful()) {
-            Log::debug(['response json subscription ID' => $response->json()]);
-        } else {
-            Log::debug(['error response json subscription ID' => $response->throw()]);
+            if ($subscriptionResponse->successful()) {
+                $subscriptionData = $subscriptionResponse->json();
+                Log::debug('Subscription details received', ['data' => $subscriptionData]);
+            } else {
+                Log::error('Error fetching subscription details', ['error' => $subscriptionResponse->json()]);
+            }
+        } catch (\Exception $e) {
+            // Manejo de errores generales
+            Log::error('Error processing webhook', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return response()->json(['message' => 'Internal server error'], 500);
         }
+
+        // Respuesta exitosa al webhook
+        return response()->json(['message' => 'Webhook handled successfully'], 200);
+    }
+
+
+    public function handleWebhookBK(Request $request)
+    {
+        // Log::debug(['Webhook received' => $request->all()]);
+        
+        // $notificationId = $request->input('id'); // ID de la notificación
+
+        // $response = Http::withToken(config('services.mercado_pago_access_token'))
+        //         ->get("https://api.mercadopago.com/v1/payments/{$notificationId}");
+
+        // if ($response->successful()) {
+        //     Log::debug(['response json payment ID' => $response->json()]);
+        // } else {
+        //     Log::debug(['error response json payment ID' => $response->throw()]);
+        // }
+
+        // $responseSP = Http::withToken(config('services.mercado_pago_access_token'))
+        //         ->get("https://api.mercadopago.com/preapproval_plan/{$notificationId}");
+
+        // if ($responseSP->successful()) {
+        //     Log::debug(['response json subscription ID' => $responseSP->json()]);
+        // } else {
+        //     Log::debug(['error response json subscription ID' => $responseSP->throw()]);
+        // }
 
         // Verifica que la solicitud provenga de Mercado Pago
         // if (!$request->has('id') || !$request->has('type')) {
