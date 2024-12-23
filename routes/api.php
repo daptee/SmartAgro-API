@@ -60,6 +60,8 @@ Route::controller(GetsFunctionsController::class)->group(function () {
 
 Route::post('/subscription', [PlanController::class, 'subscription']);
 
+Route::post('/webhooks/mercadopago', [PlanController::class, 'handleWebhook']);
+
 // Dolar API
 Route::get('dolar/oficial', function() {
     $response = Http::get("https://dolarapi.com/v1/dolares/oficial");   
