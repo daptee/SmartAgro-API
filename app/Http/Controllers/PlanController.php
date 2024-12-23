@@ -107,6 +107,18 @@ class PlanController extends Controller
     public function handleWebhook(Request $request)
     {
         Log::debug(['Webhook received' => $request->all()]);
+        
+        $notificationId = $request->input('id'); // ID de la notificación
+
+        $response = Http::withToken(config('services.mercado_pago_access_token'))
+                ->get("https://api.mercadopago.com/v1/payments/{$notificationId}");
+
+        if ($response->successful()) {
+            Log::debug(['response json notification ID' => $response->json()]);
+        } else {
+            Log::debug(['error response json notification ID' => $response->throw()]);
+        }
+
         // Verifica que la solicitud provenga de Mercado Pago
         // if (!$request->has('id') || !$request->has('type')) {
         //     return response()->json(['message' => 'Invalid notification'], 400);
