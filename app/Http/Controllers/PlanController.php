@@ -114,9 +114,18 @@ class PlanController extends Controller
                 ->get("https://api.mercadopago.com/v1/payments/{$notificationId}");
 
         if ($response->successful()) {
-            Log::debug(['response json notification ID' => $response->json()]);
+            Log::debug(['response json payment ID' => $response->json()]);
         } else {
-            Log::debug(['error response json notification ID' => $response->throw()]);
+            Log::debug(['error response json payment ID' => $response->throw()]);
+        }
+
+        $responseSP = Http::withToken(config('services.mercado_pago_access_token'))
+                ->get("https://api.mercadopago.com/preapproval_plan/{$notificationId}");
+
+        if ($responseSP->successful()) {
+            Log::debug(['response json subscription ID' => $response->json()]);
+        } else {
+            Log::debug(['error response json subscription ID' => $response->throw()]);
         }
 
         // Verifica que la solicitud provenga de Mercado Pago
