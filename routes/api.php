@@ -39,10 +39,12 @@ Route::group(['middleware' => ['auth:api']], function ($router) {
     // Reports
     Route::controller(ReportController::class)->group(function () {
         Route::get('reports', 'reports');
+        Route::get('business-indicators', 'business_indicators');
     });
 });
 
 Route::post('/import-reports', [GeneralImportController::class, 'import'])->name('import.reports');
+Route::post('/import-business-indicators', [GeneralImportController::class, 'import_business_indicators']);
 
 // User profiles
 Route::get('users_profiles', [UserController::class, 'users_profiles']);
