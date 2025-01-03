@@ -111,6 +111,8 @@ class AuthController extends Controller
 
             $data = $this->model::getAllDataUser($new_user->id);
             $message = "Registro de {$this->s} exitoso";
+        }else{
+            return response()->json(['message' => 'Error en validacion de recaptcha.'], 422);
         }
 
         return response(compact("message", "data"));
