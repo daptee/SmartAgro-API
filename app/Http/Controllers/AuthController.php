@@ -167,6 +167,11 @@ class AuthController extends Controller
             if(!$user)
                 return response()->json(['message' => 'Usuario y/o clave no válidos.'], 400);
 
+            // Verificar si el usuario tiene el email confirmado
+            if (is_null($user->email_confirmation)) {
+                return response()->json(['message' => 'La cuenta no está verificada. Por favor, verifica tu correo electrónico.'], 400);
+            }
+            
             if (! $token = auth()->attempt($credentials)) {
                 return response()->json(['message' => 'Usuario y/o clave no válidos.'], 401);
             }
