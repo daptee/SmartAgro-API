@@ -39,10 +39,12 @@ Route::group(['middleware' => ['auth:api']], function ($router) {
     // Reports
     Route::controller(ReportController::class)->group(function () {
         Route::get('reports', 'reports');
+        Route::get('business-indicators', 'business_indicators');
     });
 });
 
 Route::post('/import-reports', [GeneralImportController::class, 'import'])->name('import.reports');
+Route::post('/import-business-indicators', [GeneralImportController::class, 'import_business_indicators']);
 
 // User profiles
 Route::get('users_profiles', [UserController::class, 'users_profiles']);
@@ -59,6 +61,8 @@ Route::controller(GetsFunctionsController::class)->group(function () {
 });
 
 Route::post('/subscription', [PlanController::class, 'subscription']);
+
+Route::post('/webhooks/mercadopago', [PlanController::class, 'handleWebhook']);
 
 // Dolar API
 Route::get('dolar/oficial', function() {

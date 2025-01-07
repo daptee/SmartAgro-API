@@ -75,13 +75,12 @@ class ExcelImport implements WithMultipleSheets
     // Funciones específicas para cada hoja
     private function processNewsSheet($row)
     {
-        $plan = Plan::where('plan', $row[0])->first();
         return [
             'img' => $row[2],
             'title' => $row[3],
             'new' => $row[4],
             'date' => $row[1],
-            'id_plan' => $plan ? $plan->id : null,
+            'id_plan' => $row[0],
         ];
     }
 
@@ -106,9 +105,8 @@ class ExcelImport implements WithMultipleSheets
                 'var (%)' => $row[13]
             ]
         ];
-        $plan = Plan::where('plan', $row[0])->first();
         return [
-            'id_plan' => $plan ? $plan->id : null,
+            'id_plan' => $row[0],
             'date' => $row[1],
             'icon' => $row[2],
             'data' => $jsonData,
@@ -124,9 +122,8 @@ class ExcelImport implements WithMultipleSheets
             'prom' => $row[5],
             'Var (%)*' => $row[6]
         ];
-        $plan = Plan::where('plan', $row[0])->first();
         return [
-            'id_plan' => $plan ? $plan->id : null,
+            'id_plan' => $row[0],
             'date' => $row[1],
             'data' => $jsonData,
         ];
@@ -141,9 +138,8 @@ class ExcelImport implements WithMultipleSheets
             'prom' => $row[5],
             'Var (%)*' => $row[6]
         ];
-        $plan = Plan::where('plan', $row[0])->first();
         return [
-            'id_plan' => $plan ? $plan->id : null,
+            'id_plan' => $row[0],
             'date' => $row[1],
             'data' => $jsonData,
         ];
@@ -151,9 +147,9 @@ class ExcelImport implements WithMultipleSheets
 
     private function processInsightSheet($row)
     {
-        $plan = Plan::where('plan', $row[0])->first();
+        
         return [
-            'id_plan' => $plan ? $plan->id : null,
+            'id_plan' => $row[0],
             'date' => $row[1],
             'icon' => $row[2],
             'title' => $row[3],
@@ -169,9 +165,9 @@ class ExcelImport implements WithMultipleSheets
             '23/24' => $row[4],
             '24/25' => $row[5],
         ];
-        $plan = Plan::where('plan', $row[0])->first();
+        
         return [
-            'id_plan' => $plan ? $plan->id : null,
+            'id_plan' => $row[0],
             'date' => $row[1],
             'data' => $jsonData,
         ];
@@ -184,9 +180,9 @@ class ExcelImport implements WithMultipleSheets
             '23/24' => $row[3],
             '24/25' => $row[4],
         ];
-        $plan = Plan::where('plan', $row[0])->first();
+        
         return [
-            'id_plan' => $plan ? $plan->id : null,
+            'id_plan' => $row[0],
             'date' => $row[1],
             'data' => $jsonData,
         ];
@@ -202,9 +198,9 @@ class ExcelImport implements WithMultipleSheets
             'ACUM 24' => $row[6],
             'Var. Acum 24 Vs 23' => $row[7],
         ];
-        $plan = Plan::where('plan', $row[0])->first();
+        
         return [
-            'id_plan' => $plan ? $plan->id : null,
+            'id_plan' => $row[0],
             'date' => $row[1],
             'data' => $jsonData,
         ];
@@ -218,9 +214,8 @@ class ExcelImport implements WithMultipleSheets
             'Max' => $row[4],
             'Prom' => $row[5],
         ];
-        $plan = Plan::where('plan', $row[0])->first();
         return [
-            'id_plan' => $plan ? $plan->id : null,
+            'id_plan' => $row[0],
             'date' => $row[1],
             'data' => $jsonData,
         ];
