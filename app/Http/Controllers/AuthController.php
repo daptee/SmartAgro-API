@@ -32,8 +32,8 @@ class AuthController extends Controller
     public $s = "usuario";
     public $sp = "usuarios";
     public $ss = "usuario/s";
-    public $v = "o"; 
-    public $pr = "el"; 
+    public $v = "o";
+    public $pr = "el";
     public $prp = "los";
 
     // public function __construct()
@@ -41,7 +41,7 @@ class AuthController extends Controller
     //     # By default we are using here auth:api middleware
     //     $this->middleware('auth:api', ['except' => ['auth_login']]);
     // }
-    
+
     public function auth_register(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -52,7 +52,7 @@ class AuthController extends Controller
             'id_user_profile' => 'required|numeric',
             'g-recaptcha-response' => 'required'
         ]);
-    
+
         if ($validator->fails()) {
             return response()->json([
                 'message' => 'Alguna de las validaciones falló',
@@ -81,14 +81,14 @@ class AuthController extends Controller
         $responseData = json_decode($response, true);
 
         // Verifica si la puntuación es mayor o igual a 0.5
-        if (isset($responseData['score']) && $responseData['score'] >= 0.5){  
+        if (isset($responseData['score']) && $responseData['score'] >= 0.5) {
             try {
                 DB::beginTransaction();
 
-                        $new_user = new $this->model($data);
-                        $new_user->save();
-                        
-                        Audith::new($new_user->id, $action, $request->all(), 200, null);
+                $new_user = new $this->model($data);
+                $new_user->save();
+
+                Audith::new($new_user->id, $action, $request->all(), 200, null);
                 DB::commit();
             } catch (Exception $e) {
                 DB::rollBack();
@@ -98,7 +98,7 @@ class AuthController extends Controller
             }
 
 
-            if($new_user){
+            if ($new_user) {
                 try {
                     Mail::to($new_user->email)->send(new WelcomeUserMailable($new_user));
                     Audith::new($new_user->id, "Envio de mail de bienvenida exitoso.", $request->all(), 200, null);
@@ -111,7 +111,7 @@ class AuthController extends Controller
 
             $data = $this->model::getAllDataUser($new_user->id);
             $message = "Registro de {$this->s} exitoso";
-        }else{
+        } else {
             return response()->json(['message' => 'Error en validacion de recaptcha.'], 422);
         }
 
@@ -151,7 +151,7 @@ class AuthController extends Controller
             'email' => 'required',
             // 'password' => 'required',
         ]);
-    
+
         if ($validator->fails()) {
             return response()->json([
                 'message' => 'Alguna de las validaciones falló',
@@ -164,16 +164,16 @@ class AuthController extends Controller
             // dd($decrypted_email);
             $user = User::where('email', $decrypted_email)->first();
 
-            if(!$user)
+            if (!$user)
                 return response()->json(['message' => 'Datos incompletos para procesar la confirmación de la cuenta.'], 400);
 
             DB::beginTransaction();
-            
-                // $user->password = $request->password;
-                $user->email_confirmation = now()->format('Y-m-d H:i:s');
-                $user->save();
-            
-                Audith::new($user->id, "Confirmación de cuenta", $request->email, 200, null);
+
+            // $user->password = $request->password;
+            $user->email_confirmation = now()->format('Y-m-d H:i:s');
+            $user->save();
+
+            Audith::new($user->id, "Confirmación de cuenta", $request->email, 200, null);
             DB::commit();
         } catch (DecryptException $e) {
             DB::rollBack();
@@ -188,31 +188,30 @@ class AuthController extends Controller
     public function auth_login(LoginRequest $request)
     {
         $credentials = $request->only('email', 'password');
-        try{
-            $user = User::where('email' , $credentials['email'])->first();
+        try {
+            $user = User::where('email', $credentials['email'])->first();
 
-            if(!$user)
+            if (!$user)
                 return response()->json(['message' => 'Usuario y/o clave no válidos.'], 400);
 
             // Verificar si el usuario tiene el email confirmado
             if (is_null($user->email_confirmation)) {
                 return response()->json(['message' => 'La cuenta no está verificada. Por favor, verifica tu correo electrónico.'], 400);
             }
-            
+
             if (! $token = auth()->attempt($credentials)) {
                 return response()->json(['message' => 'Usuario y/o clave no válidos.'], 401);
             }
 
             Audith::new($user->id, "Login de usuario", $credentials['email'], 200, null);
-
-        }catch (Exception $e) {
+        } catch (Exception $e) {
             Audith::new(null, "Login de usuario", $credentials['email'], 500, $e->getMessage());
             Log::debug(["message" => "No fue posible crear el Token de Autenticación.", "error" => $e->getMessage(), "line" => $e->getLine()]);
             return response()->json(['message' => 'No fue posible crear el Token de Autenticación.'], 500);
         }
-    
+
         return $this->respondWithToken($token);
-    } 
+    }
 
 
     public function auth_password_recovery(Request $request)
@@ -221,7 +220,7 @@ class AuthController extends Controller
             'email' => 'required',
             // 'password' => 'required',
         ]);
-    
+
         $action = "Cambio de contraseña";
 
         if ($validator->fails()) {
@@ -233,28 +232,28 @@ class AuthController extends Controller
 
         try {
             // $decrypted_email = Crypt::decrypt($request->email);
-            
+
             $user = User::where('email', $request->email)->first();
 
-            if(!$user)
+            if (!$user)
                 return response()->json(['message' => 'Datos incompletos para procesar el cambio de contraseña.'], 400);
 
             DB::beginTransaction();
-            
-                $str_random_password = Str::random(10);
-                $user->password = $str_random_password;
-                $user->save();
-            
-                Audith::new($user->id, $action, $request->email, 200, null);
 
-                try {
-                    Mail::to($user->email)->send(new RecoverPasswordMailable($user, $str_random_password));
-                    Audith::new($user->id, "Recupero de contraseña", $request->email, 200, null);
-                } catch (Exception $e) {
-                    Audith::new($user->id, "Recupero de contraseña", $request->email, 500, $e->getMessage());
-                    Log::debug(["message" => "Error en recupero de contraseña", "error" => $e->getMessage(), "line" => $e->getLine()]);
-                    return response(["message" => "Error en recupero de contraseña", "error" => $e->getMessage(), "line" => $e->getLine()], 500);
-                }
+            $str_random_password = Str::random(10);
+            $user->password = $str_random_password;
+            $user->save();
+
+            Audith::new($user->id, $action, $request->email, 200, null);
+
+            try {
+                Mail::to($user->email)->send(new RecoverPasswordMailable($user, $str_random_password));
+                Audith::new($user->id, "Recupero de contraseña", $request->email, 200, null);
+            } catch (Exception $e) {
+                Audith::new($user->id, "Recupero de contraseña", $request->email, 500, $e->getMessage());
+                Log::debug(["message" => "Error en recupero de contraseña", "error" => $e->getMessage(), "line" => $e->getLine()]);
+                return response(["message" => "Error en recupero de contraseña", "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+            }
             DB::commit();
         } catch (DecryptException $e) {
             DB::rollBack();
@@ -272,7 +271,7 @@ class AuthController extends Controller
             // 'old_password' => 'required',
             'password' => 'required',
         ]);
-    
+
         if ($validator->fails()) {
             return response()->json([
                 'message' => 'Alguna de las validaciones falló',
@@ -285,18 +284,18 @@ class AuthController extends Controller
         $id_user = Auth::user()->id ?? null;
 
         try {
-            
+
             $user = User::find(Auth::user()->id);
 
             // if(!Hash::check($request->old_password, $user->password))
-                // return response()->json(['message' => 'Contraseña anterior incorrecta.'], 400);
+            // return response()->json(['message' => 'Contraseña anterior incorrecta.'], 400);
 
             DB::beginTransaction();
-            
-                $user->password = $request->password;
-                $user->save();
-            
-                Audith::new($id_user, $action, $user->email, 200, null);
+
+            $user->password = $request->password;
+            $user->save();
+
+            Audith::new($id_user, $action, $user->email, 200, null);
             DB::commit();
         } catch (Exception $e) {
             DB::rollBack();
@@ -311,13 +310,13 @@ class AuthController extends Controller
     public function logout()
     {
         $email = Auth::user()->email;
-        $user_id = Auth::user()->id; 
-        try{
+        $user_id = Auth::user()->id;
+        try {
             auth()->logout();
 
             Audith::new($user_id, "Logout", $email, 200, null);
             return response()->json(['message' => 'Logout exitoso.']);
-        }catch (Exception $e) {
+        } catch (Exception $e) {
             Audith::new($user_id, "Logout", $email, 500, $e->getMessage());
             Log::debug(["message" => "Error al realizar logout", "error" => $e->getMessage(), "line" => $e->getLine()]);
             return response(["message" => "Error al realizar logout", "error" => $e->getMessage(), "line" => $e->getLine()], 500);
@@ -333,7 +332,7 @@ class AuthController extends Controller
         // $user_response->last_name = $user->last_name;
         // $user_response->user_type = $user->user_type;
 
-        $data = [ 
+        $data = [
             'access_token' => $token,
             // 'user' => $user_response
         ];
@@ -343,5 +342,4 @@ class AuthController extends Controller
             'data' => $data
         ]);
     }
-
 }
