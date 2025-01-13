@@ -19,6 +19,7 @@ Route::controller(AuthController::class)->group(function () {
     Route::post('auth/password-recovery', 'auth_password_recovery');
     Route::post('auth/password-recovery-token', 'auth_password_recovery_token');
     Route::post('auth/account-confirmation', 'auth_account_confirmation');
+    Route::post('auth/resend-welcome-email', 'resend_welcome_email');
 });
 
 Route::group(['middleware' => ['auth:api']], function ($router) {

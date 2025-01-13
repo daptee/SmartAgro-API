@@ -118,6 +118,33 @@ class AuthController extends Controller
         return response(compact("message", "data"));
     }
 
+    public function resend_welcome_email(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|string|email',
+        ]);
+    
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Alguna de las validaciones falló',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $email = $request->email;
+        try {
+            $user = User::where('email' , $email)->first();
+            Mail::to($user->email)->send(new WelcomeUserMailable($user));
+            Audith::new($user->id, "Reenvio de mail de bienvenida exitoso.", $request->all(), 200, null);
+        } catch (Exception $e) {
+            Audith::new($user->id, "Error al reenviar mail de bienvenida.", $request->all(), 500, $e->getMessage());
+            Log::debug(["message" => "Error al reenviar mail de bienvenida.", "error" => $e->getMessage(), "line" => $e->getLine()]);
+            return response()->json(['message' => 'Error en reenvio de mail de bienvenida.'], 500);
+        }
+
+        return response()->json(['message' => 'Reenvio de mail de bienvenida exitoso.'], 200);
+    }
+
     public function auth_account_confirmation(Request $request)
     {
         $validator = Validator::make($request->all(), [
