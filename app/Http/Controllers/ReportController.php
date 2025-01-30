@@ -45,13 +45,8 @@ class ReportController extends Controller
         try {
             $filters = function($query) use ($id_plan, $month, $year) {
                 $query->whereYear('date', $year)
-                      ->whereMonth('date', $month);
-
-                if ($id_plan == 1) { // Usuario de plan gratuito
-                    $query->where('id_plan', 1);
-                } elseif ($id_plan == 2) { // Usuario de plan pago
-                    $query->whereIn('id_plan', [1, 2]);
-                }
+                      ->whereMonth('date', $month)
+                      ->where('id_plan', '<=', $id_plan);
             };
 
             // Realizar las consultas a todas las tablas
@@ -110,13 +105,8 @@ class ReportController extends Controller
         try {
             $filters = function ($query) use ($id_plan, $month, $year) {
                 $query->whereYear('date', $year)
-                    ->whereMonth('date', $month);
-
-                if ($id_plan == 1) { // Usuario de plan gratuito
-                    $query->where('id_plan', 1);
-                } elseif ($id_plan == 2) { // Usuario de plan pago
-                    $query->whereIn('id_plan', [1, 2]);
-                }
+                    ->whereMonth('date', $month)
+                    ->where('id_plan', '<=', $id_plan);
             };
 
             // Consultas a las nuevas tablas
