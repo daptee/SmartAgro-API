@@ -7,6 +7,7 @@ use App\Http\Controllers\LocalityProvinceController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\UserController;
+use App\Http\Middleware\CheckPlan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Artisan;
@@ -40,7 +41,7 @@ Route::group(['middleware' => ['auth:api']], function ($router) {
     // Reports
     Route::controller(ReportController::class)->group(function () {
         Route::get('reports', 'reports');
-        Route::get('business-indicators', 'business_indicators');
+        Route::get('business-indicators', 'business_indicators')->middleware(CheckPlan::class);
     });
 });
 
