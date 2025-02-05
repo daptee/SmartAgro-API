@@ -35,6 +35,7 @@ return [
         ],
     ],
 
+    'app_environment' => env('APP_ENVIRONMENT'),
     'app_url_front' => env('APP_URL_FRONT'),
     'url_front' => env('URL_FRONT'),
     'recaptcha_secret_key' => env('RECAPTCHA_SECRET_KEY'),

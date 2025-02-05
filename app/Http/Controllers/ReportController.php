@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\SendMassEmail;
 use App\Models\AgriculturalInputOutputRelationship;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -21,6 +22,7 @@ use App\Models\GrossMarginsTrend2;
 use App\Models\LivestockInputOutputRatio;
 use App\Models\PitIndicator;
 use App\Models\ProductPrice;
+use App\Models\User;
 use Exception;
 use Illuminate\Support\Facades\Log;
 
@@ -142,5 +144,25 @@ class ReportController extends Controller
         }
 
         return response()->json(['data' => $data], 200);
+    }
+
+    public function notification_users_report()
+    {
+        if (config('services.app_environment') == 'DEV') {
+            $users = User::whereIn('email', [
+                'enzo100amarilla@gmail.com',
+                'slarramendy@daptee.com.ar'
+            ])->get();
+        } else {
+            $users = User::all();
+        }
+
+        $mensaje = "Hola, este es un mensaje masivo.";
+
+        $users->chunk(50, function ($chunk) use ($mensaje) {
+            dispatch(new SendMassEmail($chunk, $mensaje))->delay(now()->addSeconds(10));
+        });
+
+        return response()->json(['message' => 'Correos en proceso de envío']);
     }
 }
