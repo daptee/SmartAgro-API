@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\SendMassEmail;
+use App\Mail\MassNotification;
 use App\Models\AgriculturalInputOutputRelationship;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -25,6 +26,7 @@ use App\Models\ProductPrice;
 use App\Models\User;
 use Exception;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class ReportController extends Controller
 {
@@ -150,19 +152,27 @@ class ReportController extends Controller
     {
         if (config('services.app_environment') == 'DEV') {
             $users = User::whereIn('email', [
-                'enzo100amarilla@gmail.com',
                 'slarramendy@daptee.com.ar'
-            ])->get();
+            ])->pluck('email')->toArray();
         } else {
-            $users = User::all();
+            $users = User::pluck('email')->toArray();
         }
 
-        $mensaje = "Hola, este es un mensaje masivo.";
+        if (empty($users)) {
+            return response()->json(['message' => 'No hay destinatarios'], 400);
+        }
 
-        $users->chunk(50, function ($chunk) use ($mensaje) {
-            dispatch(new SendMassEmail($chunk, $mensaje))->delay(now()->addSeconds(10));
-        });
+        try {
+            Mail::to('enzo100amarilla@gmail.com') // Dirección de "envío principal"
+                ->bcc($users) // Todos los demás en BCC
+                ->send(new MassNotification());
 
-        return response()->json(['message' => 'Correos en proceso de envío']);
+            Log::info("Correo enviado a múltiples destinatarios en BCC");
+
+            return response()->json(['message' => 'Correos enviados']);
+        } catch (\Exception $e) {
+            Log::error("Error enviando correo: " . $e->getMessage());
+            return response()->json(['message' => 'Error enviando correos'], 500);
+        }
     }
 }
