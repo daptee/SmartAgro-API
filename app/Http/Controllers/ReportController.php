@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\SendMassEmail;
+use App\Mail\MassNotification;
 use App\Models\AgriculturalInputOutputRelationship;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -21,8 +23,10 @@ use App\Models\GrossMarginsTrend2;
 use App\Models\LivestockInputOutputRatio;
 use App\Models\PitIndicator;
 use App\Models\ProductPrice;
+use App\Models\User;
 use Exception;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class ReportController extends Controller
 {
@@ -45,13 +49,8 @@ class ReportController extends Controller
         try {
             $filters = function($query) use ($id_plan, $month, $year) {
                 $query->whereYear('date', $year)
-                      ->whereMonth('date', $month);
-
-                if ($id_plan == 1) { // Usuario de plan gratuito
-                    $query->where('id_plan', 1);
-                } elseif ($id_plan == 2) { // Usuario de plan pago
-                    $query->whereIn('id_plan', [1, 2]);
-                }
+                      ->whereMonth('date', $month)
+                      ->where('id_plan', '<=', $id_plan);
             };
 
             // Realizar las consultas a todas las tablas
@@ -110,13 +109,8 @@ class ReportController extends Controller
         try {
             $filters = function ($query) use ($id_plan, $month, $year) {
                 $query->whereYear('date', $year)
-                    ->whereMonth('date', $month);
-
-                if ($id_plan == 1) { // Usuario de plan gratuito
-                    $query->where('id_plan', 1);
-                } elseif ($id_plan == 2) { // Usuario de plan pago
-                    $query->whereIn('id_plan', [1, 2]);
-                }
+                    ->whereMonth('date', $month)
+                    ->where('id_plan', '<=', $id_plan);
             };
 
             // Consultas a las nuevas tablas
@@ -152,5 +146,33 @@ class ReportController extends Controller
         }
 
         return response()->json(['data' => $data], 200);
+    }
+
+    public function notification_users_report()
+    {
+        if (config('services.app_environment') == 'DEV') {
+            $users = User::whereIn('email', [
+                'slarramendy@daptee.com.ar'
+            ])->pluck('email')->toArray();
+        } else {
+            $users = User::pluck('email')->toArray();
+        }
+
+        if (empty($users)) {
+            return response()->json(['message' => 'No hay destinatarios'], 400);
+        }
+
+        try {
+            Mail::to('enzo100amarilla@gmail.com') // Dirección de "envío principal"
+                ->bcc($users) // Todos los demás en BCC
+                ->send(new MassNotification());
+
+            Log::info("Correo enviado a múltiples destinatarios en BCC");
+
+            return response()->json(['message' => 'Correos enviados']);
+        } catch (\Exception $e) {
+            Log::error("Error enviando correo: " . $e->getMessage());
+            return response()->json(['message' => 'Error enviando correos'], 500);
+        }
     }
 }
