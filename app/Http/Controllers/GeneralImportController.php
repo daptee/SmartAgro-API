@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Imports\BusinessIndicators;
 use App\Imports\ExcelImport;
+use App\Jobs\SendMassEmail;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Models\Audith;
+use App\Models\User;
 use Exception;
 use Illuminate\Support\Facades\Log;
 
@@ -20,12 +22,12 @@ class GeneralImportController extends Controller
         ]);
         
         $action = "Importacion de news";
-        $message = "Hubo un error durante la importación. Por favor, verifica el archivo y vuelve a intentarlo.";
+        $message = "Datos importados correctamente.";
         try {
             // Importar el archivo
             Excel::import(new ExcelImport, $request->file('file'));
 
-            Audith::new(null, $action, $request->all(), 200, null);
+            Audith::new(null, $action, $request->all(), 200, ['message' => $message]);
 
             Log::channel('excel_processed')->info('Archivo procesado', [
                 'filename' => $request->file('file')->getClientOriginalName(),
@@ -33,12 +35,13 @@ class GeneralImportController extends Controller
             ]);
 
         } catch (Exception $e) {
+            $message = "Hubo un error durante la importación. Por favor, verifica el archivo y vuelve a intentarlo.";
             Audith::new(null, $action, $request->all(), 500, $e->getMessage());
             Log::debug(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()]);
             return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
         }
 
-        return response()->json(['message' => 'Datos importados correctamente.'], 200);
+        return response()->json(['message' => $message], 200);
     }
 
     public function import_business_indicators(Request $request)
@@ -49,12 +52,12 @@ class GeneralImportController extends Controller
         ]);
         
         $action = "Importacion de indicadores comerciales";
-        $message = "Hubo un error durante la importación. Por favor, verifica el archivo y vuelve a intentarlo.";
+        $message = "Datos importados correctamente.";
         try {
             // Importar el archivo
             Excel::import(new BusinessIndicators, $request->file('file'));
 
-            Audith::new(null, $action, $request->all(), 200, null);
+            Audith::new(null, $action, $request->all(), 200, ['message' => $message]);
 
             Log::channel('excel_processed')->info('Archivo procesado', [
                 'filename' => $request->file('file')->getClientOriginalName(),
@@ -62,11 +65,12 @@ class GeneralImportController extends Controller
             ]);
 
         } catch (Exception $e) {
+            $message = "Hubo un error durante la importación. Por favor, verifica el archivo y vuelve a intentarlo.";
             Audith::new(null, $action, $request->all(), 500, $e->getMessage());
             Log::debug(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()]);
             return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
         }
 
-        return response()->json(['message' => 'Datos importados correctamente.'], 200);
+        return response()->json(['message' => $message], 200);
     }
 }

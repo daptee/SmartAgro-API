@@ -20,7 +20,7 @@ class GetsFunctionsController extends Controller
         try {
             $data = Country::where('status', 1)->get();
 
-            Audith::new($id_user, "Listado de países", null, 200, null);
+            Audith::new($id_user, "Listado de países", null, 200, compact("data"));
         } catch (Exception $e) {
             Log::debug(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()]);
             Audith::new($id_user, "Listado de países", null, 500, $e->getMessage());
@@ -37,7 +37,7 @@ class GetsFunctionsController extends Controller
         try {
             $data = Plan::where('status', 1)->get();
 
-            Audith::new(null, "Listado de planes", null, 200, null);
+            Audith::new(null, "Listado de planes", null, 200, compact("data"));
         } catch (Exception $e) {
             Log::debug(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()]);
             Audith::new(null, "Listado de planes", null, 500, $e->getMessage());

@@ -79,7 +79,7 @@ class ReportController extends Controller
             }
 
             // Registrar acción exitosa en auditoría
-            Audith::new($id_user, $action, null, 200, null);
+            Audith::new($id_user, $action, null, 200, ['data' => $data]);
         } catch (Exception $e) {
             // Manejo de errores
             Log::debug(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()]);
@@ -137,7 +137,7 @@ class ReportController extends Controller
             }
 
             // Registrar acción exitosa en auditoría
-            Audith::new($id_user, $action, null, 200, null);
+            Audith::new($id_user, $action, null, 200, ['data' => $data]);
         } catch (Exception $e) {
             // Manejo de errores
             Log::debug(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()]);

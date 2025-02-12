@@ -74,7 +74,7 @@ class UserController extends Controller
         $id_user = Auth::user()->id ?? null;
         try {
             $data = User::getAllDataUser($id_user);
-            Audith::new($id_user, $action, $request->all(), 200, null);
+            Audith::new($id_user, $action, $request->all(), 200, compact("data"));
         } catch (Exception $e) {
             Log::debug(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()]);
             Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
@@ -110,25 +110,24 @@ class UserController extends Controller
             ], 422);
         }
 
-        $message = "Error al actualizar usuario";
         $action = "Actualización de usuario";
-
+        $message = "Usuario actualizado con exito";
         try {
             DB::beginTransaction();
                 $user = User::find($id);
                 $user->update($request->all());
               
-                Audith::new($id, $action, $request->all(), 200, null);
+                $data = User::getAllDataUser($id);
+                Audith::new($id, $action, $request->all(), 200, compact("message", "data"));
             DB::commit();
         } catch (Exception $e) {
             DB::rollBack();
+            $message = "Error al actualizar usuario";
             Audith::new($id, $action, $request->all(), 500, $e->getMessage());
             Log::debug(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()]);
             return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
         }
 
-        $data = User::getAllDataUser($id);
-        $message = "Usuario actualizado con exito";
         return response(compact("message", "data"));
     }
 
@@ -137,9 +136,9 @@ class UserController extends Controller
      */
     public function destroy()
     {
-        $message = "Error al eliminar el usuario";
         $action = "Eliminación de usuario";
         $id_user = Auth::user()->id;
+        $message = "Usuario eliminado con éxito";
     
         try {
             DB::beginTransaction();
@@ -153,11 +152,12 @@ class UserController extends Controller
     
             $user->delete();
     
-            Audith::new($id_user, $action, ['deleted_user_id' => $id_user], 200, null);
+            Audith::new($id_user, $action, ['deleted_user_id' => $id_user], 200, compact("message"));
             
             DB::commit();
         } catch (Exception $e) {
             DB::rollBack();
+            $message = "Error al eliminar el usuario";
             Audith::new($id_user, $action, ['deleted_user_id' => $id_user], 500, $e->getMessage());
             Log::debug(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()]);
             return response()->json([
@@ -167,20 +167,19 @@ class UserController extends Controller
             ], 500);
         }
     
-        $message = "Usuario eliminado con éxito";
         return response()->json(compact("message"));
     }
 
     public function users_profiles()
     {
-        $message = "Error al obtener registros";
         $action = "Listado de perfiles de usuario";
         $data = null;
         $id_user = Auth::user()->id ?? null;
         try {
             $data = UserProfile::orderBy('name')->get();
-            Audith::new($id_user, $action, null, 200, null);
+            Audith::new($id_user, $action, null, 200, compact("action", "data"));
         } catch (Exception $e) {
+            $message = "Error al obtener registros";
             Log::debug(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()]);
             Audith::new($id_user, $action, null, 500, $e->getMessage());
             return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
@@ -196,7 +195,7 @@ class UserController extends Controller
             'id_status' => 'required|numeric|exists:users_status,id'
         ]);
 
-        $message = "Error al actualizar estado de usuario";
+        $message = "Actualización de estado de usuario exitosa.";
         $action = "Actualización de estado de usuario";
         $data = null;
         $id_user = Auth::user()->id ?? null;
@@ -211,17 +210,17 @@ class UserController extends Controller
             $user->id_status = $request->id_status;
             $user->save();
 
-            Audith::new($id_user, $action, null, 200, null);
+            $data = $this->model::getAllDataUser($id);
+            Audith::new($id_user, $action, null, 200, compact("message", "data"));
             DB::commit();
         } catch (Exception $e) {
             DB::rollBack();
+            $message = "Error al actualizar estado de usuario";
             Log::debug(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()]);
             Audith::new($id_user, $action, null, 500, $e->getMessage());
             return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
         }
 
-        $data = $this->model::getAllDataUser($id);
-        $message = "Actualización de estado de usuario exitosa.";
         return response(compact("message", "data"));
     }
 
@@ -231,7 +230,7 @@ class UserController extends Controller
             'id_plan' => 'required|numeric|exists:plans,id'
         ]);
 
-        $message = "Error al actualizar plan de usuario";
+        $message = "Actualización de plan de usuario exitosa.";
         $action = "Actualización de plan de usuario";
         $data = null;
         $id_user = Auth::user()->id ?? null;
@@ -247,17 +246,17 @@ class UserController extends Controller
 
             UserPlan::save_history($user->id, $request->id_plan, "2024-08-21", "2024-08-31");
 
-            Audith::new($id_user, $action, null, 200, null);
+            $data = $this->model::getAllDataUser($id);
+            Audith::new($id_user, $action, null, 200, compact("message", "data"));
             DB::commit();
         } catch (Exception $e) {
             DB::rollBack();
+            $message = "Error al actualizar plan de usuario";
             Log::debug(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()]);
             Audith::new($id_user, $action, null, 500, $e->getMessage());
             return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
         }
 
-        $data = $this->model::getAllDataUser($id);
-        $message = "Actualización de plan de usuario exitosa.";
         return response(compact("message", "data"));
     }
 
@@ -274,7 +273,7 @@ class UserController extends Controller
             ], 422);
         }
 
-        $message = "Error al actualizar imagen de perfil";
+        $message = "Actualización de imagen de perfil exitosa.";
         $action = "Actualización de imagen de perfil";
         $data = null;
         $id_user = Auth::user()->id ?? null;
@@ -301,17 +300,17 @@ class UserController extends Controller
             $user->profile_picture = $path;
             $user->save();
 
-            Audith::new($id_user, $action, $request->all(), 200, null);
+            $data = $this->model::getAllDataUser($user->id);
+            Audith::new($id_user, $action, $request->all(), 200, compact("message", "data"));
             DB::commit();
         } catch (Exception $e) {
             DB::rollBack();
+            $message = "Error al actualizar imagen de perfil";
             Log::debug(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()]);
             Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
             return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
         }
 
-        $data = $this->model::getAllDataUser($user->id);
-        $message = "Actualización de imagen de perfil exitosa.";
         return response(compact("message", "data"));
     }
 

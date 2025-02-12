@@ -88,7 +88,10 @@ class AuthController extends Controller
                 $new_user = new $this->model($data);
                 $new_user->save();
 
-                Audith::new($new_user->id, $action, $request->all(), 200, null);
+                $data = $this->model::getAllDataUser($new_user->id);
+                $message = "Registro de {$this->s} exitoso";
+
+                Audith::new($new_user->id, $action, $request->all(), 200, compact("message", "data"));
                 DB::commit();
             } catch (Exception $e) {
                 DB::rollBack();
@@ -96,7 +99,6 @@ class AuthController extends Controller
                 Log::debug(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()]);
                 return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
             }
-
 
             if ($new_user) {
                 try {
@@ -107,10 +109,7 @@ class AuthController extends Controller
                     Log::debug(["message" => "Error al enviar mail de bienvenida.", "error" => $e->getMessage(), "line" => $e->getLine()]);
                     // Retornamos que no se pudo enviar el mail o no hace falta solo queda en el log?
                 }
-            }
-
-            $data = $this->model::getAllDataUser($new_user->id);
-            $message = "Registro de {$this->s} exitoso";
+            }            
         } else {
             return response()->json(['message' => 'Error en validacion de recaptcha.'], 422);
         }
@@ -132,17 +131,18 @@ class AuthController extends Controller
         }
 
         $email = $request->email;
+        $message = "Reenvio de mail de bienvenida exitoso.";
         try {
             $user = User::where('email' , $email)->first();
             Mail::to($user->email)->send(new WelcomeUserMailable($user));
-            Audith::new($user->id, "Reenvio de mail de bienvenida exitoso.", $request->all(), 200, null);
+            Audith::new($user->id, "Reenvio de mail de bienvenida exitoso.", $request->all(), 200, ["message" => $message]);
         } catch (Exception $e) {
             Audith::new($user->id, "Error al reenviar mail de bienvenida.", $request->all(), 500, $e->getMessage());
             Log::debug(["message" => "Error al reenviar mail de bienvenida.", "error" => $e->getMessage(), "line" => $e->getLine()]);
             return response()->json(['message' => 'Error en reenvio de mail de bienvenida.'], 500);
         }
 
-        return response()->json(['message' => 'Reenvio de mail de bienvenida exitoso.'], 200);
+        return response()->json(['message' => $message], 200);
     }
 
     public function auth_account_confirmation(Request $request)
@@ -158,6 +158,8 @@ class AuthController extends Controller
                 'errors' => $validator->errors(),
             ], 422);
         }
+        
+        $message = "Confirmación de cuenta exitosa.";
 
         try {
             $decrypted_email = Crypt::decrypt($request->email);
@@ -173,7 +175,7 @@ class AuthController extends Controller
             $user->email_confirmation = now()->format('Y-m-d H:i:s');
             $user->save();
 
-            Audith::new($user->id, "Confirmación de cuenta", $request->email, 200, null);
+            Audith::new($user->id, "Confirmación de cuenta", $request->email, 200, ['message' => $message]);
             DB::commit();
         } catch (DecryptException $e) {
             DB::rollBack();
@@ -182,7 +184,7 @@ class AuthController extends Controller
             return response(["message" => "Error al realizar confirmación de cuenta", "error" => $e->getMessage(), "line" => $e->getLine()], 500);
         }
 
-        return response()->json(['message' => 'Confirmación de cuenta exitosa.'], 200);
+        return response()->json(['message' => $message], 200);
     }
 
     public function auth_login(LoginRequest $request)
@@ -203,9 +205,9 @@ class AuthController extends Controller
                 return response()->json(['message' => 'Usuario y/o clave no válidos.'], 401);
             }
 
-            Audith::new($user->id, "Login de usuario", $credentials['email'], 200, null);
+            Audith::new($user->id, "Login de usuario", $credentials, 200, $this->respondWithToken($token));
         } catch (Exception $e) {
-            Audith::new(null, "Login de usuario", $credentials['email'], 500, $e->getMessage());
+            Audith::new(null, "Login de usuario", $credentials, 500, $e->getMessage());
             Log::debug(["message" => "No fue posible crear el Token de Autenticación.", "error" => $e->getMessage(), "line" => $e->getLine()]);
             return response()->json(['message' => 'No fue posible crear el Token de Autenticación.'], 500);
         }
@@ -222,6 +224,7 @@ class AuthController extends Controller
         ]);
 
         $action = "Cambio de contraseña";
+        $message = "Contraseña actualizada con exito.";
 
         if ($validator->fails()) {
             return response()->json([
@@ -244,7 +247,7 @@ class AuthController extends Controller
             $user->password = $str_random_password;
             $user->save();
 
-            Audith::new($user->id, $action, $request->email, 200, null);
+            Audith::new($user->id, $action, $request->email, 200, ['message' => $message]);
 
             try {
                 Mail::to($user->email)->send(new RecoverPasswordMailable($user, $str_random_password));
@@ -262,7 +265,7 @@ class AuthController extends Controller
             return response(["message" => "Error al actualizar contraseña", "error" => $e->getMessage(), "line" => $e->getLine()], 500);
         }
 
-        return response()->json(['message' => 'Contraseña actualizada con exito.'], 200);
+        return response()->json(['message' => $message], 200);
     }
 
     public function auth_password_recovery_token(Request $request)
@@ -295,7 +298,8 @@ class AuthController extends Controller
             $user->password = $request->password;
             $user->save();
 
-            Audith::new($id_user, $action, $user->email, 200, null);
+            $message = "Contraseña actualizada con exito.";
+            Audith::new($id_user, $action, $user->email, 200, ['message' => $message]);
             DB::commit();
         } catch (Exception $e) {
             DB::rollBack();
@@ -304,7 +308,7 @@ class AuthController extends Controller
             return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
         }
 
-        return response()->json(['message' => 'Contraseña actualizada con exito.'], 200);
+        return response()->json(['message' => $message], 200);
     }
 
     public function logout()
@@ -314,7 +318,7 @@ class AuthController extends Controller
         try {
             auth()->logout();
 
-            Audith::new($user_id, "Logout", $email, 200, null);
+            Audith::new($user_id, "Logout", $email, 200, ['message' => 'Logout exitoso.']);
             return response()->json(['message' => 'Logout exitoso.']);
         } catch (Exception $e) {
             Audith::new($user_id, "Logout", $email, 500, $e->getMessage());
