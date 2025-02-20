@@ -116,10 +116,11 @@ class BusinessIndicators implements WithMultipleSheets
             'date' => $row[1],
             'region' => $row[2],
             'data' => [
-                'MB' => $row[3],
-                '2022' => $row[4],
-                '2023' => $row[5],
-                '2024' => $row[6],
+                'Mes' => $row[3],
+                'Maiz' => $row[4],
+                'Soja' => $row[5],
+                'Girasol' => $row[6],
+                'Trigo' => $row[7],
             ],
         ];
     }
@@ -131,8 +132,11 @@ class BusinessIndicators implements WithMultipleSheets
             'date' => $row[1],
             'region' => $row[2],
             'data' => [
-                'MB' => $row[3],
-                'Mes Actual' => $row[4],
+                'Mes' => $row[3],
+                'Maiz' => $row[4],
+                'Soja' => $row[5],
+                'Girasol' => $row[6],
+                'Trigo' => $row[7],
             ],
         ];
     }
