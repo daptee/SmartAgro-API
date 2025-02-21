@@ -19,13 +19,27 @@ class BusinessIndicators implements WithMultipleSheets
     public function sheets(): array
     {
         return [
-            0 => $this->createSheetProcessor(PitIndicator::class, 1, function($row) { return $this->processPitIndicatorSheet($row); }),
-            1 => $this->createSheetProcessor(LivestockInputOutputRatio::class, 1, function($row) { return $this->processLivestockInputOutputRatioSheet($row); }),
-            2 => $this->createSheetProcessor(AgriculturalInputOutputRelationship::class, 1, function($row) { return $this->processAgriculturalInputOutputRelationshipSheet($row); }),
-            3 => $this->createSheetProcessor(GrossMarginsTrend::class, 1, function($row) { return $this->processGrossMarginsTrendSheet($row); }),
-            4 => $this->createSheetProcessor(GrossMarginsTrend2::class, 1, function($row) { return $this->processGrossMarginsTrend2Sheet($row); }),
-            5 => $this->createSheetProcessor(ProductPrice::class, 1, function($row) { return $this->processProductPricesSheet($row); }),
-            6 => $this->createSheetProcessor(GrossMargin::class, 1, function($row) { return $this->processGrossMarginSheet($row); }),
+            0 => $this->createSheetProcessor(PitIndicator::class, 1, function ($row) {
+                return $this->processPitIndicatorSheet($row);
+            }),
+            1 => $this->createSheetProcessor(LivestockInputOutputRatio::class, 1, function ($row) {
+                return $this->processLivestockInputOutputRatioSheet($row);
+            }),
+            2 => $this->createSheetProcessor(AgriculturalInputOutputRelationship::class, 1, function ($row) {
+                return $this->processAgriculturalInputOutputRelationshipSheet($row);
+            }),
+            3 => $this->createSheetProcessor(GrossMarginsTrend::class, 1, function ($row) {
+                return $this->processGrossMarginsTrendSheet($row);
+            }),
+            4 => $this->createSheetProcessor(GrossMarginsTrend2::class, 1, function ($row) {
+                return $this->processGrossMarginsTrend2Sheet($row);
+            }),
+            5 => $this->createSheetProcessor(ProductPrice::class, 1, function ($row) {
+                return $this->processProductPricesSheet($row);
+            }),
+            6 => $this->createSheetProcessor(GrossMargin::class, 1, function ($row) {
+                return $this->processGrossMarginSheet($row);
+            }),
         ];
     }
 
@@ -80,7 +94,7 @@ class BusinessIndicators implements WithMultipleSheets
         ];
     }
 
-    private function processLivestockInputOutputRatioSheet($row)
+    private function processAgriculturalInputOutputRelationshipSheet($row)
     {
         return [
             'id_plan' => $row[0],
@@ -95,7 +109,7 @@ class BusinessIndicators implements WithMultipleSheets
         ];
     }
 
-    private function processAgriculturalInputOutputRelationshipSheet($row)
+    private function processLivestockInputOutputRatioSheet($row)
     {
         return [
             'id_plan' => $row[0],
