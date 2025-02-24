@@ -129,8 +129,8 @@ class BusinessIndicators implements WithMultipleSheets
             'id_plan' => $row[0],
             'date' => $row[1],
             'region' => $row[2],
+            'month' => $row[3],
             'data' => [
-                'Mes' => $row[3],
                 'Maiz' => $row[4],
                 'Soja' => $row[5],
                 'Girasol' => $row[6],
@@ -145,8 +145,8 @@ class BusinessIndicators implements WithMultipleSheets
             'id_plan' => $row[0],
             'date' => $row[1],
             'region' => $row[2],
+            'month' => $row[3],
             'data' => [
-                'Mes' => $row[3],
                 'Maiz' => $row[4],
                 'Soja' => $row[5],
                 'Girasol' => $row[6],

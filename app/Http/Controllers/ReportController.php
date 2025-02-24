@@ -27,20 +27,32 @@ use App\Models\User;
 use Exception;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Validator;
 
 class ReportController extends Controller
 {
     public function reports(Request $request)
     {
         // Validar parámetros de mes y año
-        $request->validate([
+        $validator = Validator::make($request->all(), [
             'month' => 'required|integer|min:1|max:12',
             'year' => 'required|integer|digits:4'
         ]);
 
-        $message = "Error al obtener reportes";
         $action = "Listado de reportes";
+        $status = 422;
         $id_user = Auth::user()->id ?? null;
+
+        if ($validator->fails()) {
+            $response = [
+                'message' => 'Alguna de las validaciones falló',
+                'errors' => $validator->errors(),
+            ];
+            Audith::new($id_user, $action, $request->all(), $status, $response);
+            return response()->json($response, $status);
+        }
+
+        $message = "Error al obtener reportes";
         $id_plan = Auth::user()->id_plan ?? null;
 
         $month = $request->input('month');
@@ -72,19 +84,22 @@ class ReportController extends Controller
             });
 
             if ($allEmpty) {
-                return response()->json([
+                $response = [
                     'message' => 'No hay datos para el mes seleccionado. Por favor, cambie el mes de filtro.',
                     'error_code' => 600
-                ], 422);
+                ];
+                Audith::new($id_user, $action, $request->all(), 600, $response);
+                return response()->json($response, 600);
             }
 
             // Registrar acción exitosa en auditoría
-            Audith::new($id_user, $action, null, 200, ['data' => $data]);
+            Audith::new($id_user, $action, $request->all(), 200, ['data' => $data]);
         } catch (Exception $e) {
             // Manejo de errores
-            Log::debug(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()]);
-            Audith::new($id_user, $action, null, 500, $e->getMessage());
-            return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+            $response = ["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()];
+            Log::debug($response);
+            Audith::new($id_user, $action, $request->all(), 500, $response);
+            return response()->json($response, 500);
         }
 
         return response()->json(['data' => $data], 200);
@@ -93,14 +108,25 @@ class ReportController extends Controller
     public function business_indicators(Request $request)
     {
         // Validar parámetros de mes y año
-        $request->validate([
+        $validator = Validator::make($request->all(), [
             'month' => 'required|integer|min:1|max:12',
             'year' => 'required|integer|digits:4'
         ]);
 
-        $message = "Error al obtener indicadores comerciales";
         $action = "Listado de indicadores comerciales";
+        $status = 422;
         $id_user = Auth::user()->id ?? null;
+
+        if ($validator->fails()) {
+            $response = [
+                'message' => 'Alguna de las validaciones falló',
+                'errors' => $validator->errors(),
+            ];
+            Audith::new($id_user, $action, $request->all(), $status, $response);
+            return response()->json($response, $status);
+        }
+
+        $message = "Error al obtener indicadores comerciales";
         $id_plan = Auth::user()->id_plan ?? null;
 
         $month = $request->input('month');
@@ -130,19 +156,22 @@ class ReportController extends Controller
             });
 
             if ($allEmpty) {
-                return response()->json([
+                $response = [
                     'message' => 'No hay datos para el mes seleccionado. Por favor, cambie el mes de filtro.',
                     'error_code' => 600
-                ], 422);
+                ];
+                Audith::new($id_user, $action, $request->all(), 600, $response);
+                return response()->json($response, 600);
             }
 
             // Registrar acción exitosa en auditoría
-            Audith::new($id_user, $action, null, 200, ['data' => $data]);
+            Audith::new($id_user, $action, $request->all(), 200, ['data' => $data]);
         } catch (Exception $e) {
             // Manejo de errores
-            Log::debug(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()]);
-            Audith::new($id_user, $action, null, 500, $e->getMessage());
-            return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+            $response = ["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()];
+            Log::debug($response);
+            Audith::new($id_user, $action, $request->all(), 500, $response);
+            return response()->json($response, 500);
         }
 
         return response()->json(['data' => $data], 200);

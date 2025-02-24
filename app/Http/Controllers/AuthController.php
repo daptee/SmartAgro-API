@@ -53,15 +53,19 @@ class AuthController extends Controller
             'g-recaptcha-response' => 'required'
         ]);
 
+        $action = "Registro de usuario";
+        $status = 422;
+
         if ($validator->fails()) {
-            return response()->json([
+            $response = [
                 'message' => 'Alguna de las validaciones falló',
                 'errors' => $validator->errors(),
-            ], 422);
+            ];
+            Audith::new(null, $action, $request->all(), $status, $response);
+            return response()->json($response, $status);
         }
 
         $message = "Error al crear {$this->s} en registro";
-        $action = "Registro de usuario";
         $data = $request->all();
         // $new_user = null;
 
@@ -111,7 +115,9 @@ class AuthController extends Controller
                 }
             }            
         } else {
-            return response()->json(['message' => 'Error en validacion de recaptcha.'], 422);
+            $response = ['message' => 'Error en validacion de recaptcha.'];
+            Audith::new(null, $action, $request->all(), $status, $response);
+            return response()->json($response, $status);
         }
 
         return response(compact("message", "data"));
@@ -123,23 +129,39 @@ class AuthController extends Controller
             'email' => 'required|string|email',
         ]);
     
+        $action = "Reenvio de mail de bienvenida.";
+        $status = 422;
+
         if ($validator->fails()) {
-            return response()->json([
+            $response = [
                 'message' => 'Alguna de las validaciones falló',
                 'errors' => $validator->errors(),
-            ], 422);
+            ];
+            Audith::new(null, $action, $request->all(), $status, $response);
+            return response()->json($response, $status);
         }
 
         $email = $request->email;
         $message = "Reenvio de mail de bienvenida exitoso.";
         try {
             $user = User::where('email' , $email)->first();
+            if(!$user){
+                $response = ['message' => 'Usuario no valido.'];
+                Audith::new(null, $action, $request->all(), 400, $response);                
+                return response()->json($response, 400);
+            }
             Mail::to($user->email)->send(new WelcomeUserMailable($user));
-            Audith::new($user->id, "Reenvio de mail de bienvenida exitoso.", $request->all(), 200, ["message" => $message]);
+            Audith::new($user->id, $action, $request->all(), 200, ["message" => $message]);
         } catch (Exception $e) {
-            Audith::new($user->id, "Error al reenviar mail de bienvenida.", $request->all(), 500, $e->getMessage());
-            Log::debug(["message" => "Error al reenviar mail de bienvenida.", "error" => $e->getMessage(), "line" => $e->getLine()]);
-            return response()->json(['message' => 'Error en reenvio de mail de bienvenida.'], 500);
+            $message = 'Error en reenvio de mail de bienvenida.';
+            $response = [
+                'message' => $message,
+                'error' => $e->getMessage(),
+                "line" => $e->getLine()
+            ];
+            Audith::new($user->id, $message, $request->all(), 500, $response);
+            Log::debug($response);
+            return response()->json($response, 500);
         }
 
         return response()->json(['message' => $message], 200);
@@ -152,13 +174,18 @@ class AuthController extends Controller
             // 'password' => 'required',
         ]);
 
+        $action = "Confirmación de cuenta";
+        $status = 422;
+
         if ($validator->fails()) {
-            return response()->json([
+            $response = [
                 'message' => 'Alguna de las validaciones falló',
                 'errors' => $validator->errors(),
-            ], 422);
+            ];
+            Audith::new(null, $action, $request->all(), $status, $response);
+            return response()->json($response, $status);
         }
-        
+
         $message = "Confirmación de cuenta exitosa.";
 
         try {
@@ -166,8 +193,11 @@ class AuthController extends Controller
             // dd($decrypted_email);
             $user = User::where('email', $decrypted_email)->first();
 
-            if (!$user)
-                return response()->json(['message' => 'Datos incompletos para procesar la confirmación de la cuenta.'], 400);
+            if (!$user){
+                $response = ['message' => 'Datos incompletos para procesar la confirmación de la cuenta.'];
+                Audith::new(null, $action, $request->all(), 400, $response);
+                return response()->json($response, 400);
+            }
 
             DB::beginTransaction();
 
@@ -175,13 +205,14 @@ class AuthController extends Controller
             $user->email_confirmation = now()->format('Y-m-d H:i:s');
             $user->save();
 
-            Audith::new($user->id, "Confirmación de cuenta", $request->email, 200, ['message' => $message]);
+            Audith::new($user->id, $action, $request->email, 200, ['message' => $message]);
             DB::commit();
         } catch (DecryptException $e) {
             DB::rollBack();
-            Audith::new(null, "Confirmación de cuenta", $request->email, 500, $e->getMessage());
-            Log::debug(["message" => "Error al realizar confirmación de cuenta.", "error" => $e->getMessage(), "line" => $e->getLine()]);
-            return response(["message" => "Error al realizar confirmación de cuenta", "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+            $response = ["message" => "Error al realizar confirmación de cuenta.", "error" => $e->getMessage(), "line" => $e->getLine()];
+            Audith::new(null, $action, $request->email, 500, $response);
+            Log::debug($response);
+            return response($response, 500);
         }
 
         return response()->json(['message' => $message], 200);
@@ -190,26 +221,35 @@ class AuthController extends Controller
     public function auth_login(LoginRequest $request)
     {
         $credentials = $request->only('email', 'password');
+        $action = "Login de usuario";
         try {
             $user = User::where('email', $credentials['email'])->first();
 
-            if (!$user)
-                return response()->json(['message' => 'Usuario y/o clave no válidos.'], 400);
+            if (!$user){
+                $response = ['message' => 'Usuario y/o clave no válidos.'];
+                Audith::new(null, $action, $credentials, 400, $response);          
+                return response()->json($response, 400);
+            }
 
             // Verificar si el usuario tiene el email confirmado
             if (is_null($user->email_confirmation)) {
-                return response()->json(['message' => 'La cuenta no está verificada. Por favor, verifica tu correo electrónico.'], 400);
+                $response = ['message' => 'La cuenta no está verificada. Por favor, verifica tu correo electrónico.'];
+                Audith::new($user->id, $action, $credentials, 400, $response);
+                return response()->json($response, 400);
             }
 
             if (! $token = auth()->attempt($credentials)) {
-                return response()->json(['message' => 'Usuario y/o clave no válidos.'], 401);
+                $response = ['message' => 'Usuario y/o clave no válidos.'];
+                Audith::new(null, $action, $credentials, 401, $response);
+                return response()->json($response, 401);
             }
 
-            Audith::new($user->id, "Login de usuario", $credentials, 200, $this->respondWithToken($token));
+            Audith::new($user->id, $action, $credentials, 200, $this->respondWithToken($token));
         } catch (Exception $e) {
-            Audith::new(null, "Login de usuario", $credentials, 500, $e->getMessage());
-            Log::debug(["message" => "No fue posible crear el Token de Autenticación.", "error" => $e->getMessage(), "line" => $e->getLine()]);
-            return response()->json(['message' => 'No fue posible crear el Token de Autenticación.'], 500);
+            $response = ["message" => "No fue posible crear el Token de Autenticación.", "error" => $e->getMessage(), "line" => $e->getLine()];
+            Audith::new(null, $action, $credentials, 500, $response);
+            Log::debug($response);
+            return response()->json($response, 500);
         }
 
         return $this->respondWithToken($token);
@@ -225,12 +265,15 @@ class AuthController extends Controller
 
         $action = "Cambio de contraseña";
         $message = "Contraseña actualizada con exito.";
+        $status = 422;
 
         if ($validator->fails()) {
-            return response()->json([
+            $response = [
                 'message' => 'Alguna de las validaciones falló',
                 'errors' => $validator->errors(),
-            ], 422);
+            ];
+            Audith::new(null, $action, $request->all(), $status, $response);
+            return response()->json($response, $status);
         }
 
         try {
@@ -238,8 +281,11 @@ class AuthController extends Controller
 
             $user = User::where('email', $request->email)->first();
 
-            if (!$user)
-                return response()->json(['message' => 'Datos incompletos para procesar el cambio de contraseña.'], 400);
+            if (!$user){
+                $response = ['message' => 'Datos incompletos para procesar el cambio de contraseña.'];
+                Audith::new(null, $action, $request->all(), 400, $response);
+                return response()->json($response, 400);
+            }
 
             DB::beginTransaction();
 
@@ -251,18 +297,20 @@ class AuthController extends Controller
 
             try {
                 Mail::to($user->email)->send(new RecoverPasswordMailable($user, $str_random_password));
-                Audith::new($user->id, "Recupero de contraseña", $request->email, 200, null);
+                Audith::new($user->id, $action, $request->email, 200, null);
             } catch (Exception $e) {
-                Audith::new($user->id, "Recupero de contraseña", $request->email, 500, $e->getMessage());
-                Log::debug(["message" => "Error en recupero de contraseña", "error" => $e->getMessage(), "line" => $e->getLine()]);
-                return response(["message" => "Error en recupero de contraseña", "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+                $response = ["message" => "Error en recupero de contraseña", "error" => $e->getMessage(), "line" => $e->getLine()];
+                Audith::new($user->id, $action, $request->email, 500, $response);
+                Log::debug($response);
+                return response($response, 500);
             }
             DB::commit();
         } catch (DecryptException $e) {
             DB::rollBack();
-            Audith::new(null, $action, $request->email, 500, $e->getMessage());
-            Log::debug(["message" => "Error al actualizar contraseña.", "error" => $e->getMessage(), "line" => $e->getLine()]);
-            return response(["message" => "Error al actualizar contraseña", "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+            $response = ["message" => "Error al actualizar contraseña", "error" => $e->getMessage(), "line" => $e->getLine()];
+            Audith::new(null, $action, $request->email, 500, $response);
+            Log::debug($response);
+            return response($response, 500);
         }
 
         return response()->json(['message' => $message], 200);
@@ -275,15 +323,19 @@ class AuthController extends Controller
             'password' => 'required',
         ]);
 
+        $action = "Cambio de contraseña";
+        $status = 422;
+
         if ($validator->fails()) {
-            return response()->json([
+            $response = [
                 'message' => 'Alguna de las validaciones falló',
                 'errors' => $validator->errors(),
-            ], 422);
+            ];
+            Audith::new(null, $action, $request->all(), $status, $response);
+            return response()->json($response, $status);
         }
 
         $message = "Error al actualizar contraseña";
-        $action = "Cambio de contraseña";
         $id_user = Auth::user()->id ?? null;
 
         try {
@@ -299,13 +351,14 @@ class AuthController extends Controller
             $user->save();
 
             $message = "Contraseña actualizada con exito.";
-            Audith::new($id_user, $action, $user->email, 200, ['message' => $message]);
+            Audith::new($id_user, $action, $request->all(), 200, ['message' => $message]);
             DB::commit();
         } catch (Exception $e) {
             DB::rollBack();
-            Audith::new($id_user, $action, $user->email, 500, $e->getMessage());
-            Log::debug(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()]);
-            return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+            $response = ["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()];
+            Audith::new($id_user, $action, $request->all(), 500, $response);
+            Log::debug($response);
+            return response($response, 500);
         }
 
         return response()->json(['message' => $message], 200);
@@ -321,9 +374,10 @@ class AuthController extends Controller
             Audith::new($user_id, "Logout", $email, 200, ['message' => 'Logout exitoso.']);
             return response()->json(['message' => 'Logout exitoso.']);
         } catch (Exception $e) {
-            Audith::new($user_id, "Logout", $email, 500, $e->getMessage());
-            Log::debug(["message" => "Error al realizar logout", "error" => $e->getMessage(), "line" => $e->getLine()]);
-            return response(["message" => "Error al realizar logout", "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+            $response = ["message" => "Error al realizar logout", "error" => $e->getMessage(), "line" => $e->getLine()];
+            Audith::new($user_id, "Logout", $email, 500, $response);
+            Log::debug($response);
+            return response($response, 500);
         }
     }
 
