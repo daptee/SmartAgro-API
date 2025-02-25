@@ -88,8 +88,8 @@ class ReportController extends Controller
                     'message' => 'No hay datos para el mes seleccionado. Por favor, cambie el mes de filtro.',
                     'error_code' => 600
                 ];
-                Audith::new($id_user, $action, $request->all(), 600, $response);
-                return response()->json($response, 600);
+                Audith::new($id_user, $action, $request->all(), 422, $response);
+                return response()->json($response, 422);
             }
 
             // Registrar acción exitosa en auditoría
@@ -160,8 +160,8 @@ class ReportController extends Controller
                     'message' => 'No hay datos para el mes seleccionado. Por favor, cambie el mes de filtro.',
                     'error_code' => 600
                 ];
-                // Audith::new($id_user, $action, $request->all(), 600, $response);
-                return response()->json($response, 600);
+                Audith::new($id_user, $action, $request->all(), 422, $response);
+                return response()->json($response, 422);
             }
 
             // Registrar acción exitosa en auditoría
