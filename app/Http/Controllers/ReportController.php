@@ -155,14 +155,14 @@ class ReportController extends Controller
                 return $items->isEmpty();
             });
 
-            /*if ($allEmpty) {
+            if ($allEmpty) {
                 $response = [
                     'message' => 'No hay datos para el mes seleccionado. Por favor, cambie el mes de filtro.',
                     'error_code' => 600
                 ];
-                Audith::new($id_user, $action, $request->all(), 600, $response);
+                // Audith::new($id_user, $action, $request->all(), 600, $response);
                 return response()->json($response, 600);
-            }*/
+            }
 
             // Registrar acción exitosa en auditoría
             Audith::new($id_user, $action, $request->all(), 200, ['data' => $data]);
