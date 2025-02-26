@@ -6,6 +6,7 @@ use App\Http\Controllers\GetsFunctionsController;
 use App\Http\Controllers\LocalityProvinceController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\ResearchOnDemand;
 use App\Http\Controllers\UserController;
 use App\Http\Middleware\CheckPlan;
 use Illuminate\Http\Request;
@@ -45,6 +46,7 @@ Route::group(['middleware' => ['auth:api']], function ($router) {
     });
 });
 
+Route::post('research-on-demand', [ResearchOnDemand::class, 'research_on_demand']);
 Route::post('/import-reports', [GeneralImportController::class, 'import'])->name('import.reports');
 Route::post('/import-business-indicators', [GeneralImportController::class, 'import_business_indicators']);
 Route::post('/notification-users-report', [ReportController::class, 'notification_users_report']);
