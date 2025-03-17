@@ -4,7 +4,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\GeneralImportController;
 use App\Http\Controllers\GetsFunctionsController;
 use App\Http\Controllers\LocalityProvinceController;
-use App\Http\Controllers\PlanController;
+use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ResearchOnDemand;
 use App\Http\Controllers\UserController;
@@ -44,6 +44,12 @@ Route::group(['middleware' => ['auth:api']], function ($router) {
         Route::get('reports', 'reports');
         Route::get('business-indicators', 'business_indicators')->middleware(CheckPlan::class);
     });
+
+    // Subscription
+    Route::controller(SubscriptionController::class)->group(function () {
+        Route::post('subscription', 'subscription');
+    });
+
 });
 
 Route::post('research-on-demand', [ResearchOnDemand::class, 'research_on_demand']);
@@ -65,10 +71,6 @@ Route::controller(GetsFunctionsController::class)->group(function () {
     Route::get('/plans', 'plans');
 });
 
-Route::post('/subscription', [PlanController::class, 'subscription']);
-
-Route::post('/webhooks/mercadopago', [PlanController::class, 'handleWebhook']);
-
 // Dolar API
 Route::get('dolar/oficial', function() {
     $response = Http::get("https://dolarapi.com/v1/dolares/oficial");   
@@ -88,6 +90,15 @@ Route::get('dolar/mayorista', function() {
     }
 });
 
+Route::get('dolar/blue', function() {
+    $response = Http::get("https://dolarapi.com/v1/dolares/blue");   
+    if ($response->successful()) {
+        return $response->json();
+    } else {
+        return $response->throw();
+    }
+});
+
 Route::get('/clear-cache', function() {
     Artisan::call('config:clear');
     Artisan::call('optimize');
@@ -96,3 +107,6 @@ Route::get('/clear-cache', function() {
         "message" => "Cache cleared successfully"
     ]);
 });
+
+Route::get('/subscription/callback', [SubscriptionController::class, 'callback'])->name('subscription.callback');
+Route::post('/webhooks/mercadopago', [SubscriptionController::class, 'handleWebhook'])->name('webhook.mercadopago');
