@@ -89,7 +89,7 @@ class SubscriptionController extends Controller
                             PaymentHistory::create([
                                 'user_id' => $userId,
                                 'type' => $data['type'],
-                                'data' => $data,
+                                'data' => json_encode($subscriptionData),
                                 'error_message' => null,
                             ]);
 
