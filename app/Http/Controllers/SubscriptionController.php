@@ -17,6 +17,24 @@ class SubscriptionController extends Controller
         $user_id = Auth::user()->id;
         $accessToken = env('MERCADOPAGO_ACCESS_TOKEN');
 
+        // Verificar si la moneda es USD y convertir a ARS
+        if (strtolower($request->currency) === 'usd') {
+            $dollarResponse = Http::get('https://dolarapi.com/v1/dolares/blue');
+
+            if ($dollarResponse->successful()) {
+                $dollarData = $dollarResponse->json();
+                $exchangeRate = $dollarData['venta'];
+                $request->merge([
+                    'transaction_amount' => $request->transaction_amount * $exchangeRate,
+                    'currency' => 'ARS'
+                ]);
+            } else {
+                return response()->json(['error' => 'Error al obtener la tasa de cambio'], 500);
+            }
+        } elseif (strtolower($request->currency) !== 'ars') {
+            return response()->json(['error' => 'Moneda no soportada'], 400);
+        }
+
         // Crear el Subscription
         $subscriptionResponse = Http::withToken($accessToken)->post('https://api.mercadopago.com/preapproval', [
             "auto_recurring" => [
@@ -43,6 +61,7 @@ class SubscriptionController extends Controller
             'init_point' => $subscriptionResponse->json('init_point')
         ]);
     }
+
 
     private $preapprovalId;
 
@@ -85,9 +104,9 @@ class SubscriptionController extends Controller
                         if (!$existingRecord) {
                             UserPlan::save_history($userId, 2, $subscriptionData, $subscriptionData['next_payment_date']);
 
-                            
+
                             PaymentHistory::create([
-                                'user_id' => $userId,
+                                'id_user' => $userId,
                                 'type' => $data['type'],
                                 'data' => json_encode($subscriptionData),
                                 'error_message' => null,
@@ -110,12 +129,12 @@ class SubscriptionController extends Controller
 
         // 🔥 Manejo de pagos individuales autorizados
         if (isset($data['type']) && $data['type'] == 'subscription_authorized_payment') {
-            PaymentHistory::create([
-                'user_id' => $userId,
+            /* PaymentHistory::create([
+                'id_user' => $userId,
                 'type' => $data['type'],
                 'data' => $data,
                 'error_message' => null,
-            ]);
+            ]); */
         }
 
         return response()->json(['status' => 'received']);
