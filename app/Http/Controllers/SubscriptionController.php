@@ -17,6 +17,8 @@ class SubscriptionController extends Controller
         $user_id = Auth::user()->id;
         $accessToken = env('MERCADOPAGO_ACCESS_TOKEN');
 
+        Log::info($accessToken);
+
         // Verificar si la moneda es USD y convertir a ARS
         if (strtolower($request->currency) === 'usd') {
             $dollarResponse = Http::get('https://dolarapi.com/v1/dolares/blue');
