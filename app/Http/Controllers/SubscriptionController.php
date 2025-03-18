@@ -17,8 +17,6 @@ class SubscriptionController extends Controller
         $user_id = Auth::user()->id;
         $accessToken = config('app.mercadopago_token');
 
-        Log::info($accessToken);
-
         // Verificar si la moneda es USD y convertir a ARS
         if (strtolower($request->currency) === 'usd') {
             $dollarResponse = Http::get('https://dolarapi.com/v1/dolares/blue');
@@ -52,8 +50,6 @@ class SubscriptionController extends Controller
             "status" => "pending"
         ]);
 
-        Log::info($subscriptionResponse);
-
         if (!$subscriptionResponse->successful()) {
             return response()->json(['error' => 'Error al crear una Suscripción'], 500);
         }
@@ -72,15 +68,12 @@ class SubscriptionController extends Controller
         $data = $request->all();
 
         Log::info('Webhook recibido de Mercado Pago:', $data);
-        Log::info('type: ' . $data['type']);
 
         $accessToken = config('app.mercadopago_token');
 
         // 🔥 Guardamos temporalmente el preapprovalId si es subscription_preapproval
         if (isset($data['type']) && $data['type'] == 'subscription_preapproval') {
             $this->preapprovalId = $data['data']['id'];
-
-            Log::info('id: ' . $this->preapprovalId);
 
             $preapprovalResponse = Http::withToken($accessToken)->get("https://api.mercadopago.com/preapproval/{$this->preapprovalId}");
 
@@ -89,10 +82,7 @@ class SubscriptionController extends Controller
                 $status = $subscriptionData['status'];
                 $userId = json_decode($subscriptionData['external_reference'], true);
 
-                Log::info("Estado de la suscripción: $status");
-
                 if ($status == "authorized") {
-                    Log::info("IdUser recibido: $userId");
 
                     $user = User::find($userId);
 
@@ -134,14 +124,12 @@ class SubscriptionController extends Controller
                 $status = $subscriptionData['status'];
                 $userId = json_decode($subscriptionData['external_reference'], true);
 
-                Log::info("Estado de la suscripción: $status");
-
                 PaymentHistory::create([
-                                'id_user' => $userId,
-                                'type' => $data['type'],
-                                'data' => json_encode($subscriptionData),
-                                'error_message' => null,
-                            ]);
+                    'id_user' => $userId,
+                    'type' => $data['type'],
+                    'data' => json_encode($subscriptionData),
+                    'error_message' => null,
+                ]);
             }
         }
 
