@@ -106,14 +106,6 @@ class SubscriptionController extends Controller
                         if (!$existingRecord) {
                             UserPlan::save_history($userId, 2, $subscriptionData, $subscriptionData['next_payment_date']);
 
-
-                            PaymentHistory::create([
-                                'id_user' => $userId,
-                                'type' => $data['type'],
-                                'data' => json_encode($subscriptionData),
-                                'error_message' => null,
-                            ]);
-
                             Log::info('Historial guardado correctamente');
                         } else {
                             Log::warning("Registro duplicado detectado para id_user: $userId y next_payment_date: {$subscriptionData['next_payment_date']}");
