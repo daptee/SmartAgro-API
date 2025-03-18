@@ -74,7 +74,7 @@ class SubscriptionController extends Controller
         Log::info('Webhook recibido de Mercado Pago:', $data);
         Log::info('type: ' . $data['type']);
 
-        $accessToken = env('MERCADOPAGO_ACCESS_TOKEN');
+        $accessToken = config('app.mercadopago_token');
 
         // 🔥 Guardamos temporalmente el preapprovalId si es subscription_preapproval
         if (isset($data['type']) && $data['type'] == 'subscription_preapproval') {
@@ -133,7 +133,7 @@ class SubscriptionController extends Controller
         if (isset($data['type']) && $data['type'] == 'payment') {
             $this->preapprovalId = $data['data']['id'];
 
-            Log::info('id: ' . $this->preapprovalId);
+            Log::info('id preapprovalId: ' . $this->preapprovalId);
 
             $preapprovalResponse = Http::withToken($accessToken)->get("https://api.mercadopago.com/v1/payments/{$this->preapprovalId}");
 
