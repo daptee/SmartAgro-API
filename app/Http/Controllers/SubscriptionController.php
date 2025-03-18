@@ -128,13 +128,27 @@ class SubscriptionController extends Controller
         }
 
         // 🔥 Manejo de pagos individuales autorizados
-        if (isset($data['type']) && $data['type'] == 'subscription_authorized_payment') {
-            /* PaymentHistory::create([
-                'id_user' => $userId,
-                'type' => $data['type'],
-                'data' => $data,
-                'error_message' => null,
-            ]); */
+        if (isset($data['type']) && $data['type'] == 'payment') {
+            $this->preapprovalId = $data['data']['id'];
+
+            Log::info('id: ' . $this->preapprovalId);
+
+            $preapprovalResponse = Http::withToken($accessToken)->get("https://api.mercadopago.com/v1/payments/{$this->preapprovalId}");
+
+            if ($preapprovalResponse->successful()) {
+                $subscriptionData = $preapprovalResponse->json();
+                $status = $subscriptionData['status'];
+                $userId = json_decode($subscriptionData['external_reference'], true);
+
+                Log::info("Estado de la suscripción: $status");
+
+                PaymentHistory::create([
+                                'id_user' => $userId,
+                                'type' => $data['type'],
+                                'data' => json_encode($subscriptionData),
+                                'error_message' => null,
+                            ]);
+            }
         }
 
         return response()->json(['status' => 'received']);
