@@ -102,10 +102,10 @@ Route::get('dolar/blue', function() {
 Route::get('/clear-cache', function() {
     Artisan::call('config:cache');
     Artisan::call('config:clear');
-    Artisan::call('cache:clear');
+    Artisan::call('cache:clear');/* 
     Artisan::call('route:clear');
     Artisan::call('view:clear');
-    Artisan::call('optimize');
+    Artisan::call('optimize'); */
 
     return response()->json([
         "message" => "Cache cleared successfully"
