@@ -15,7 +15,7 @@ class SubscriptionController extends Controller
     public function subscription(Request $request)
     {
         $user_id = Auth::user()->id;
-        $accessToken = env('MERCADOPAGO_ACCESS_TOKEN');
+        $accessToken = config('app.mercadopago_token');
 
         Log::info($accessToken);
 
