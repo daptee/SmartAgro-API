@@ -273,7 +273,7 @@ class UserController extends Controller
             $user->id_plan = $request->id_plan;
             $user->save();
 
-            UserPlan::save_history($user->id, $request->id_plan, "2024-08-21", "2024-08-31");
+            UserPlan::save_history($user->id, $request->id_plan, null, null);
 
             $data = $this->model::getAllDataUser($id);
             Audith::new($id_user, $action, ["id_user" => $id, "data" => $request->all()], 200, compact("message", "data"));

@@ -84,6 +84,8 @@ return [
 
     'faker_locale' => env('APP_FAKER_LOCALE', 'en_US'),
 
+    'mercadopago_token' => env('MERCADOPAGO_ACCESS_TOKEN'),
+
     /*
     |--------------------------------------------------------------------------
     | Encryption Key
