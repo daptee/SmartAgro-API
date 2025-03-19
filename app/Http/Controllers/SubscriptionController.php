@@ -88,7 +88,7 @@ class SubscriptionController extends Controller
         $userIdSubscription = json_decode($subscriptionData['external_reference'], true);
         $userId = Auth::id();
 
-        Log::info('id sus', $userIdSubscription);
+        Log::info($userIdSubscription);
         Log::info($userId);
 
         if ($subscriptionData['status'] == "failed"){
