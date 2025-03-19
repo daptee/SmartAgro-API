@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CacheController;
 use App\Http\Controllers\GeneralImportController;
 use App\Http\Controllers\GetsFunctionsController;
 use App\Http\Controllers\LocalityProvinceController;
@@ -99,18 +100,6 @@ Route::get('dolar/blue', function () {
     }
 });
 
-Route::get('/clear-cache', function () {
-    Artisan::call('config:cache');
-    Artisan::call('config:clear');
-    Artisan::call('cache:clear');
-    Artisan::call('route:cache');
-    Artisan::call('view:clear');
-    Artisan::call('optimize');
+Route::get('/clear-cache', [CacheController::class, 'clearCache'])->name('clearCache');
 
-    return response()->json([
-        "message" => "Cache cleared successfully"
-    ]);
-});
-
-Route::get('/subscription/callback', [SubscriptionController::class, 'callback'])->name('subscription.callback');
 Route::post('/webhooks/mercadopago', [SubscriptionController::class, 'handleWebhook'])->name('webhook.mercadopago');
