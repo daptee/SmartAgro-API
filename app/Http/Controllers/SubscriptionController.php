@@ -88,6 +88,9 @@ class SubscriptionController extends Controller
         $userIdSubscription = json_decode($subscriptionData['external_reference'], true);
         $userId = Auth::id();
 
+        Log::info('id sus', $userIdSubscription);
+        Log::info($userId);
+
         if ($subscriptionData['status'] == "failed"){
             // Si algo fallo
             return response()->json(['message' => 'Algo fallo a la hora de hacer el pago'], 401);
@@ -110,6 +113,8 @@ class SubscriptionController extends Controller
             $existingRecord = UserPlan::where('id_user', $userId)
                 ->latest('created_at') // Ordenamos por la fecha más reciente
                 ->first();
+
+            Log::info('data user plan: ' . $existingRecord);
     
             // Si hay registro, lo retornamos
             if ($existingRecord) {
