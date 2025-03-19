@@ -48,6 +48,7 @@ Route::group(['middleware' => ['auth:api']], function ($router) {
     // Subscription
     Route::controller(SubscriptionController::class)->group(function () {
         Route::post('subscription', 'subscription');
+        Route::get('subscription/check', 'subscription_check');
     });
 
 });
