@@ -61,37 +61,38 @@ class SubscriptionController extends Controller
     }
 
 
-    public function subscription_check(Request $request) {
+    public function subscription_check(Request $request)
+    {
         $preapprovalId = $request->query('preapproval_id');
-    
+
         if (!$preapprovalId) {
             return response()->json(['error' => 'Falta el preapproval_id'], 422);
         }
-    
+
         Log::info("Revisando suscripción con preapproval_id: $preapprovalId");
-    
+
         $accessToken = config('app.mercadopago_token');
-    
+
         // Hacemos la petición a Mercado Pago
         $preapprovalResponse = Http::withToken($accessToken)->get("https://api.mercadopago.com/preapproval/{$preapprovalId}");
-    
+
         Log::info("Respuesta de Mercado Pago:", $preapprovalResponse->json());
-    
+
         // Validamos que la respuesta sea exitosa
         if (!$preapprovalResponse->successful()) {
             return response()->json(['error' => 'Error al obtener la suscripción'], 400);
         }
-    
+
         $subscriptionData = $preapprovalResponse->json();
-    
+
         // Obtenemos el userId desde la respuesta
-        $userIdSubscription = json_decode($subscriptionData['external_reference'], true);
+        $userIdSubscription = $subscriptionData['external_reference'];
         $userId = Auth::id();
 
         Log::info($userIdSubscription);
         Log::info($userId);
 
-        if ($subscriptionData['status'] == "failed"){
+        if ($subscriptionData['status'] == "failed") {
             // Si algo fallo
             return response()->json(['message' => 'Algo fallo a la hora de hacer el pago'], 401);
         }
@@ -101,12 +102,11 @@ class SubscriptionController extends Controller
             return response()->json(['message' => 'El pago el pago esta pendiente de aprovacion'], 404);
         }
 
-        if (!$subscriptionData['status'] == "authorized"){
+        if (!$subscriptionData['status'] == "authorized") {
             // Si no hay autorizacion
             return response()->json(['message' => 'El pago no fue autorizado'], 404);
-
         }
-    
+
         // Comparamos el usuario autenticado con el de la suscripción
         if ($userIdSubscription == $userId) {
             // Buscamos el último registro en UserPlan asociado al usuario
@@ -115,7 +115,7 @@ class SubscriptionController extends Controller
                 ->first();
 
             Log::info('data user plan: ' . $existingRecord);
-    
+
             // Si hay registro, lo retornamos
             if ($existingRecord) {
 
@@ -125,17 +125,17 @@ class SubscriptionController extends Controller
                         'data' => $subscriptionData
                     ], 200);
                 }
-    
+
                 // Si no hay registro previo
                 return response()->json(['message' => 'El id de la subscription no coincide'], 404);
             }
-    
+
             // Si no hay registro previo
             return response()->json(['message' => 'No hay registros de suscripción'], 404);
         }
-    
+
         return response()->json(['error' => 'El usuario no coincide con la suscripción o algo sali mal'], 403);
-    }    
+    }
 
 
     private $preapprovalId;
@@ -212,5 +212,4 @@ class SubscriptionController extends Controller
 
         return response()->json(['status' => 'received']);
     }
-
 }
