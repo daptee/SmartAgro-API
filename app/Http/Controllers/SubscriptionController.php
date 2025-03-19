@@ -122,6 +122,8 @@ class SubscriptionController extends Controller
             if ($existingRecord) {
                 // Accedemos a los datos directamente como objeto o array (sin json_decode)
                 $existingData = $existingRecord->data; // Asegúrate de que 'data' sea el campo correcto
+
+                Log::info($existingData);
         
                 // Si $existingData es JSON almacenado como string, lo decodificamos
                 $existingData = is_string($existingData) ? json_decode($existingData, true) : $existingData;
