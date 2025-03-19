@@ -114,19 +114,26 @@ class SubscriptionController extends Controller
                 ->latest('created_at') // Ordenamos por la fecha más reciente
                 ->first();
 
-            Log::info('data user plan: ' . $existingRecord);
-
-            // Si hay registro, lo retornamos
+                $existingRecord = UserPlan::where('id_user', $userId)
+                ->latest('created_at') // Ordenamos por la fecha más reciente
+                ->first();
+        
+            // Verificamos si existe un registro
             if ($existingRecord) {
-
-                if ($preapprovalId == $existingRecord['data']['id']) {
+                // Accedemos a los datos directamente como objeto o array (sin json_decode)
+                $existingData = $existingRecord->data; // Asegúrate de que 'data' sea el campo correcto
+        
+                // Si $existingData es JSON almacenado como string, lo decodificamos
+                $existingData = is_string($existingData) ? json_decode($existingData, true) : $existingData;
+        
+                // Validamos el ID de la preaprobación
+                if ($preapprovalId == $existingData['id']) {
                     return response()->json([
                         'message' => 'Subscription encontrada',
                         'data' => $subscriptionData
                     ], 200);
                 }
-
-                // Si no hay registro previo
+        
                 return response()->json(['message' => 'El id de la subscription no coincide'], 404);
             }
 

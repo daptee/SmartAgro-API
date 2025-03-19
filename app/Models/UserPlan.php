@@ -19,10 +19,6 @@ class UserPlan extends Model
     ];
 
     protected $table = "users_plans";
-    
-    protected $casts = [
-        'data' => 'array',
-    ];
 
     public static function save_history($id_user, $id_plan, $data, $next_payment_date)
     {
