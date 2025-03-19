@@ -50,7 +50,6 @@ Route::group(['middleware' => ['auth:api']], function ($router) {
         Route::post('subscription', 'subscription');
         Route::get('subscription/check', 'subscription_check');
     });
-
 });
 
 Route::post('research-on-demand', [ResearchOnDemand::class, 'research_on_demand']);
@@ -73,8 +72,8 @@ Route::controller(GetsFunctionsController::class)->group(function () {
 });
 
 // Dolar API
-Route::get('dolar/oficial', function() {
-    $response = Http::get("https://dolarapi.com/v1/dolares/oficial");   
+Route::get('dolar/oficial', function () {
+    $response = Http::get("https://dolarapi.com/v1/dolares/oficial");
     if ($response->successful()) {
         return $response->json();
     } else {
@@ -82,8 +81,8 @@ Route::get('dolar/oficial', function() {
     }
 });
 
-Route::get('dolar/mayorista', function() {
-    $response = Http::get("https://dolarapi.com/v1/dolares/mayorista");   
+Route::get('dolar/mayorista', function () {
+    $response = Http::get("https://dolarapi.com/v1/dolares/mayorista");
     if ($response->successful()) {
         return $response->json();
     } else {
@@ -91,8 +90,8 @@ Route::get('dolar/mayorista', function() {
     }
 });
 
-Route::get('dolar/blue', function() {
-    $response = Http::get("https://dolarapi.com/v1/dolares/blue");   
+Route::get('dolar/blue', function () {
+    $response = Http::get("https://dolarapi.com/v1/dolares/blue");
     if ($response->successful()) {
         return $response->json();
     } else {
@@ -100,13 +99,13 @@ Route::get('dolar/blue', function() {
     }
 });
 
-Route::get('/clear-cache', function() {
+Route::get('/clear-cache', function () {
     Artisan::call('config:cache');
     Artisan::call('config:clear');
-    Artisan::call('cache:clear');/* 
+    Artisan::call('cache:clear');
     Artisan::call('route:clear');
     Artisan::call('view:clear');
-    Artisan::call('optimize'); */
+    Artisan::call('optimize');
 
     return response()->json([
         "message" => "Cache cleared successfully"
