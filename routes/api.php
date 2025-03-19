@@ -100,6 +100,13 @@ Route::get('dolar/blue', function () {
     }
 });
 
-Route::get('/clear-cache', [CacheController::class, 'clearCache'])->name('clearCache');
+Route::get('/clear-cache', function() {
+    Artisan::call('config:clear');
+    Artisan::call('optimize');
+
+    return response()->json([
+        "message" => "Cache cleared bien"
+    ]);
+});
 
 Route::post('/webhooks/mercadopago', [SubscriptionController::class, 'handleWebhook'])->name('webhook.mercadopago');
