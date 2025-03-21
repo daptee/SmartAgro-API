@@ -239,7 +239,7 @@ class AuthController extends Controller
             }
 
             if($user->id_status == 2){
-                $response = ['message' => 'La cuenta esta desactivada.'];
+                $response = ['message' => 'Usuario y/o clave no válidos.'];
                 Audith::new($user->id, $action, $credentials, 400, $response);
                 return response()->json($response, 400);
             }
