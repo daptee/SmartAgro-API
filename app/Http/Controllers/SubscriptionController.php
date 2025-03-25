@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\PaymentHistory;
 use App\Models\User;
 use App\Models\UserPlan;
+use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
@@ -87,7 +88,7 @@ class SubscriptionController extends Controller
 
         // Obtenemos el userId desde la respuesta
         $userIdSubscription = $subscriptionData['external_reference'];
-        $userId = Auth::id();
+        $userId = Auth::user()->id ?? null;
 
         Log::info($userIdSubscription);
         Log::info($userId);
@@ -147,6 +148,45 @@ class SubscriptionController extends Controller
     }
 
 
+    public function subscription_cancel(Request $request)
+    {
+        $message = "Error al obtener registro";
+        $userId = Auth::user()->id ?? null;
+        $accessToken = config('app.mercadopago_token');
+        $preapprovalId = $request->preapproval_id;
+
+        try {
+            if (!$preapprovalId) {
+                return response()->json(['error' => 'Falta el preapproval_id'], 422);
+            }
+    
+            // Cancelar la suscripción en Mercado Pago
+            $cancelResponse = Http::withToken($accessToken)->put("https://api.mercadopago.com/preapproval/{$preapprovalId}", [
+                'status' => 'cancelled'
+            ]);
+    
+            if (!$cancelResponse->successful()) {
+                return response()->json(['error' => 'Error al cancelar la suscripción'], 500);
+            }
+    
+            // Cambiar el plan del usuario al plan gratuito (plan 1)
+            $user = User::find($userId);
+            if ($user) {
+                $user->update(['id_plan' => 1]);
+            }
+    
+            // Guardar registro en UserPlan
+            UserPlan::save_history($userId, 1, ['reason' => 'Cancelación de suscripción'], now(), $preapprovalId);
+    
+            Log::info("Usuario $userId cambió al plan gratuito tras cancelar la suscripción");
+    
+            return response()->json(['message' => 'Suscripción cancelada y usuario cambiado al plan gratuito'], 200);
+        } catch (Exception $e) {
+            $response = ["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()];
+            return response($response, 500);      
+        }
+    }
+
     private $preapprovalId;
 
     public function handleWebhook(Request $request)
@@ -180,7 +220,7 @@ class SubscriptionController extends Controller
                             ->first();
 
                         if (!$existingRecord) {
-                            UserPlan::save_history($userId, 2, $subscriptionData, $subscriptionData['next_payment_date']);
+                            UserPlan::save_history($userId, 2, $subscriptionData, $subscriptionData['next_payment_date'],$this->preapprovalId);
 
                             Log::info('Historial guardado correctamente');
                         } else {
@@ -192,6 +232,13 @@ class SubscriptionController extends Controller
                 }
 
                 if ($status == "failed") {
+                    PaymentHistory::create([
+                        'id_user' => $userId,
+                        'type' => $status,
+                        'data' => ['reason' => 'Fallo de suscripción'],
+                        'preapproval_id' => $this->preapprovalId,
+                        'error_message' => "Fallo de suscripción",
+                    ]);
                     return response()->json(['message' => 'Pago fallido registrado'], 200);
                 }
             }
@@ -214,6 +261,7 @@ class SubscriptionController extends Controller
                     'id_user' => $userId,
                     'type' => $data['type'],
                     'data' => json_encode($subscriptionData),
+                    'preapproval_id' => $subscriptionData['metadata']['preapproval_id'],
                     'error_message' => null,
                 ]);
             }

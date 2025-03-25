@@ -15,12 +15,13 @@ class UserPlan extends Model
     protected $fillable = [
         'id_user',
         'id_plan',
-        'data'
+        'data',
+        'preapproval_id'
     ];
 
     protected $table = "users_plans";
 
-    public static function save_history($id_user, $id_plan, $data, $next_payment_date)
+    public static function save_history($id_user, $id_plan, $data, $next_payment_date, $preapproval_id)
     {
         try {
             DB::beginTransaction();
@@ -29,6 +30,7 @@ class UserPlan extends Model
                 $user_plan->id_plan = $id_plan;
                 $user_plan->data = json_encode($data);
                 $user_plan->next_payment_date = $next_payment_date;
+                $user_plan->preapproval_id = $preapproval_id;
                 $user_plan->save();
             DB::commit();
         } catch (Exception $e) {

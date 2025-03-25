@@ -25,7 +25,7 @@ Route::controller(AuthController::class)->group(function () {
     Route::post('auth/resend-welcome-email', 'resend_welcome_email');
 });
 
-Route::group(['middleware' => ['auth:api']], function ($router) {
+Route::group(['middleware' => ['token']], function ($router) {
     // AuthController
     Route::post('logout', [AuthController::class, 'logout']);
     Route::post('auth/password-recovery-token', [AuthController::class, 'auth_password_recovery_token']);
@@ -50,6 +50,7 @@ Route::group(['middleware' => ['auth:api']], function ($router) {
     Route::controller(SubscriptionController::class)->group(function () {
         Route::post('subscription', 'subscription');
         Route::get('subscription/check', 'subscription_check');
+        Route::get('subscription/cancel', 'subscription_cancel');
     });
 });
 
