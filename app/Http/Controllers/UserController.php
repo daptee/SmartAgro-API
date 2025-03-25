@@ -22,8 +22,8 @@ class UserController extends Controller
     public $s = "usuario";
     public $sp = "usuarios";
     public $ss = "usuario/s";
-    public $v = "o"; 
-    public $pr = "el"; 
+    public $v = "o";
+    public $pr = "el";
     public $prp = "los";
 
     /**
@@ -72,8 +72,23 @@ class UserController extends Controller
         $action = "Perfil de usuario";
         $data = null;
         $id_user = Auth::user()->id ?? null;
+
         try {
             $data = User::getAllDataUser($id_user);
+
+            if ($data['id_plan'] == 2) {
+                Log::info($data['id']);
+                $existingRecord = UserPlan::where('id_user', $data['id'])->latest()->first();
+                if ($existingRecord) {
+                    // Decodificamos el campo 'data' a array
+                    $existingRecord->data = json_decode($existingRecord->data, true);
+                }
+
+                // Agrega el registro dentro de "plan"
+                $data['plan']['user_plan'] = $existingRecord ?? 'Sin plan asignado';
+                Log::info($data);
+            }
+
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
         } catch (Exception $e) {
             $response = ["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()];
@@ -82,8 +97,10 @@ class UserController extends Controller
             return response($response, 500);
         }
 
+        // Devolvemos los datos modificados correctamente
         return response(compact("data"));
     }
+
 
     /**
      * Update the specified resource in storage.
@@ -91,7 +108,7 @@ class UserController extends Controller
     public function update(Request $request)
     {
         $id = Auth::user()->id;
-        
+
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
@@ -103,7 +120,7 @@ class UserController extends Controller
                 Rule::unique('users')->ignore($id),
             ],
         ]);
-    
+
         $action = "Actualización de usuario";
         $status = 422;
 
@@ -119,11 +136,11 @@ class UserController extends Controller
         $message = "Usuario actualizado con exito";
         try {
             DB::beginTransaction();
-                $user = User::find($id);
-                $user->update($request->all());
-              
-                $data = User::getAllDataUser($id);
-                Audith::new($id, $action, $request->all(), 200, compact("message", "data"));
+            $user = User::find($id);
+            $user->update($request->all());
+
+            $data = User::getAllDataUser($id);
+            Audith::new($id, $action, $request->all(), 200, compact("message", "data"));
             DB::commit();
         } catch (Exception $e) {
             DB::rollBack();
@@ -144,21 +161,21 @@ class UserController extends Controller
         $action = "Eliminación de usuario";
         $id_user = Auth::user()->id;
         $message = "Usuario eliminado con éxito";
-    
+
         try {
             DB::beginTransaction();
-            
+
             $user = User::find($id_user);
             if (!$user) {
                 $response = ['message' => 'Usuario no encontrado'];
                 Audith::new($id_user, $action, ['deleted_user_id' => $id_user], 500, $response);
                 return response()->json($response, 404);
             }
-    
+
             $user->delete();
-    
+
             Audith::new($id_user, $action, ['deleted_user_id' => $id_user], 200, compact("message"));
-            
+
             DB::commit();
         } catch (Exception $e) {
             DB::rollBack();
@@ -167,7 +184,7 @@ class UserController extends Controller
             Log::debug($response);
             return response()->json($response, 500);
         }
-    
+
         return response()->json(compact("message"));
     }
 
@@ -216,9 +233,9 @@ class UserController extends Controller
 
             $user = $this->model::find($id);
 
-            if(!$user){
+            if (!$user) {
                 $response = ['message' => 'Usuario no valido.'];
-                Audith::new($id_user, $action, ["user_id" => $id, "data" => $request->all()], 400, $response);                
+                Audith::new($id_user, $action, ["user_id" => $id, "data" => $request->all()], 400, $response);
                 return response()->json($response, 400);
             }
 
@@ -264,7 +281,7 @@ class UserController extends Controller
             DB::beginTransaction();
             $user = $this->model::find($id);
 
-            if(!$user){
+            if (!$user) {
                 $response = ["message" => 'Usuario no valido.'];
                 Audith::new($id_user, $action, ["id_user" => $id, "data" => $request->all()], 400, $response);
                 return response()->json($response, 400);
@@ -290,11 +307,11 @@ class UserController extends Controller
     }
 
     public function profile_picture(Request $request)
-    {   
+    {
         $validator = Validator::make($request->all(), [
             'profile_picture' => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:2048'
         ]);
-    
+
         $action = "Actualización de imagen de perfil";
         $status = 422;
         $id_user = Auth::user()->id ?? null;
@@ -312,26 +329,26 @@ class UserController extends Controller
         $data = null;
         try {
             DB::beginTransaction();
-            if($request->id_user){
+            if ($request->id_user) {
                 $user = $this->model::find($request->id_user);
-                if(!$user){
+                if (!$user) {
                     $response = ["message" => "Usuario invalido"];
                     Audith::new($id_user, $action, $request->all(), $status, $response);
                     return response($response, 400);
                 }
-            }else{
+            } else {
                 $user = Auth::user();
             }
 
-            if($user->profile_picture){
+            if ($user->profile_picture) {
                 $file_path = public_path($user->profile_picture);
-            
+
                 if (file_exists($file_path))
                     unlink($file_path);
             }
 
             $path = $this->save_image_public_folder($request->profile_picture, "users/profiles/", null);
-            
+
             $user->profile_picture = $path;
             $user->save();
 
@@ -352,11 +369,11 @@ class UserController extends Controller
     public function save_image_public_folder($file, $path_to_save, $variable_id)
     {
         $fileName = Str::random(5) . time() . '.' . $file->extension();
-                        
-        if($variable_id){
+
+        if ($variable_id) {
             $file->move(public_path($path_to_save . $variable_id), $fileName);
             $path = "/" . $path_to_save . $variable_id . "/$fileName";
-        }else{
+        } else {
             $file->move(public_path($path_to_save), $fileName);
             $path = "/" . $path_to_save . $fileName;
         }
