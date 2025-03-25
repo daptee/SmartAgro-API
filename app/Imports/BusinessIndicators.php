@@ -89,7 +89,8 @@ class BusinessIndicators implements WithMultipleSheets
             'data' => [
                 'title' => $row[3],
                 'value' => $row[4],
-                'text' => $row[5],
+                'unit' => $row[5],
+                'text' => $row[6],
             ],
         ];
     }
