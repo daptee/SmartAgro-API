@@ -20,7 +20,7 @@ class SubscriptionController extends Controller
 
         // Verificar si la moneda es USD y convertir a ARS
         if (strtolower($request->currency) === 'usd') {
-            $dollarResponse = Http::get('https://dolarapi.com/v1/dolares/blue');
+            $dollarResponse = Http::get('https://dolarapi.com/v1/dolares/oficial');
 
             if ($dollarResponse->successful()) {
                 $dollarData = $dollarResponse->json();
