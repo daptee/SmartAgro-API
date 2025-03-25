@@ -238,6 +238,12 @@ class AuthController extends Controller
                 return response()->json($response, 400);
             }
 
+            if($user->id_status == 2){
+                $response = ['message' => 'Usuario y/o clave no válidos.'];
+                Audith::new($user->id, $action, $credentials, 400, $response);
+                return response()->json($response, 400);
+            }
+
             if (! $token = auth()->attempt($credentials)) {
                 $response = ['message' => 'Usuario y/o clave no válidos.'];
                 Audith::new(null, $action, $credentials, 401, $response);
