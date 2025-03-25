@@ -5,6 +5,7 @@ use App\Http\Controllers\CacheController;
 use App\Http\Controllers\GeneralImportController;
 use App\Http\Controllers\GetsFunctionsController;
 use App\Http\Controllers\LocalityProvinceController;
+use App\Http\Controllers\RegionController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ResearchOnDemand;
@@ -52,6 +53,11 @@ Route::group(['middleware' => ['token']], function ($router) {
         Route::get('subscription/check', 'subscription_check');
         Route::get('subscription/cancel', 'subscription_cancel');
         Route::get('subscription/history', 'subscription_history');
+    });
+
+    // Regions
+    Route::controller(RegionController::class)->group(function () {
+        Route::get('regions', 'get_regions');
     });
 });
 
