@@ -115,20 +115,20 @@ class SubscriptionController extends Controller
                 ->latest('created_at') // Ordenamos por la fecha más reciente
                 ->first();
 
-                $existingRecord = UserPlan::where('id_user', $userId)
+            $existingRecord = UserPlan::where('id_user', $userId)
                 ->latest('created_at') // Ordenamos por la fecha más reciente
                 ->first();
-        
+
             // Verificamos si existe un registro
             if ($existingRecord) {
                 // Accedemos a los datos directamente como objeto o array (sin json_decode)
                 $existingData = $existingRecord->data; // Asegúrate de que 'data' sea el campo correcto
 
                 Log::info($existingData);
-        
+
                 // Si $existingData es JSON almacenado como string, lo decodificamos
                 $existingData = is_string($existingData) ? json_decode($existingData, true) : $existingData;
-        
+
                 // Validamos el ID de la preaprobación
                 if ($preapprovalId == $existingData['id']) {
                     return response()->json([
@@ -136,7 +136,7 @@ class SubscriptionController extends Controller
                         'data' => $subscriptionData
                     ], 200);
                 }
-        
+
                 return response()->json(['message' => 'El id de la subscription no coincide'], 404);
             }
 
@@ -159,31 +159,31 @@ class SubscriptionController extends Controller
             if (!$preapprovalId) {
                 return response()->json(['error' => 'Falta el preapproval_id'], 422);
             }
-    
+
             // Cancelar la suscripción en Mercado Pago
             $cancelResponse = Http::withToken($accessToken)->put("https://api.mercadopago.com/preapproval/{$preapprovalId}", [
                 'status' => 'cancelled'
             ]);
-    
+
             if (!$cancelResponse->successful()) {
                 return response()->json(['error' => 'Error al cancelar la suscripción'], 500);
             }
-    
+
             // Cambiar el plan del usuario al plan gratuito (plan 1)
             $user = User::find($userId);
             if ($user) {
                 $user->update(['id_plan' => 1]);
             }
-    
+
             // Guardar registro en UserPlan
             UserPlan::save_history($userId, 1, ['reason' => 'Cancelación de suscripción'], now(), $preapprovalId);
-    
+
             Log::info("Usuario $userId cambió al plan gratuito tras cancelar la suscripción");
-    
+
             return response()->json(['message' => 'Suscripción cancelada y usuario cambiado al plan gratuito'], 200);
         } catch (Exception $e) {
             $response = ["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()];
-            return response($response, 500);      
+            return response($response, 500);
         }
     }
 
@@ -220,7 +220,7 @@ class SubscriptionController extends Controller
                             ->first();
 
                         if (!$existingRecord) {
-                            UserPlan::save_history($userId, 2, $subscriptionData, $subscriptionData['next_payment_date'],$this->preapprovalId);
+                            UserPlan::save_history($userId, 2, $subscriptionData, $subscriptionData['next_payment_date'], $this->preapprovalId);
 
                             Log::info('Historial guardado correctamente');
                         } else {
@@ -268,5 +268,59 @@ class SubscriptionController extends Controller
         }
 
         return response()->json(['status' => 'received']);
+    }
+
+    public function subscription_history(Request $request)
+    {
+        $userId = Auth::id();
+        $perPage = $request->query('per_page');
+
+        // Construir la consulta base
+        $query = UserPlan::where('id_user', $userId)->orderBy('created_at', 'desc');
+
+        // Verificar si hay paginación
+        if ($perPage !== null) {
+            $userPlans = $query->paginate((int) $perPage);
+
+            $metaData = [
+                'page' => $userPlans->currentPage(),
+                'per_page' => $userPlans->perPage(),
+                'total' => $userPlans->total(),
+                'last_page' => $userPlans->lastPage(),
+            ];
+
+            $collection = $userPlans->getCollection();
+        } else {
+            $collection = $query->get();
+            $metaData = [
+                'total' => $collection->count(),
+                'per_page' => 'Todos',
+                'page' => 1,
+                'last_page' => 1,
+            ];
+        }
+
+        // Transformar los datos
+        $collection->transform(function ($plan) {
+            // Convertir 'data' a array si es string
+            $plan->data = is_string($plan->data) ? json_decode($plan->data, true) : $plan->data;
+
+            // Agregar historial de pagos y transformar 'data' de cada pago
+            $plan->payment_history = PaymentHistory::where('preapproval_id', $plan->data['id'] ?? null)
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->map(function ($payment) {
+                    $payment->data = is_string($payment->data) ? json_decode($payment->data, true) : $payment->data;
+                    return $payment;
+                });
+
+            return $plan;
+        });
+
+        // Respuesta con datos y metadatos
+        return response()->json([
+            'data' => $collection,
+            'meta' => $metaData,
+        ]);
     }
 }
