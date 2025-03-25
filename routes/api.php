@@ -51,6 +51,7 @@ Route::group(['middleware' => ['token']], function ($router) {
         Route::post('subscription', 'subscription');
         Route::get('subscription/check', 'subscription_check');
         Route::get('subscription/cancel', 'subscription_cancel');
+        Route::get('subscription/history', 'subscription_history');
     });
 });
 
