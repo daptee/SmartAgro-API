@@ -36,6 +36,10 @@ class SubscriptionController extends Controller
             return response()->json(['error' => 'Moneda no soportada'], 400);
         }
 
+        $request->merge([
+            'transaction_amount' => number_format($request->transaction_amount, 2, '.', ''), // Asegura 2 decimales
+        ]);
+
         // Crear el Subscription
         $subscriptionResponse = Http::withToken($accessToken)->post('https://api.mercadopago.com/preapproval', [
             "auto_recurring" => [
