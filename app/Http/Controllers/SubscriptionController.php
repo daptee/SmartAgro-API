@@ -398,17 +398,25 @@ class SubscriptionController extends Controller
             // Convertir 'data' a array si es string
             $payment->data = is_string($payment->data) ? json_decode($payment->data, true) : $payment->data;
 
-            // Obtener el último UserPlan asociado al preapproval_id
-            $latestUserPlan = UserPlan::where('data->id', $payment->preapproval_id)
-                ->orderBy('created_at', 'asc')
-                ->first();
+            // Obtener todos los UserPlan relacionados en PHP (sin hacer otra consulta SQL)
+            $userPlans = UserPlan::all()->filter(function ($plan) use ($payment) {
+                return isset($plan->data['id']) && $plan->data['id'] === $payment->preapproval_id;
+            })->toArray();
+
+            // Ordenar los UserPlan de más antiguo a más nuevo en PHP
+            usort($userPlans, function ($a, $b) {
+                return strtotime($a['created_at']) <=> strtotime($b['created_at']);
+            });
+
+            // Obtener el más reciente después de la ordenación
+            $latestUserPlan = end($userPlans) ?: null;
 
             if ($latestUserPlan) {
-                $latestUserPlan->data = is_string($latestUserPlan->data) ? json_decode($latestUserPlan->data, true) : $latestUserPlan->data;
+                $latestUserPlan['data'] = is_string($latestUserPlan['data']) ? json_decode($latestUserPlan['data'], true) : $latestUserPlan['data'];
             }
 
-            // Agregar datos al historial de pagos
-            $payment->user_plan = $latestUserPlan; // Relacionamos el plan con el pago
+            // Agregar el último UserPlan al historial de pagos
+            $payment->user_plan = $latestUserPlan;
 
             return $payment;
         });
