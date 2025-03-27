@@ -407,14 +407,8 @@ class SubscriptionController extends Controller
                 $latestUserPlan->data = is_string($latestUserPlan->data) ? json_decode($latestUserPlan->data, true) : $latestUserPlan->data;
             }
 
-            // Obtener solo el último payment_user (si existe)
-            $latestPaymentUser = PaymentUser::where('payment_id', $payment->id)
-                ->orderBy('created_at', 'desc')
-                ->first();
-
             // Agregar datos al historial de pagos
             $payment->user_plan = $latestUserPlan; // Relacionamos el plan con el pago
-            $payment->payment = $latestPaymentUser; // Último usuario de pago
 
             return $payment;
         });
