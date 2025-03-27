@@ -399,10 +399,8 @@ class SubscriptionController extends Controller
             $payment->data = is_string($payment->data) ? json_decode($payment->data, true) : $payment->data;
 
             // Obtener el último UserPlan asociado al preapproval_id
-            $preapprovalId = $payment->preapproval_id;
-
-            $latestUserPlan = UserPlan::whereRaw("JSON_EXTRACT(data, '$.id') = ?", [$preapprovalId])
-                ->orderBy('created_at', 'desc') // Traer el más reciente
+            $latestUserPlan = UserPlan::where('data->id', $payment->preapproval_id)
+                ->orderBy('created_at', 'asc')
                 ->first();
 
             if ($latestUserPlan) {
@@ -421,5 +419,4 @@ class SubscriptionController extends Controller
             'meta' => $metaData,
         ]);
     }
-
 }
