@@ -400,7 +400,7 @@ class SubscriptionController extends Controller
 
             // Obtener el último UserPlan asociado al preapproval_id
             $latestUserPlan = UserPlan::where('data->id', $payment->preapproval_id)
-                ->orderBy('created_at', 'desc')
+                ->latest('created_at') // Esto garantiza traer el más reciente
                 ->first();
 
             if ($latestUserPlan) {
