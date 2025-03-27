@@ -180,7 +180,7 @@ class SubscriptionController extends Controller
             }
 
             // Guardar registro en UserPlan
-            UserPlan::save_history($userId, 1, ['reason' => 'Cancelación de suscripción'], now(), $preapprovalId);
+            UserPlan::save_history($userId, 1, ['reason' => 'Cancelación de suscripción', 'is_system' => 'true'], now(), $preapprovalId);
 
             Log::info("Usuario $userId cambió al plan gratuito tras cancelar la suscripción");
 
@@ -233,6 +233,26 @@ class SubscriptionController extends Controller
                     } else {
                         Log::error("Usuario no encontrado: $userId");
                     }
+                }
+
+                if ($status == "cancelled") {
+
+                    $user = User::find($userId);
+                    if ($user) {
+                        $user->update(['id_plan' => 1]);
+                    }
+
+                    // Guardar registro en UserPlan
+                    UserPlan::save_history($userId, 1, ['reason' => 'Cancelación de suscripción', 'is_system' => 'false'], now(), $this->preapprovalId);
+
+                    PaymentHistory::create([
+                        'id_user' => $userId,
+                        'type' => $status,
+                        'data' => ['reason' => 'Cancelación de suscripción', 'is_system' => 'false'],
+                        'preapproval_id' => $this->preapprovalId,
+                        'error_message' => "Suscripción cancelada",
+                    ]);
+                    return response()->json(['message' => 'Pago fallido registrado'], 200);
                 }
 
                 if ($status == "failed") {
