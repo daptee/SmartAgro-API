@@ -53,6 +53,7 @@ Route::group(['middleware' => ['token']], function ($router) {
         Route::get('subscription/check', 'subscription_check');
         Route::get('subscription/cancel', 'subscription_cancel');
         Route::get('subscription/history', 'subscription_history');
+        Route::get('subscription/plan', 'subscription_plan');
     });
 
     // Regions

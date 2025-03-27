@@ -2,6 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\LowPlan;
+use App\Mail\NewPayment;
+use App\Mail\NotificationLowPlan;
+use App\Mail\NotificationWelcomePlan;
 use App\Mail\WelcomePlan;
 use App\Models\PaymentHistory;
 use App\Models\User;
@@ -184,6 +188,9 @@ class SubscriptionController extends Controller
             // Guardar registro en UserPlan
             UserPlan::save_history($userId, 1, ['reason' => 'Cancelación de suscripción', 'is_system' => 'true'], now(), $preapprovalId);
 
+            Mail::to($user->email)->send(new LowPlan($user));
+            Mail::to(config('services.research_on_demand.email'))->send(new NotificationLowPlan($user));
+
             Log::info("Usuario $userId cambió al plan gratuito tras cancelar la suscripción");
 
             return response()->json(['message' => 'Suscripción cancelada y usuario cambiado al plan gratuito'], 200);
@@ -226,6 +233,7 @@ class SubscriptionController extends Controller
                             ->first();
 
                         Mail::to($user->email)->send(new WelcomePlan($user));
+                        Mail::to(config('services.research_on_demand.email'))->send(new NotificationWelcomePlan($user));
 
                         if (!$existingRecord) {
                             UserPlan::save_history($userId, 2, $subscriptionData, $subscriptionData['next_payment_date'], $this->preapprovalId);
@@ -248,6 +256,10 @@ class SubscriptionController extends Controller
 
                     // Guardar registro en UserPlan
                     UserPlan::save_history($userId, 1, ['reason' => 'Cancelación de suscripción', 'is_system' => 'false'], now(), $this->preapprovalId);
+
+                    Mail::to($user->email)->send(new LowPlan($user));
+                    Mail::to(config('services.research_on_demand.email'))->send(new NotificationLowPlan($user));
+
 
                     return response()->json(['message' => 'Pago fallido registrado'], 200);
                 }
@@ -285,6 +297,12 @@ class SubscriptionController extends Controller
                     'preapproval_id' => $subscriptionData['metadata']['preapproval_id'],
                     'error_message' => null,
                 ]);
+
+                $user = User::find($userId);
+
+                if ($user) {
+                    Mail::to($user->email)->send(new NewPayment($user));
+                }
             }
         }
 
@@ -336,6 +354,69 @@ class SubscriptionController extends Controller
                 });
 
             return $plan;
+        });
+
+        // Respuesta con datos y metadatos
+        return response()->json([
+            'data' => $collection,
+            'meta' => $metaData,
+        ]);
+    }
+
+    public function subscription_plan(Request $request)
+    {
+        $userId = Auth::id();
+        $perPage = $request->query('per_page');
+
+        // Construir la consulta base: Obtener historial de pagos primero
+        $query = PaymentHistory::where('id_user', $userId)->orderBy('created_at', 'desc');
+
+        // Verificar si hay paginación
+        if ($perPage !== null) {
+            $paymentHistory = $query->paginate((int) $perPage);
+
+            $metaData = [
+                'page' => $paymentHistory->currentPage(),
+                'per_page' => $paymentHistory->perPage(),
+                'total' => $paymentHistory->total(),
+                'last_page' => $paymentHistory->lastPage(),
+            ];
+
+            $collection = $paymentHistory->getCollection();
+        } else {
+            $collection = $query->get();
+            $metaData = [
+                'total' => $collection->count(),
+                'per_page' => 'Todos',
+                'page' => 1,
+                'last_page' => 1,
+            ];
+        }
+
+        // Transformar los datos
+        $collection->transform(function ($payment) {
+            // Convertir 'data' a array si es string
+            $payment->data = is_string($payment->data) ? json_decode($payment->data, true) : $payment->data;
+
+            // Obtener el último UserPlan asociado al preapproval_id
+            $latestUserPlan = UserPlan::where('data->id', $payment->preapproval_id)
+                ->orderBy('created_at', 'desc')
+                ->first();
+
+            if ($latestUserPlan) {
+                $latestUserPlan->data = is_string($latestUserPlan->data) ? json_decode($latestUserPlan->data, true) : $latestUserPlan->data;
+            }
+
+            // Obtener solo el último payment_user (si existe)
+            $latestPaymentUser = PaymentUser::where('payment_id', $payment->id)
+                ->orderBy('created_at', 'desc')
+                ->first();
+
+            // Agregar datos al historial de pagos
+            $payment->user_plan = $latestUserPlan; // Relacionamos el plan con el pago
+            $payment->payment = $latestPaymentUser; // Último usuario de pago
+
+            return $payment;
         });
 
         // Respuesta con datos y metadatos
