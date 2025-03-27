@@ -404,14 +404,18 @@ class SubscriptionController extends Controller
                 ->first();
 
             if ($latestUserPlan) {
-                $latestUserPlan->data = is_string($latestUserPlan->data) ? json_decode($latestUserPlan->data, true) : $latestUserPlan->data;
+                $payment->user_plan = [
+                    'id' => $latestUserPlan->id,
+                    'id_user' => $latestUserPlan->id_user,
+                    'id_plan' => $latestUserPlan->id_plan,
+                ];
+            } else {
+                $payment->user_plan = null;
             }
-
-            // Agregar datos al historial de pagos
-            $payment->user_plan = $latestUserPlan; // Relacionamos el plan con el pago
 
             return $payment;
         });
+
 
         // Respuesta con datos y metadatos
         return response()->json([
