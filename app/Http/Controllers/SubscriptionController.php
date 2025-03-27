@@ -406,8 +406,6 @@ class SubscriptionController extends Controller
             if ($latestUserPlan) {
                 $payment->user_plan = [
                     'id' => $latestUserPlan->id,
-                    'id_user' => $latestUserPlan->id_user,
-                    'id_plan' => $latestUserPlan->id_plan,
                 ];
             } else {
                 $payment->user_plan = null;
