@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\WelcomePlan;
 use App\Models\PaymentHistory;
 use App\Models\User;
 use App\Models\UserPlan;
@@ -10,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class SubscriptionController extends Controller
 {
@@ -180,7 +182,7 @@ class SubscriptionController extends Controller
             }
 
             // Guardar registro en UserPlan
-            UserPlan::save_history($userId, 1, ['reason' => 'Cancelación de suscripción'], now(), $preapprovalId);
+            UserPlan::save_history($userId, 1, ['reason' => 'Cancelación de suscripción', 'is_system' => 'true'], now(), $preapprovalId);
 
             Log::info("Usuario $userId cambió al plan gratuito tras cancelar la suscripción");
 
@@ -223,6 +225,8 @@ class SubscriptionController extends Controller
                             ->where('next_payment_date', $subscriptionData['next_payment_date'])
                             ->first();
 
+                        Mail::to($user->email)->send(new WelcomePlan($user));
+
                         if (!$existingRecord) {
                             UserPlan::save_history($userId, 2, $subscriptionData, $subscriptionData['next_payment_date'], $this->preapprovalId);
 
@@ -233,6 +237,19 @@ class SubscriptionController extends Controller
                     } else {
                         Log::error("Usuario no encontrado: $userId");
                     }
+                }
+
+                if ($status == "cancelled") {
+
+                    $user = User::find($userId);
+                    if ($user) {
+                        $user->update(['id_plan' => 1]);
+                    }
+
+                    // Guardar registro en UserPlan
+                    UserPlan::save_history($userId, 1, ['reason' => 'Cancelación de suscripción', 'is_system' => 'false'], now(), $this->preapprovalId);
+
+                    return response()->json(['message' => 'Pago fallido registrado'], 200);
                 }
 
                 if ($status == "failed") {
