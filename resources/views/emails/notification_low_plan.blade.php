@@ -57,7 +57,7 @@
                       <p style="font-family: 'Montserrat', sans-serif; mso-line-height-rule: exactly; margin: 0; margin-bottom: 24px;">
                         Esto es una notificación automatica indicando que se ha detectado una baja del plan siembra.                      </p>
                       <p style="font-family: 'Montserrat', sans-serif; mso-line-height-rule: exactly; margin: 0; margin-bottom: 24px;">
-                        El correo del usuario que se ha suscripto es: {{ $user->name }}
+                        El correo del usuario que se ha suscripto es: {{ $user->email }}
                       </p>
                       <p style="font-family: 'Montserrat', sans-serif; mso-line-height-rule: exactly; margin: 0; margin-bottom: 16px;">Equipo de SmartAgro</p>
                     </td>
