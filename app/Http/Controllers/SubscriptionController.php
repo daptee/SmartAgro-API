@@ -138,9 +138,9 @@ class SubscriptionController extends Controller
 
                 // Si $existingData es JSON almacenado como string, lo decodificamos
                 $existingData = is_string($existingData) ? json_decode($existingData, true) : $existingData;
-
+                
                 // Validamos el ID de la preaprobación
-                if ($preapprovalId == $existingData['id']) {
+                if ($preapprovalId == $existingRecord["preapproval_id"]) {
                     return response()->json([
                         'message' => 'Subscription encontrada',
                         'data' => $subscriptionData
@@ -209,6 +209,12 @@ class SubscriptionController extends Controller
         Log::info('Webhook recibido de Mercado Pago:', $data);
 
         $accessToken = config('app.mercadopago_token');
+        $mercadopagoWebhookSecret = config('app.mercadopago_webhook_secret');
+        $receivedSecret = $request->header('X-MercadoPago-Signature');
+
+        if ($receivedSecret !== $mercadopagoWebhookSecret) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
 
         // 🔥 Guardamos temporalmente el preapprovalId si es subscription_preapproval
         if (isset($data['type']) && $data['type'] == 'subscription_preapproval') {
@@ -346,7 +352,7 @@ class SubscriptionController extends Controller
 
             // Agregar historial de pagos y transformar 'data' de cada pago
             $plan->payment_history = PaymentHistory::where('preapproval_id', $plan->data['id'] ?? null)
-                ->orderBy('created_at', 'desc')
+                ->orderBy('id', 'desc')
                 ->get()
                 ->map(function ($payment) {
                     $payment->data = is_string($payment->data) ? json_decode($payment->data, true) : $payment->data;
@@ -400,7 +406,7 @@ class SubscriptionController extends Controller
 
             // Obtener el último UserPlan asociado al preapproval_id
             $latestUserPlan = UserPlan::where('preapproval_id', $payment->preapproval_id)
-                ->orderBy('created_at', 'desc')
+                ->orderBy('id', 'desc')
                 ->first();
 
             if ($latestUserPlan) {

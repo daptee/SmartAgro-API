@@ -40,6 +40,7 @@ return [
     'url_front' => env('URL_FRONT'),
     'recaptcha_secret_key' => env('RECAPTCHA_SECRET_KEY'),
     'mercado_pago_access_token' => env('MERCADOPAGO_ACCESS_TOKEN'),
+    'mercado_pago_webhook_secret' => env('MERCADOPAGO_WEBHOOK_SECRET'),
     'research_on_demand' => [
         'email' => env('RESEARCH_ON_DEMAND_EMAIL')
     ],
