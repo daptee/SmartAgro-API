@@ -67,6 +67,10 @@ Route::post('/import-reports', [GeneralImportController::class, 'import'])->name
 Route::post('/import-business-indicators', [GeneralImportController::class, 'import_business_indicators']);
 Route::post('/notification-users-report', [ReportController::class, 'notification_users_report']);
 
+// Delete report
+Route::delete('reports', [ReportController::class, 'deleteReports']);
+Route::delete('business-indicators', [ReportController::class, 'deleteBusinessIndicators']);
+
 // User profiles
 Route::get('users_profiles', [UserController::class, 'users_profiles']);
 
