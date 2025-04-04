@@ -49,7 +49,7 @@ class SubscriptionController extends Controller
         // Crear el Subscription
         $subscriptionResponse = Http::withToken($accessToken)->post('https://api.mercadopago.com/preapproval', [
             "auto_recurring" => [
-                "frequency" => 1,
+                "frequency" => $request->frequency,
                 "frequency_type" => $request->frequency_type,
                 "transaction_amount" => $request->transaction_amount,
                 "currency_id" => "ARS"
