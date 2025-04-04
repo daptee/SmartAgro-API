@@ -138,7 +138,7 @@ class SubscriptionController extends Controller
 
                 // Si $existingData es JSON almacenado como string, lo decodificamos
                 $existingData = is_string($existingData) ? json_decode($existingData, true) : $existingData;
-                
+
                 // Validamos el ID de la preaprobación
                 if ($preapprovalId == $existingRecord["preapproval_id"]) {
                     return response()->json([
@@ -207,14 +207,58 @@ class SubscriptionController extends Controller
         $data = $request->all();
 
         Log::info('Webhook recibido de Mercado Pago:', $data);
-
+        
+        // Access token
         $accessToken = config('app.mercadopago_token');
-        $mercadopagoWebhookSecret = config('app.mercadopago_webhook_secret');
-        $receivedSecret = $request->header('X-MercadoPago-Signature');
 
-        if ($receivedSecret !== $mercadopagoWebhookSecret) {
+        // Obtener la firma y otros headers
+        $xSignature = $request->header('x-signature');
+        $xRequestId = $request->header('x-request-id');
+
+        // Obtener query params
+        $dataID = $request->query('data.id', '');
+
+        // Obtener el secreto desde config
+        $mercadopagoWebhookSecret = config('app.mercadopago_webhook_secret');
+
+        if (!$xSignature || !$xRequestId || !$dataID) {
+            return response()->json(['error' => 'Missing signature or request data'], 400);
+        }
+
+        // Separar la firma en partes
+        $parts = explode(',', $xSignature);
+        $ts = null;
+        $hash = null;
+
+        foreach ($parts as $part) {
+            $keyValue = explode('=', $part, 2);
+            if (count($keyValue) == 2) {
+                $key = trim($keyValue[0]);
+                $value = trim($keyValue[1]);
+                if ($key === "ts") {
+                    $ts = $value;
+                } elseif ($key === "v1") {
+                    $hash = $value;
+                }
+            }
+        }
+
+        if (!$ts || !$hash) {
+            return response()->json(['error' => 'Invalid signature format'], 400);
+        }
+
+        // Crear el manifiesto
+        $manifest = "id:$dataID;request-id:$xRequestId;ts:$ts;";
+
+        // Generar HMAC
+        $sha = hash_hmac('sha256', $manifest, $mercadopagoWebhookSecret);
+
+        if ($sha !== $hash) {
+            Log::warning('Webhook rechazado: HMAC inválido', ['data_id' => $dataID]);
             return response()->json(['error' => 'Unauthorized'], 401);
         }
+
+        Log::info('Webhook validado correctamente', ['data_id' => $dataID]);
 
         // 🔥 Guardamos temporalmente el preapprovalId si es subscription_preapproval
         if (isset($data['type']) && $data['type'] == 'subscription_preapproval') {
