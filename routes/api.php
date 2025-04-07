@@ -1,17 +1,24 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BackupController;
+use App\Http\Controllers\CacheController;
 use App\Http\Controllers\GeneralImportController;
 use App\Http\Controllers\GetsFunctionsController;
 use App\Http\Controllers\LocalityProvinceController;
-use App\Http\Controllers\PlanController;
+use App\Http\Controllers\RegionController;
+use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\ResearchOnDemand;
 use App\Http\Controllers\UserController;
 use App\Http\Middleware\CheckPlan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Http;
+
+// Backup
+Route::get('/backup', [BackupController::class, 'createBackup'])->name('backup');
 
 // Auth
 Route::controller(AuthController::class)->group(function () {
@@ -23,7 +30,7 @@ Route::controller(AuthController::class)->group(function () {
     Route::post('auth/resend-welcome-email', 'resend_welcome_email');
 });
 
-Route::group(['middleware' => ['auth:api']], function ($router) {
+Route::group(['middleware' => ['token']], function ($router) {
     // AuthController
     Route::post('logout', [AuthController::class, 'logout']);
     Route::post('auth/password-recovery-token', [AuthController::class, 'auth_password_recovery_token']);
@@ -43,11 +50,30 @@ Route::group(['middleware' => ['auth:api']], function ($router) {
         Route::get('reports', 'reports');
         Route::get('business-indicators', 'business_indicators')->middleware(CheckPlan::class);
     });
+
+    // Subscription
+    Route::controller(SubscriptionController::class)->group(function () {
+        Route::post('subscription', 'subscription');
+        Route::get('subscription/check', 'subscription_check');
+        Route::get('subscription/cancel', 'subscription_cancel');
+        Route::get('subscription/history', 'subscription_history');
+        Route::get('subscription/payment/history', 'subscription_plan');
+    });
+
+    // Regions
+    Route::controller(RegionController::class)->group(function () {
+        Route::get('regions', 'get_regions');
+    });
 });
 
+Route::post('research-on-demand', [ResearchOnDemand::class, 'research_on_demand']);
 Route::post('/import-reports', [GeneralImportController::class, 'import'])->name('import.reports');
 Route::post('/import-business-indicators', [GeneralImportController::class, 'import_business_indicators']);
 Route::post('/notification-users-report', [ReportController::class, 'notification_users_report']);
+
+// Delete report
+Route::delete('reports', [ReportController::class, 'deleteReports']);
+Route::delete('business-indicators', [ReportController::class, 'deleteBusinessIndicators']);
 
 // User profiles
 Route::get('users_profiles', [UserController::class, 'users_profiles']);
@@ -63,13 +89,9 @@ Route::controller(GetsFunctionsController::class)->group(function () {
     Route::get('/plans', 'plans');
 });
 
-Route::post('/subscription', [PlanController::class, 'subscription']);
-
-Route::post('/webhooks/mercadopago', [PlanController::class, 'handleWebhook']);
-
 // Dolar API
-Route::get('dolar/oficial', function() {
-    $response = Http::get("https://dolarapi.com/v1/dolares/oficial");   
+Route::get('dolar/oficial', function () {
+    $response = Http::get("https://dolarapi.com/v1/dolares/oficial");
     if ($response->successful()) {
         return $response->json();
     } else {
@@ -77,8 +99,17 @@ Route::get('dolar/oficial', function() {
     }
 });
 
-Route::get('dolar/mayorista', function() {
-    $response = Http::get("https://dolarapi.com/v1/dolares/mayorista");   
+Route::get('dolar/mayorista', function () {
+    $response = Http::get("https://dolarapi.com/v1/dolares/mayorista");
+    if ($response->successful()) {
+        return $response->json();
+    } else {
+        return $response->throw();
+    }
+});
+
+Route::get('dolar/blue', function () {
+    $response = Http::get("https://dolarapi.com/v1/dolares/blue");
     if ($response->successful()) {
         return $response->json();
     } else {
@@ -87,10 +118,14 @@ Route::get('dolar/mayorista', function() {
 });
 
 Route::get('/clear-cache', function() {
-    Artisan::call('config:clear');
-    Artisan::call('optimize');
+    Artisan::call('cache:clear');
+    Artisan::call('config:cache');
+    Artisan::call('route:cache');
+    Artisan::call('view:cache');
 
     return response()->json([
         "message" => "Cache cleared successfully"
     ]);
 });
+
+Route::post('/webhooks/mercadopago', [SubscriptionController::class, 'handleWebhook'])->name('webhook.mercadopago');

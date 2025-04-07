@@ -16,6 +16,7 @@ class GrossMarginsTrend extends Model
         'id_plan',
         'date',
         'region',
+        'month',
         'data',
     ];
 

@@ -25,32 +25,45 @@ use App\Models\PitIndicator;
 use App\Models\ProductPrice;
 use App\Models\User;
 use Exception;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Validator;
 
 class ReportController extends Controller
 {
     public function reports(Request $request)
     {
         // Validar parámetros de mes y año
-        $request->validate([
+        $validator = Validator::make($request->all(), [
             'month' => 'required|integer|min:1|max:12',
             'year' => 'required|integer|digits:4'
         ]);
 
-        $message = "Error al obtener reportes";
         $action = "Listado de reportes";
+        $status = 422;
         $id_user = Auth::user()->id ?? null;
+
+        if ($validator->fails()) {
+            $response = [
+                'message' => 'Alguna de las validaciones falló',
+                'errors' => $validator->errors(),
+            ];
+            Audith::new($id_user, $action, $request->all(), $status, $response);
+            return response()->json($response, $status);
+        }
+
+        $message = "Error al obtener reportes";
         $id_plan = Auth::user()->id_plan ?? null;
 
         $month = $request->input('month');
         $year = $request->input('year');
 
         try {
-            $filters = function($query) use ($id_plan, $month, $year) {
+            $filters = function ($query) use ($id_plan, $month, $year) {
                 $query->whereYear('date', $year)
-                      ->whereMonth('date', $month)
-                      ->where('id_plan', '<=', $id_plan);
+                    ->whereMonth('date', $month)
+                    ->where('id_plan', '<=', $id_plan);
             };
 
             // Realizar las consultas a todas las tablas
@@ -72,19 +85,22 @@ class ReportController extends Controller
             });
 
             if ($allEmpty) {
-                return response()->json([
+                $response = [
                     'message' => 'No hay datos para el mes seleccionado. Por favor, cambie el mes de filtro.',
                     'error_code' => 600
-                ], 422);
+                ];
+                Audith::new($id_user, $action, $request->all(), 422, $response);
+                return response()->json($response, 422);
             }
 
             // Registrar acción exitosa en auditoría
-            Audith::new($id_user, $action, null, 200, null);
+            Audith::new($id_user, $action, $request->all(), 200, ['data' => $data]);
         } catch (Exception $e) {
             // Manejo de errores
-            Log::debug(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()]);
-            Audith::new($id_user, $action, null, 500, $e->getMessage());
-            return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+            $response = ["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()];
+            Log::debug($response);
+            Audith::new($id_user, $action, $request->all(), 500, $response);
+            return response()->json($response, 500);
         }
 
         return response()->json(['data' => $data], 200);
@@ -93,14 +109,25 @@ class ReportController extends Controller
     public function business_indicators(Request $request)
     {
         // Validar parámetros de mes y año
-        $request->validate([
+        $validator = Validator::make($request->all(), [
             'month' => 'required|integer|min:1|max:12',
             'year' => 'required|integer|digits:4'
         ]);
 
-        $message = "Error al obtener indicadores comerciales";
         $action = "Listado de indicadores comerciales";
+        $status = 422;
         $id_user = Auth::user()->id ?? null;
+
+        if ($validator->fails()) {
+            $response = [
+                'message' => 'Alguna de las validaciones falló',
+                'errors' => $validator->errors(),
+            ];
+            Audith::new($id_user, $action, $request->all(), $status, $response);
+            return response()->json($response, $status);
+        }
+
+        $message = "Error al obtener indicadores comerciales";
         $id_plan = Auth::user()->id_plan ?? null;
 
         $month = $request->input('month');
@@ -130,19 +157,22 @@ class ReportController extends Controller
             });
 
             if ($allEmpty) {
-                return response()->json([
+                $response = [
                     'message' => 'No hay datos para el mes seleccionado. Por favor, cambie el mes de filtro.',
                     'error_code' => 600
-                ], 422);
+                ];
+                Audith::new($id_user, $action, $request->all(), 422, $response);
+                return response()->json($response, 422);
             }
 
             // Registrar acción exitosa en auditoría
-            Audith::new($id_user, $action, null, 200, null);
+            Audith::new($id_user, $action, $request->all(), 200, ['data' => $data]);
         } catch (Exception $e) {
             // Manejo de errores
-            Log::debug(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()]);
-            Audith::new($id_user, $action, null, 500, $e->getMessage());
-            return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+            $response = ["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()];
+            Log::debug($response);
+            Audith::new($id_user, $action, $request->all(), 500, $response);
+            return response()->json($response, 500);
         }
 
         return response()->json(['data' => $data], 200);
@@ -175,4 +205,160 @@ class ReportController extends Controller
             return response()->json(['message' => 'Error enviando correos'], 500);
         }
     }
+
+    public function deleteReports(Request $request)
+    {
+        Log::info('holaaaaaaaa');
+        // Validar parámetros de mes y año
+        $validator = Validator::make($request->all(), [
+            'month' => 'required|integer|min:1|max:12',
+            'year' => 'required|integer|digits:4'
+        ]);
+
+        $action = "Eliminar reportes";
+        $status = 422;
+        $id_user = Auth::user()->id ?? null;
+
+        if ($validator->fails()) {
+            $response = [
+                'message' => 'Alguna de las validaciones falló',
+                'errors' => $validator->errors(),
+            ];
+            Audith::new($id_user, $action, $request->all(), $status, $response);
+            return response()->json($response, $status);
+        }
+
+        $month = $request->input('month');
+        $year = $request->input('year');
+
+        try {
+            DB::beginTransaction(); // Iniciar una transacción para garantizar integridad
+
+            // Definir las tablas a eliminar datos
+            $tables = [
+                'news' => News::class,
+                'major_crops' => MajorCrop::class,
+                'mag_lease_index' => MagLeaseIndex::class,
+                'mag_steer_index' => MagSteerIndex::class,
+                'insights' => Insight::class,
+                'price_main_active_ingredients_producers' => PriceMainActiveIngredientsProducer::class,
+                'producer_segment_prices' => ProducerSegmentPrice::class,
+                'rainfall_records_provinces' => RainfallRecordProvince::class,
+                'main_grain_prices' => MainGrainPrice::class,
+            ];
+
+            $deletedCounts = [];
+
+            foreach ($tables as $key => $model) {
+                $deletedCounts[$key] = $model::whereYear('date', $year)
+                    ->whereMonth('date', $month)
+                    ->delete();
+            }
+
+            DB::commit(); // Confirmar la transacción
+
+            // Verificar si se eliminaron registros
+            if (array_sum($deletedCounts) === 0) {
+                $response = [
+                    'message' => 'No se encontraron registros para eliminar en el mes y año especificados.',
+                    'error_code' => 601
+                ];
+                Audith::new($id_user, $action, $request->all(), 422, $response);
+                return response()->json($response, 422);
+            }
+
+            // Registrar acción exitosa en auditoría
+            $response = [
+                'message' => 'Registros eliminados exitosamente.',
+                'deleted_records' => $deletedCounts
+            ];
+            Audith::new($id_user, $action, $request->all(), 200, $response);
+
+        } catch (Exception $e) {
+            DB::rollBack(); // Revertir cambios en caso de error
+            $response = ["message" => "Error al eliminar reportes", "error" => $e->getMessage(), "line" => $e->getLine()];
+            Log::debug($response);
+            Audith::new($id_user, $action, $request->all(), 500, $response);
+            return response()->json($response, 500);
+        }
+
+        return response()->json($response, 200);
+    }
+
+    public function deleteBusinessIndicators(Request $request)
+    {
+        // Validar parámetros de mes y año
+        $validator = Validator::make($request->all(), [
+            'month' => 'required|integer|min:1|max:12',
+            'year' => 'required|integer|digits:4'
+        ]);
+
+        $action = "Eliminar indicadores comerciales";
+        $status = 422;
+        $id_user = Auth::user()->id ?? null;
+
+        if ($validator->fails()) {
+            $response = [
+                'message' => 'Alguna de las validaciones falló',
+                'errors' => $validator->errors(),
+            ];
+            Audith::new($id_user, $action, $request->all(), $status, $response);
+            return response()->json($response, $status);
+        }
+
+        $month = $request->input('month');
+        $year = $request->input('year');
+
+        try {
+            DB::beginTransaction(); // Iniciar una transacción para garantizar integridad
+
+            // Definir las tablas a eliminar datos
+            $tables = [
+                'pit_indicators' => PitIndicator::class,
+                'livestock_input_output_ratios' => LivestockInputOutputRatio::class,
+                'agricultural_input_output_relationships' => AgriculturalInputOutputRelationship::class,
+                'gross_margins_trend' => GrossMarginsTrend::class,
+                'gross_margins_trend_2' => GrossMarginsTrend2::class,
+                'product_prices' => ProductPrice::class,
+                'gross_margins' => GrossMargin::class,
+            ];
+
+            $deletedCounts = [];
+
+            foreach ($tables as $key => $model) {
+                $deletedCounts[$key] = $model::whereYear('date', $year)
+                    ->whereMonth('date', $month)
+                    ->delete();
+            }
+
+            DB::commit(); // Confirmar la transacción
+
+            // Verificar si se eliminaron registros
+            if (array_sum($deletedCounts) === 0) {
+                $response = [
+                    'message' => 'No se encontraron registros para eliminar en el mes y año especificados.',
+                    'error_code' => 601
+                ];
+                Audith::new($id_user, $action, $request->all(), 422, $response);
+                return response()->json($response, 422);
+            }
+
+            // Registrar acción exitosa en auditoría
+            $response = [
+                'message' => 'Registros eliminados exitosamente.',
+                'deleted_records' => $deletedCounts
+            ];
+            Audith::new($id_user, $action, $request->all(), 200, $response);
+
+        } catch (Exception $e) {
+            DB::rollBack(); // Revertir cambios en caso de error
+            $response = ["message" => "Error al eliminar indicadores comerciales", "error" => $e->getMessage(), "line" => $e->getLine()];
+            Log::debug($response);
+            Audith::new($id_user, $action, $request->all(), 500, $response);
+            return response()->json($response, 500);
+        }
+
+        return response()->json($response, 200);
+    }
+
 }

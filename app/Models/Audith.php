@@ -19,7 +19,7 @@ class Audith extends Model
         'action',
         'data',
         'result',
-        'result_error',
+        'response',
     ];
 
     public function user(): HasOne
@@ -31,11 +31,11 @@ class Audith extends Model
     {
         return [
             'data' => 'json',
-            'result_error' => 'json'
+            'response' => 'json'
         ];
     }
 
-    public static function new($id_user, $action, $data_json, $status, $error)
+    public static function new($id_user, $action, $data_json, $status, $response)
     {
         $message = "Error al guardar auditoria";
         try {
@@ -44,7 +44,7 @@ class Audith extends Model
             $audith->action = $action;
             $audith->data = $data_json;
             $audith->result = $status;
-            $audith->result_error = $error;
+            $audith->response = $response;
             $audith->save();
         } catch (Exception $e) {
             Log::debug(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()]);

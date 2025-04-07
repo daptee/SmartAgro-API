@@ -22,8 +22,8 @@ class UserController extends Controller
     public $s = "usuario";
     public $sp = "usuarios";
     public $ss = "usuario/s";
-    public $v = "o"; 
-    public $pr = "el"; 
+    public $v = "o";
+    public $pr = "el";
     public $prp = "los";
 
     /**
@@ -72,17 +72,35 @@ class UserController extends Controller
         $action = "Perfil de usuario";
         $data = null;
         $id_user = Auth::user()->id ?? null;
+
         try {
             $data = User::getAllDataUser($id_user);
-            Audith::new($id_user, $action, $request->all(), 200, null);
+
+            if ($data['id_plan'] == 2) {
+                Log::info($data['id']);
+                $existingRecord = UserPlan::where('id_user', $data['id'])->latest()->first();
+                if ($existingRecord) {
+                    // Decodificamos el campo 'data' a array
+                    $existingRecord->data = json_decode($existingRecord->data, true);
+                }
+
+                // Agrega el registro dentro de "plan"
+                $data['plan']['user_plan'] = $existingRecord ?? 'Sin plan asignado';
+                Log::info($data);
+            }
+
+            Audith::new($id_user, $action, $request->all(), 200, compact("data"));
         } catch (Exception $e) {
-            Log::debug(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()]);
-            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
-            return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+            $response = ["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()];
+            Log::debug($response);
+            Audith::new($id_user, $action, $request->all(), 500, $response);
+            return response($response, 500);
         }
 
+        // Devolvemos los datos modificados correctamente
         return response(compact("data"));
     }
+
 
     /**
      * Update the specified resource in storage.
@@ -90,7 +108,7 @@ class UserController extends Controller
     public function update(Request $request)
     {
         $id = Auth::user()->id;
-        
+
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
@@ -102,33 +120,36 @@ class UserController extends Controller
                 Rule::unique('users')->ignore($id),
             ],
         ]);
-    
+
+        $action = "Actualización de usuario";
+        $status = 422;
+
         if ($validator->fails()) {
-            return response()->json([
+            $response = [
                 'message' => 'Alguna de las validaciones falló',
                 'errors' => $validator->errors(),
-            ], 422);
+            ];
+            Audith::new($id, $action, $request->all(), $status, $response);
+            return response()->json($response, $status);
         }
 
-        $message = "Error al actualizar usuario";
-        $action = "Actualización de usuario";
-
+        $message = "Usuario actualizado con exito";
         try {
             DB::beginTransaction();
-                $user = User::find($id);
-                $user->update($request->all());
-              
-                Audith::new($id, $action, $request->all(), 200, null);
+            $user = User::find($id);
+            $user->update($request->all());
+
+            $data = User::getAllDataUser($id);
+            Audith::new($id, $action, $request->all(), 200, compact("message", "data"));
             DB::commit();
         } catch (Exception $e) {
             DB::rollBack();
-            Audith::new($id, $action, $request->all(), 500, $e->getMessage());
-            Log::debug(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()]);
-            return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+            $response = ["message" => "Error al actualizar usuario", "error" => $e->getMessage(), "line" => $e->getLine()];
+            Audith::new($id, $action, $request->all(), 500, $response);
+            Log::debug($response);
+            return response($response, 500);
         }
 
-        $data = User::getAllDataUser($id);
-        $message = "Usuario actualizado con exito";
         return response(compact("message", "data"));
     }
 
@@ -137,53 +158,49 @@ class UserController extends Controller
      */
     public function destroy()
     {
-        $message = "Error al eliminar el usuario";
         $action = "Eliminación de usuario";
         $id_user = Auth::user()->id;
-    
+        $message = "Usuario eliminado con éxito";
+
         try {
             DB::beginTransaction();
-            
+
             $user = User::find($id_user);
             if (!$user) {
-                return response()->json([
-                    'message' => 'Usuario no encontrado',
-                ], 404);
+                $response = ['message' => 'Usuario no encontrado'];
+                Audith::new($id_user, $action, ['deleted_user_id' => $id_user], 500, $response);
+                return response()->json($response, 404);
             }
-    
+
             $user->delete();
-    
-            Audith::new($id_user, $action, ['deleted_user_id' => $id_user], 200, null);
-            
+
+            Audith::new($id_user, $action, ['deleted_user_id' => $id_user], 200, compact("message"));
+
             DB::commit();
         } catch (Exception $e) {
             DB::rollBack();
-            Audith::new($id_user, $action, ['deleted_user_id' => $id_user], 500, $e->getMessage());
-            Log::debug(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()]);
-            return response()->json([
-                'message' => $message,
-                'error' => $e->getMessage(),
-                'line' => $e->getLine(),
-            ], 500);
+            $response = ["message" => "Error al eliminar el usuario", "error" => $e->getMessage(), "line" => $e->getLine()];
+            Audith::new($id_user, $action, ['deleted_user_id' => $id_user], 500, $response);
+            Log::debug($response);
+            return response()->json($response, 500);
         }
-    
-        $message = "Usuario eliminado con éxito";
+
         return response()->json(compact("message"));
     }
 
     public function users_profiles()
     {
-        $message = "Error al obtener registros";
         $action = "Listado de perfiles de usuario";
         $data = null;
         $id_user = Auth::user()->id ?? null;
         try {
             $data = UserProfile::orderBy('name')->get();
-            Audith::new($id_user, $action, null, 200, null);
+            Audith::new($id_user, $action, null, 200, compact("action", "data"));
         } catch (Exception $e) {
-            Log::debug(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()]);
-            Audith::new($id_user, $action, null, 500, $e->getMessage());
-            return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+            $response = ["message" => "Error al obtener registros", "error" => $e->getMessage(), "line" => $e->getLine()];
+            Audith::new($id_user, $action, null, 500, $response);
+            Log::debug($response);
+            return response()->json($response, 500);
         }
 
         $message = $action;
@@ -192,137 +209,171 @@ class UserController extends Controller
 
     public function change_status(Request $request, $id)
     {
-        $request->validate([
+        $validator = Validator::make($request->all(), [
             'id_status' => 'required|numeric|exists:users_status,id'
         ]);
 
-        $message = "Error al actualizar estado de usuario";
         $action = "Actualización de estado de usuario";
-        $data = null;
+        $status = 422;
         $id_user = Auth::user()->id ?? null;
+
+        if ($validator->fails()) {
+            $response = [
+                'message' => 'Alguna de las validaciones falló',
+                'errors' => $validator->errors(),
+            ];
+            Audith::new($id_user, $action, $request->all(), $status, $response);
+            return response()->json($response, $status);
+        }
+
+        $message = "Actualización de estado de usuario exitosa.";
+        $data = null;
         try {
             DB::beginTransaction();
 
             $user = $this->model::find($id);
 
-            if(!$user)
-                return response()->json(['message' => 'Usuario no valido.'], 400);
+            if (!$user) {
+                $response = ['message' => 'Usuario no valido.'];
+                Audith::new($id_user, $action, ["user_id" => $id, "data" => $request->all()], 400, $response);
+                return response()->json($response, 400);
+            }
 
             $user->id_status = $request->id_status;
             $user->save();
 
-            Audith::new($id_user, $action, null, 200, null);
+            $data = $this->model::getAllDataUser($id);
+            Audith::new($id_user, $action, ["user_id" => $id, "data" => $request->all()], 200, compact("message", "data"));
             DB::commit();
         } catch (Exception $e) {
             DB::rollBack();
-            Log::debug(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()]);
-            Audith::new($id_user, $action, null, 500, $e->getMessage());
-            return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+            $response = ["message" => "Error al actualizar estado de usuario", "error" => $e->getMessage(), "line" => $e->getLine()];
+            Log::debug($response);
+            Audith::new($id_user, $action, ["user_id" => $id, "data" => $request->all()], 500, $response);
+            return response($response, 500);
         }
 
-        $data = $this->model::getAllDataUser($id);
-        $message = "Actualización de estado de usuario exitosa.";
         return response(compact("message", "data"));
     }
 
     public function change_plan(Request $request, $id)
     {
-        $request->validate([
+        $validator = Validator::make($request->all(), [
             'id_plan' => 'required|numeric|exists:plans,id'
         ]);
 
-        $message = "Error al actualizar plan de usuario";
         $action = "Actualización de plan de usuario";
-        $data = null;
+        $status = 422;
         $id_user = Auth::user()->id ?? null;
+
+        if ($validator->fails()) {
+            $response = [
+                'message' => 'Alguna de las validaciones falló',
+                'errors' => $validator->errors(),
+            ];
+            Audith::new($id_user, $action, ["id_user" => $id, "data" => $request->all()], $status, $response);
+            return response()->json($response, $status);
+        }
+
+        $message = "Actualización de plan de usuario exitosa.";
+        $data = null;
         try {
             DB::beginTransaction();
             $user = $this->model::find($id);
 
-            if(!$user)
-                return response()->json(['message' => 'Usuario no valido.'], 400);
+            if (!$user) {
+                $response = ["message" => 'Usuario no valido.'];
+                Audith::new($id_user, $action, ["id_user" => $id, "data" => $request->all()], 400, $response);
+                return response()->json($response, 400);
+            }
 
             $user->id_plan = $request->id_plan;
             $user->save();
 
-            UserPlan::save_history($user->id, $request->id_plan, "2024-08-21", "2024-08-31");
+            UserPlan::save_history($user->id, $request->id_plan, null, null);
 
-            Audith::new($id_user, $action, null, 200, null);
+            $data = $this->model::getAllDataUser($id);
+            Audith::new($id_user, $action, ["id_user" => $id, "data" => $request->all()], 200, compact("message", "data"));
             DB::commit();
         } catch (Exception $e) {
             DB::rollBack();
-            Log::debug(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()]);
-            Audith::new($id_user, $action, null, 500, $e->getMessage());
-            return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+            $response = ["message" => "Error al actualizar plan de usuario", "error" => $e->getMessage(), "line" => $e->getLine()];
+            Log::debug($response);
+            Audith::new($id_user, $action, ["id_user" => $id, "data" => $request->all()], 500, $response);
+            return response($response, 500);
         }
 
-        $data = $this->model::getAllDataUser($id);
-        $message = "Actualización de plan de usuario exitosa.";
         return response(compact("message", "data"));
     }
 
     public function profile_picture(Request $request)
-    {   
+    {
         $validator = Validator::make($request->all(), [
             'profile_picture' => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:2048'
         ]);
-    
+
+        $action = "Actualización de imagen de perfil";
+        $status = 422;
+        $id_user = Auth::user()->id ?? null;
+
         if ($validator->fails()) {
-            return response()->json([
+            $response = [
                 'message' => 'Alguna de las validaciones falló',
                 'errors' => $validator->errors(),
-            ], 422);
+            ];
+            Audith::new($id_user, $action, $request->all(), $status, $response);
+            return response()->json($response, $status);
         }
 
-        $message = "Error al actualizar imagen de perfil";
-        $action = "Actualización de imagen de perfil";
+        $message = "Actualización de imagen de perfil exitosa.";
         $data = null;
-        $id_user = Auth::user()->id ?? null;
         try {
             DB::beginTransaction();
-            if($request->id_user){
+            if ($request->id_user) {
                 $user = $this->model::find($request->id_user);
-                if(!$user){
-                    return response(["message" => "Usuario invalido"], 400);
+                if (!$user) {
+                    $response = ["message" => "Usuario invalido"];
+                    Audith::new($id_user, $action, $request->all(), $status, $response);
+                    return response($response, 400);
                 }
-            }else{
+            } else {
                 $user = Auth::user();
             }
 
-            if($user->profile_picture){
+            if ($user->profile_picture) {
                 $file_path = public_path($user->profile_picture);
-            
+
                 if (file_exists($file_path))
                     unlink($file_path);
             }
 
             $path = $this->save_image_public_folder($request->profile_picture, "users/profiles/", null);
-            
+
             $user->profile_picture = $path;
             $user->save();
 
-            Audith::new($id_user, $action, $request->all(), 200, null);
+            $data = $this->model::getAllDataUser($user->id);
+            Audith::new($id_user, $action, $request->all(), 200, compact("message", "data"));
             DB::commit();
         } catch (Exception $e) {
             DB::rollBack();
-            Log::debug(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()]);
-            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
-            return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+            $response = ["message" => "Error al actualizar imagen de perfil", "error" => $e->getMessage(), "line" => $e->getLine()];
+            Log::debug($response);
+            Audith::new($id_user, $action, $request->all(), 500, $response);
+            return response($response, 500);
         }
 
-        $data = $this->model::getAllDataUser($user->id);
-        $message = "Actualización de imagen de perfil exitosa.";
         return response(compact("message", "data"));
     }
 
     public function save_image_public_folder($file, $path_to_save, $variable_id)
     {
         $fileName = Str::random(5) . time() . '.' . $file->extension();
-                        
-        if($variable_id){
+
+        if ($variable_id) {
             $file->move(public_path($path_to_save . $variable_id), $fileName);
             $path = "/" . $path_to_save . $variable_id . "/$fileName";
-        }else{
+        } else {
             $file->move(public_path($path_to_save), $fileName);
             $path = "/" . $path_to_save . $fileName;
         }

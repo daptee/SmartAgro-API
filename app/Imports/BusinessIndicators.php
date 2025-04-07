@@ -19,22 +19,37 @@ class BusinessIndicators implements WithMultipleSheets
     public function sheets(): array
     {
         return [
-            0 => $this->createSheetProcessor(PitIndicator::class, 1, function($row) { return $this->processPitIndicatorSheet($row); }),
-            1 => $this->createSheetProcessor(LivestockInputOutputRatio::class, 1, function($row) { return $this->processLivestockInputOutputRatioSheet($row); }),
-            2 => $this->createSheetProcessor(AgriculturalInputOutputRelationship::class, 1, function($row) { return $this->processAgriculturalInputOutputRelationshipSheet($row); }),
-            3 => $this->createSheetProcessor(GrossMarginsTrend::class, 1, function($row) { return $this->processGrossMarginsTrendSheet($row); }),
-            4 => $this->createSheetProcessor(GrossMarginsTrend2::class, 1, function($row) { return $this->processGrossMarginsTrend2Sheet($row); }),
-            5 => $this->createSheetProcessor(ProductPrice::class, 1, function($row) { return $this->processProductPricesSheet($row); }),
-            6 => $this->createSheetProcessor(GrossMargin::class, 1, function($row) { return $this->processGrossMarginSheet($row); }),
+            0 => $this->createSheetProcessor(PitIndicator::class, 1, function ($row, $headers) {
+                return $this->processPitIndicatorSheet($row);
+            }),
+            1 => $this->createSheetProcessor(LivestockInputOutputRatio::class, 1, function ($row, $headers) {
+                return $this->processLivestockInputOutputRatioSheet($row);
+            }),
+            2 => $this->createSheetProcessor(AgriculturalInputOutputRelationship::class, 1, function ($row, $headers) {
+                return $this->processAgriculturalInputOutputRelationshipSheet($row, $headers);
+            }),
+            3 => $this->createSheetProcessor(GrossMarginsTrend::class, 1, function ($row, $headers) {
+                return $this->processGrossMarginsTrendSheet($row);
+            }),
+            4 => $this->createSheetProcessor(GrossMarginsTrend2::class, 1, function ($row, $headers) {
+                return $this->processGrossMarginsTrend2Sheet($row);
+            }),
+            5 => $this->createSheetProcessor(ProductPrice::class, 1, function ($row, $headers) {
+                return $this->processProductPricesSheet($row);
+            }),
+            6 => $this->createSheetProcessor(GrossMargin::class, 1, function ($row, $headers) {
+                return $this->processGrossMarginSheet($row);
+            }),
         ];
     }
 
     private function createSheetProcessor($model, $rowsToSkip, callable $rowProcessor)
     {
-        return new class($model, $rowsToSkip, $rowProcessor) implements ToCollection {
+        return new class ($model, $rowsToSkip, $rowProcessor) implements ToCollection {
             private $model;
             private $rowsToSkip;
             private $rowProcessor;
+            private $headers = [];
 
             public function __construct($model, $rowsToSkip, callable $rowProcessor)
             {
@@ -45,9 +60,8 @@ class BusinessIndicators implements WithMultipleSheets
 
             public function collection(Collection $rows)
             {
-                for ($i = 0; $i < $this->rowsToSkip; $i++) {
-                    $rows->shift();
-                }
+                // Guardamos los encabezados de la primera fila
+                $this->headers = $rows->shift()->toArray();
 
                 if ($rows->isEmpty()) {
                     Log::error('El archivo está vacío o no contiene datos válidos.');
@@ -59,13 +73,13 @@ class BusinessIndicators implements WithMultipleSheets
                         break;
                     }
 
-                    $this->model::create(call_user_func($this->rowProcessor, $row));
+                    $this->model::create(call_user_func($this->rowProcessor, $row, $this->headers));
                 }
             }
         };
     }
 
-    // Procesadores específicos para cada hoja
+    // Procesador para la hoja de indicadores PIT
     private function processPitIndicatorSheet($row)
     {
         return [
@@ -75,8 +89,30 @@ class BusinessIndicators implements WithMultipleSheets
             'data' => [
                 'title' => $row[3],
                 'value' => $row[4],
-                'text' => $row[5],
+                'unit' => $row[5],
+                'text' => $row[6],
             ],
+        ];
+    }
+
+    // Procesador para la relación insumo-producto agrícola (con encabezados dinámicos)
+    private function processAgriculturalInputOutputRelationshipSheet($row, $headers)
+    {
+        $data = [];
+
+        // Empezamos desde la posición 4 porque los primeros 4 elementos son fijos (id_plan, date, etc.)
+        for ($i = 4; $i < count($row); $i++) {
+            if (isset($headers[$i])) {
+                $data[$headers[$i]] = $row[$i] ?? null;
+            }
+        }
+
+        return [
+            'id_plan' => $row[0] ?? null,
+            'date' => $row[1] ?? null,
+            'month' => $row[2] ?? null,
+            'region' => $row[3] ?? null,
+            'data' => $data,
         ];
     }
 
@@ -88,23 +124,8 @@ class BusinessIndicators implements WithMultipleSheets
             'month' => $row[2],
             'region' => $row[3],
             'data' => [
-                'Soja/Glifosato' => $row[4],
-                'Maiz/Urea' => $row[5],
-                'Trigo / Fungicida' => $row[6],
-            ],
-        ];
-    }
-
-    private function processAgriculturalInputOutputRelationshipSheet($row)
-    {
-        return [
-            'id_plan' => $row[0],
-            'date' => $row[1],
-            'month' => $row[2],
-            'region' => $row[3],
-            'data' => [
-                'Kg de Carne / Maiz' => $row[4],
-                'Relacion Ternero / Vaca' => $row[5],
+                'Maiz / Novillo (Kg/Kg)' => $row[4],
+                'Relacion Novillo / Ternero (Kg/Kg)' => $row[5],
             ],
         ];
     }
@@ -115,11 +136,12 @@ class BusinessIndicators implements WithMultipleSheets
             'id_plan' => $row[0],
             'date' => $row[1],
             'region' => $row[2],
+            'month' => $row[3],
             'data' => [
-                'MB' => $row[3],
-                '2022' => $row[4],
-                '2023' => $row[5],
-                '2024' => $row[6],
+                'Maiz' => $row[4],
+                'Soja' => $row[5],
+                'Girasol' => $row[6],
+                'Trigo' => $row[7],
             ],
         ];
     }
@@ -130,9 +152,12 @@ class BusinessIndicators implements WithMultipleSheets
             'id_plan' => $row[0],
             'date' => $row[1],
             'region' => $row[2],
+            'month' => $row[3],
             'data' => [
-                'MB' => $row[3],
-                'Mes Actual' => $row[4],
+                'Maiz' => $row[4],
+                'Soja' => $row[5],
+                'Girasol' => $row[6],
+                'Trigo' => $row[7],
             ],
         ];
     }

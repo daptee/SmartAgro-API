@@ -87,9 +87,9 @@ class ExcelImport implements WithMultipleSheets
     private function processMajorCropSheet($row)
     {
         $jsonData = [
-            'avance cosecha' => ['% Cosechado 23/24' => $row[3]],
+            'avance cosecha' => ['% Cosechado 23/24' => $row[4]],
             'area sembrada (ha)' => [
-                '%  Sembrado 24/25' => $row[4],
+                '%  Sembrado 24/25' => $row[3],
                 '23/24' => $row[5],
                 '24/25' => $row[6],
                 'var (%)' => $row[7]

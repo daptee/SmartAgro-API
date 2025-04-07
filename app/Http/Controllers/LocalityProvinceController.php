@@ -26,7 +26,7 @@ class LocalityProvinceController extends Controller
                         return $query->where('province_id', '<=', $request->province_id);
                     })
                     ->get();
-            Audith::new($id_user, $action, $request->all(), 200, null);
+            Audith::new($id_user, $action, $request->all(), 200, compact("data"));
         } catch (Exception $e) {
             Log::debug(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()]);
             Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
@@ -44,7 +44,7 @@ class LocalityProvinceController extends Controller
         $id_user = Auth::user()->id ?? null;
         try {
             $data = Province::with('localities')->get();
-            Audith::new($id_user, $action, null, 200, null);
+            /* Audith::new($id_user, $action, null, 200, compact("data")); */
         } catch (Exception $e) {
             Log::debug(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()]);
             Audith::new($id_user, $action, null, 500, $e->getMessage());
