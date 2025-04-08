@@ -192,10 +192,10 @@ class ExcelImport implements WithMultipleSheets
     {
         $jsonData = [
             'REGISTRO DE LLUVIAS X PROVINCIA' => $row[2],
-            'PROM 23' => $row[3],
-            'ACUM 23' => $row[4],
-            'PROM 24' => $row[5],
-            'ACUM 24' => $row[6],
+            'PROM 23/24' => $row[3],
+            'ACUM 23/24' => $row[4],
+            'PROM 24/25' => $row[5],
+            'ACUM 24/25' => $row[6],
             'Var. Acum 24 Vs 23' => $row[7],
         ];
         
