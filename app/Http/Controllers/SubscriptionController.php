@@ -62,7 +62,10 @@ class SubscriptionController extends Controller
         ]);
 
         if (!$subscriptionResponse->successful()) {
-            return response()->json(['error' => 'Error al crear una Suscripción'], 500);
+            return response()->json([
+                'error' => 'Error al crear una Suscripción',
+                'details' => $subscriptionResponse->json()
+            ], $subscriptionResponse->status());
         }
         // Retornar el link de pago
         return response()->json([
@@ -100,6 +103,9 @@ class SubscriptionController extends Controller
         $userIdSubscription = $subscriptionData['external_reference'];
         $userId = Auth::user()->id ?? null;
 
+        Log::info($userIdSubscription);
+        Log::info($userId);
+
         if ($subscriptionData['status'] == "failed") {
             // Si algo fallo
             return response()->json(['message' => 'Algo fallo a la hora de hacer el pago'], 401);
@@ -130,6 +136,8 @@ class SubscriptionController extends Controller
             if ($existingRecord) {
                 // Accedemos a los datos directamente como objeto o array (sin json_decode)
                 $existingData = $existingRecord->data; // Asegúrate de que 'data' sea el campo correcto
+
+                Log::info($existingData);
 
                 // Si $existingData es JSON almacenado como string, lo decodificamos
                 $existingData = is_string($existingData) ? json_decode($existingData, true) : $existingData;
@@ -276,6 +284,8 @@ class SubscriptionController extends Controller
         // 🔥 Manejo de pagos individuales autorizados
         if (isset($data['type']) && $data['type'] == 'payment') {
             $this->preapprovalId = $data['data']['id'];
+
+            Log::info('id preapprovalId: ' . $this->preapprovalId);
 
             $preapprovalResponse = Http::withToken($accessToken)->get("https://api.mercadopago.com/v1/payments/{$this->preapprovalId}");
 
