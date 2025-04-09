@@ -8,6 +8,7 @@ use App\Mail\NotificationLowPlan;
 use App\Mail\NotificationWelcomePlan;
 use App\Mail\WelcomePlan;
 use App\Models\PaymentHistory;
+use App\Models\Plan;
 use App\Models\User;
 use App\Models\UserPlan;
 use Exception;
@@ -188,6 +189,8 @@ class SubscriptionController extends Controller
                 $user->update(['id_plan' => 1]);
             }
 
+            $plan = Plan::find(1);
+
             // Guardar registro en UserPlan
             UserPlan::save_history($userId, 1, ['reason' => 'Cancelación de suscripción', 'is_system' => 'true'], now(), $preapprovalId);
 
@@ -196,7 +199,10 @@ class SubscriptionController extends Controller
 
             Log::info("Usuario $userId cambió al plan gratuito tras cancelar la suscripción");
 
-            return response()->json(['message' => 'Suscripción cancelada y usuario cambiado al plan gratuito'], 200);
+            return response()->json([
+                'message' => 'Suscripción cancelada y usuario cambiado al plan gratuito',
+                'data' => $plan
+            ], 200);
         } catch (Exception $e) {
             $response = ["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()];
             return response($response, 500);
