@@ -236,14 +236,17 @@ class SubscriptionController extends Controller
                     $user = User::find($userId);
 
                     if ($user) {
-                        $user->update(['id_plan' => 2]);
+                        if($user->id_plan != 2){
+                            
+                         $user->update(['id_plan' => 2]);
+
+                         Mail::to($user->email)->send(new WelcomePlan($user));
+                         Mail::to(config('services.research_on_demand.email'))->send(new NotificationWelcomePlan($user));
+                        } 
 
                         $existingRecord = UserPlan::where('id_user', $userId)
-                            ->where('next_payment_date', $subscriptionData['next_payment_date'])
-                            ->first();
-
-                        Mail::to($user->email)->send(new WelcomePlan($user));
-                        Mail::to(config('services.research_on_demand.email'))->send(new NotificationWelcomePlan($user));
+                             ->where('next_payment_date', $subscriptionData['next_payment_date'])
+                             ->first();
 
                         if (!$existingRecord) {
                             UserPlan::save_history($userId, 2, $subscriptionData, $subscriptionData['next_payment_date'], $this->preapprovalId);
