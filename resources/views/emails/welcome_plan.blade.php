@@ -59,7 +59,7 @@
                       <p style="font-family: 'Montserrat', sans-serif; mso-line-height-rule: exactly; margin: 0; margin-bottom: 24px;">
                         Nos complace darte la bienvenida al plan Siembra de nuestra plataforma.
                       </p>
-                      <p style="font-family: 'Montserrat', sans-serif; mso-line-height-rule: exactly; margin: 0; margin-bottom: 36px;">Deseamos que puedas diusfrutar de la informacion que brindamos.</p>
+                      <p style="font-family: 'Montserrat', sans-serif; mso-line-height-rule: exactly; margin: 0; margin-bottom: 36px;">Deseamos que puedas diusfrutar de la información que brindamos.</p>
                       <p style="font-family: 'Montserrat', sans-serif; mso-line-height-rule: exactly; margin: 0; margin-top: 24px;">
                         <span style="font-weight: 600;">Nota:</span> Ante cualquier problema no dudes en contactarnos a
                         <a href="mailto:soporte@smartagro.io" class="hover-underline" style="font-family: 'Montserrat', sans-serif; mso-line-height-rule: exactly; color: #16A860; text-decoration: none;">soporte@smartagro.io</a>
