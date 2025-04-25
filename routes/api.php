@@ -3,6 +3,8 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BackupController;
 use App\Http\Controllers\CacheController;
+use App\Http\Controllers\CompanyCategoryController;
+use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\GeneralImportController;
 use App\Http\Controllers\GetsFunctionsController;
 use App\Http\Controllers\LocalityProvinceController;
@@ -58,6 +60,19 @@ Route::group(['middleware' => ['token']], function ($router) {
         Route::get('subscription/cancel', 'subscription_cancel');
         Route::get('subscription/history', 'subscription_history');
         Route::get('subscription/payment/history', 'subscription_plan');
+    });
+
+    Route::controller(CompanyCategoryController::class)->group(function () {
+        Route::get('company-category', 'index');
+        Route::post('company-category', 'store');
+        Route::put('company-category/{id}', 'update');
+    });
+
+    Route::controller(CompanyController::class)->group(function () {
+        Route::get('company', 'index');
+        Route::get('company/{id}', 'show');
+        Route::post('company', 'store');
+        Route::post('company/{id}', 'update');
     });
 
     // Regions
