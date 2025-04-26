@@ -5,6 +5,8 @@ use App\Http\Controllers\BackupController;
 use App\Http\Controllers\CacheController;
 use App\Http\Controllers\CompanyCategoryController;
 use App\Http\Controllers\CompanyController;
+use App\Http\Controllers\CompanyPlanController;
+use App\Http\Controllers\CompanyRolesController;
 use App\Http\Controllers\GeneralImportController;
 use App\Http\Controllers\GetsFunctionsController;
 use App\Http\Controllers\LocalityProvinceController;
@@ -12,6 +14,7 @@ use App\Http\Controllers\RegionController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ResearchOnDemand;
+use App\Http\Controllers\UserCompanyController;
 use App\Http\Controllers\UserController;
 use App\Http\Middleware\CheckPlan;
 use Illuminate\Http\Request;
@@ -73,6 +76,26 @@ Route::group(['middleware' => ['token']], function ($router) {
         Route::get('company/{id}', 'show');
         Route::post('company', 'store');
         Route::post('company/{id}', 'update');
+    });
+
+    Route::controller(CompanyRolesController::class)->group(function () {
+        Route::get('company-roles', 'index');
+        Route::post('company-roles', 'store');
+        Route::put('company-roles/{id}', 'update');
+    });
+
+    Route::controller(CompanyPlanController::class)->group(function () {
+        Route::get('company-plans', 'index');
+        Route::post('company-plans', 'store');
+    });
+
+    Route::controller(UserCompanyController::class)->group(function () {
+        Route::get('user-company', 'index');
+        Route::get('user-company/invitation/list', 'list_invitations');
+        Route::post('user-company/invitation/send', 'send_invitation');
+        Route::post('user-company/invitation/accept', 'accept_invitation');
+        Route::delete('user-company/invitation/cancel/{id}', 'cancel_invitation');
+        Route::delete('user-company/unassociate/{userId}/{companyId}', 'unassociate_user');
     });
 
     // Regions
