@@ -76,6 +76,7 @@ Route::group(['middleware' => ['token']], function ($router) {
         Route::get('company/{id}', 'show');
         Route::post('company', 'store');
         Route::post('company/{id}', 'update');
+        Route::post('company/logo/{id}', 'update_logo');
     });
 
     Route::controller(CompanyRolesController::class)->group(function () {

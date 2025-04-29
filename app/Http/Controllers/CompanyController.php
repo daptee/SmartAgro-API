@@ -23,43 +23,26 @@ class CompanyController extends Controller
                 'company_name' => 'required|unique:companies,company_name',
                 'cuit' => 'required|unique:companies,cuit',
                 'email' => 'required|email|unique:companies,email',
-                'logo' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
                 'main_color' => 'nullable|string|max:255',
                 'secondary_color' => 'nullable|string|max:255',
                 'id_locality' => 'nullable|exists:localities,id',
                 'id_company_category' => 'nullable|exists:company_categories,id',
                 'range_number_of_employees' => 'nullable|string|max:255',
                 'website' => 'nullable|url|max:255',
-                'status' => 'required|in:1,2',
+                'status' => 'nullable|integer|in:1,2',
             ]);
-
-            $imagePath = public_path('storage/company/logo/'); // Ruta en public
-
-            // Crear la carpeta si no existe
-            if (!file_exists($imagePath)) {
-                mkdir($imagePath, 0777, true);
-            }
-
-            $logoPath = null;
-            if ($request->hasFile('logo')) {
-                $logo = $request->file('logo');
-                $logoName = time() . '_logo_' . $logo->getClientOriginalName();
-                $logo->move($imagePath, $logoName);
-                $logoPath = '/storage/company/logo/' . $logoName;
-            }
 
             $data = Company::create([
                 'company_name' => $request->company_name,
                 'cuit' => $request->cuit,
                 'email' => $request->email,
-                'logo' => $logoPath,
                 'main_color' => $request->main_color,
                 'secondary_color' => $request->secondary_color,
                 'id_locality' => $request->id_locality,
                 'id_company_category' => $request->id_company_category,
                 'range_number_of_employees' => $request->range_number_of_employees,
                 'website' => $request->website,
-                'status_id' => $request->status,
+                'status_id' => $request->status ?? 1,
             ]);
 
             $data->load([
@@ -91,14 +74,59 @@ class CompanyController extends Controller
                 'company_name' => 'required|unique:companies,company_name,' . $company->id,
                 'cuit' => 'required|unique:companies,cuit,' . $company->id,
                 'email' => 'required|email|unique:companies,email,' . $company->id,
-                'logo' => 'nullable',
                 'main_color' => 'nullable|string|max:255',
                 'secondary_color' => 'nullable|string|max:255',
                 'id_locality' => 'nullable|exists:localities,id',
                 'id_company_category' => 'nullable|exists:company_categories,id',
                 'range_number_of_employees' => 'nullable|string|max:255',
                 'website' => 'nullable|url|max:255',
-                'status' => 'required|in:1,2',
+                'status' => 'nullable|integer|in:1,2',
+            ]);
+
+            // Actualizar campos
+            $company->update([
+                'company_name' => $request->company_name,
+                'cuit' => $request->cuit,
+                'email' => $request->email,
+                'main_color' => $request->main_color,
+                'secondary_color' => $request->secondary_color,
+                'id_locality' => $request->id_locality,
+                'id_company_category' => $request->id_company_category,
+                'range_number_of_employees' => $request->range_number_of_employees,
+                'website' => $request->website,
+                'status_id' => $request->status ?? 1,
+            ]);
+
+            $company->save();
+
+            $company->load([
+                'locality.province',
+                'category',
+                'status'
+            ]);
+
+            $data = $company;
+            Audith::new($id_user, $action, $request->all(), 200, compact("data"));
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+        }
+
+        return response(compact("data"));
+    }
+
+    public function update_logo(Request $request, $id)
+    {
+        $message = "Error al actualizar logo de la empresa";
+        $action = "Actualizar logo de la empresa";
+        $data = null;
+        $id_user = Auth::user()->id ?? null;
+
+        try {
+            $company = Company::findOrFail($id);
+
+            $request->validate([
+                'logo' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
             ]);
 
             $imagePath = public_path('storage/company/logo/');
@@ -127,20 +155,6 @@ class CompanyController extends Controller
                 $company->logo = null;
             }
             // Si se manda string se ignora el campo logo
-
-            // Actualizar campos
-            $company->update([
-                'company_name' => $request->company_name,
-                'cuit' => $request->cuit,
-                'email' => $request->email,
-                'main_color' => $request->main_color,
-                'secondary_color' => $request->secondary_color,
-                'id_locality' => $request->id_locality,
-                'id_company_category' => $request->id_company_category,
-                'range_number_of_employees' => $request->range_number_of_employees,
-                'website' => $request->website,
-                'status_id' => $request->status,
-            ]);
 
             $company->save();
 
