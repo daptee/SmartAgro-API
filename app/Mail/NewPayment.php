@@ -27,9 +27,16 @@ class NewPayment extends Mailable
      */
     public function envelope(): Envelope
     {
-        return new Envelope(
-            subject: 'Nuevo cobro registrado - Plan Siembra MercadoPago',
-        );
+
+        if (config('services.app_environment') == 'DEV') {
+            return new Envelope(
+                subject: 'Nuevo cobro registrado - Plan Siembra MercadoPago - DEV',
+            );
+        } else {
+            return new Envelope(
+                subject: 'Nuevo cobro registrado - Plan Siembra MercadoPago',
+            );
+        }
     }
 
     /**

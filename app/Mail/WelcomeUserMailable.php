@@ -27,9 +27,15 @@ class WelcomeUserMailable extends Mailable
      */
     public function envelope(): Envelope
     {
-        return new Envelope(
-            subject: 'Bienvenido a SmartAgro',
-        );
+        if (config('services.app_environment') == 'DEV') {
+            return new Envelope(
+                subject: 'Bienvenido a SmartAgro - DEV',
+            );
+        } else {
+            return new Envelope(
+                subject: 'Bienvenido a SmartAgro',
+            );
+        }
     }
 
     /**
