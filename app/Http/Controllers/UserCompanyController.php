@@ -91,7 +91,6 @@ class UserCompanyController extends Controller
             $request->validate([
                 'mail' => 'required|email',
                 'name' => 'required|string|max:255',
-                'last_name' => 'required|string|max:255',
                 'id_company' => 'required|exists:companies,id',
                 'id_user_company_rol' => 'required|exists:users_company_roles,id'
             ]);
@@ -107,7 +106,6 @@ class UserCompanyController extends Controller
             $company = $data['company'];
             $new_user = [
                 "name" => $request->name,
-                "last_name" => $request->last_name,
                 "email" => $request->mail,
             ];
             Mail::to($request->mail)->send(new InvitationUserCompanyMailable($new_user, $company, $data));
