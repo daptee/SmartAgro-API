@@ -27,7 +27,7 @@ class UserCompanyController extends Controller
             $perPage = $request->query('per_page', 10);
             $page = $request->query('page', 1);
 
-            $query = UsersCompany::with(['user', 'company', 'role']);
+            $query = UsersCompany::with(['user', 'company', 'rol']);
 
             if ($request->filled('user')) {
                 $query->where('id_user', $request->user);
@@ -53,6 +53,24 @@ class UserCompanyController extends Controller
                 ]
             ];
 
+            Audith::new($id_user, $action, $request->all(), 200, compact('data'));
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage()], 500);
+        }
+
+        return response(compact('data'));
+    }
+
+    public function show ($id, Request $request)
+    {
+        $message = "Error al obtener la invitacion";
+        $action = "Obtener invitacion a empresa";
+        $data = null;
+        $id_user = Auth::user()->id ?? null;
+        try {
+            $data = CompanyInvitation::find($id);
+            $data->load('rol', 'company.locality', 'company.status', 'company.category');
             Audith::new($id_user, $action, $request->all(), 200, compact('data'));
         } catch (Exception $e) {
             Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
@@ -92,10 +110,6 @@ class UserCompanyController extends Controller
                 "last_name" => $request->last_name,
                 "email" => $request->mail,
             ];
-
-            Log::info($new_user);
-            Log::info($company);
-            Log::info($data);
             Mail::to($request->mail)->send(new InvitationUserCompanyMailable($new_user, $company, $data));
 
             Audith::new($id_user, $action, $request->all(), 201, compact('data'));
@@ -194,7 +208,7 @@ class UserCompanyController extends Controller
                 'id_user_company_rol' => $invitation->id_user_company_rol,
             ]);
 
-            $userCompany->load('user', 'role', 'company.locality', 'company.status', 'company.category');
+            $userCompany->load('user', 'rol', 'company.locality', 'company.status', 'company.category');
 
             $data = [
                 'message' => 'Invitación aceptada exitosamente',

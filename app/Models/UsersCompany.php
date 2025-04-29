@@ -24,7 +24,7 @@ class UsersCompany extends Model
         return $this->belongsTo(Company::class, 'id_company');
     }
 
-    public function role()
+    public function rol()
     {
         return $this->belongsTo(CompanyRole::class, 'id_user_company_rol');
     }
