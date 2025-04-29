@@ -142,7 +142,7 @@ class SubscriptionController extends Controller
 
                 // Si $existingData es JSON almacenado como string, lo decodificamos
                 $existingData = is_string($existingData) ? json_decode($existingData, true) : $existingData;
-                
+
                 // Validamos el ID de la preaprobación
                 if ($preapprovalId == $existingRecord["preapproval_id"]) {
                     return response()->json([
@@ -236,17 +236,17 @@ class SubscriptionController extends Controller
                     $user = User::find($userId);
 
                     if ($user) {
-                        if($user->id_plan != 2){
-                            
-                         $user->update(['id_plan' => 2]);
+                        if ($user->id_plan != 2) {
 
-                         Mail::to($user->email)->send(new WelcomePlan($user));
-                         Mail::to(config('services.research_on_demand.email'))->send(new NotificationWelcomePlan($user));
-                        } 
+                            $user->update(['id_plan' => 2]);
+
+                            Mail::to($user->email)->send(new WelcomePlan($user));
+                            Mail::to(config('services.research_on_demand.email'))->send(new NotificationWelcomePlan($user));
+                        }
 
                         $existingRecord = UserPlan::where('id_user', $userId)
-                             ->where('next_payment_date', $subscriptionData['next_payment_date'])
-                             ->first();
+                            ->where('next_payment_date', $subscriptionData['next_payment_date'])
+                            ->first();
 
                         if (!$existingRecord) {
                             UserPlan::save_history($userId, 2, $subscriptionData, $subscriptionData['next_payment_date'], $this->preapprovalId);
@@ -302,6 +302,30 @@ class SubscriptionController extends Controller
                 $subscriptionData = $preapprovalResponse->json();
                 $status = $subscriptionData['status'];
                 $userId = json_decode($subscriptionData['external_reference'], true);
+
+
+                if ($data['action'] == 'payment.updated') {
+                    Log::info("Actualizando pago para preapproval_id: {$subscriptionData['metadata']['preapproval_id']}");
+                
+                    // Buscar el último PaymentHistory que coincida
+                    $paymentHistory = PaymentHistory::where('preapproval_id', $subscriptionData['metadata']['preapproval_id'])
+                        ->orderBy('created_at', 'desc')
+                        ->first();
+                
+                    if ($paymentHistory) {
+                        // Actualizar los datos
+                        $paymentHistory->update([
+                            'data' => json_encode($subscriptionData), // Actualizas el campo `data`
+                            'error_message' => null, // Si quieres limpiar el error o actualizarlo
+                        ]);
+                
+                        Log::info("PaymentHistory actualizado correctamente para id: {$paymentHistory->id}");
+                    } else {
+                        Log::warning("No se encontró PaymentHistory para preapproval_id: {$subscriptionData['metadata']['preapproval_id']}");
+                    }
+                
+                    return response()->json(['status' => 'payment updated']);
+                }
 
                 PaymentHistory::create([
                     'id_user' => $userId,

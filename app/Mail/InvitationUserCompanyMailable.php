@@ -9,17 +9,21 @@ use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
-class WelcomePlan extends Mailable
+class InvitationUserCompanyMailable extends Mailable
 {
     use Queueable, SerializesModels;
 
     public $user;
+    public $company;
+    public $data;
     /**
      * Create a new message instance.
      */
-    public function __construct($user)
+    public function __construct($user, $company, $data)
     {
-        $this->user = $user;
+        $this->user = (object) $user;
+        $this->company = (object) $company;
+        $this->data = $data;
     }
 
     /**
@@ -29,11 +33,11 @@ class WelcomePlan extends Mailable
     {
         if (config('services.app_environment') == 'DEV') {
             return new Envelope(
-                subject: 'Bienvenido al plan Siembra - SmartAgro - DEV',
+                subject: 'Bienvenido a SmartAgro - DEV',
             );
         } else {
             return new Envelope(
-                subject: 'Bienvenido al plan Siembra - SmartAgro',
+                subject: 'Bienvenido a SmartAgro',
             );
         }
     }
@@ -44,7 +48,7 @@ class WelcomePlan extends Mailable
     public function content(): Content
     {
         return new Content(
-            view: 'emails.welcome_plan',
+            view: 'emails.invitation_user_company',
         );
     }
 

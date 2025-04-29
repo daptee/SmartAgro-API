@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\InvitationUserCompanyMailable;
 use App\Models\UsersCompany;
 use App\Models\CompanyInvitation;
 use Illuminate\Http\Request;
@@ -11,6 +12,7 @@ use Illuminate\Support\Carbon;
 use App\Models\Audith;
 use App\Models\User;
 use Exception;
+use Illuminate\Support\Facades\Mail;
 
 class UserCompanyController extends Controller
 {
@@ -70,6 +72,8 @@ class UserCompanyController extends Controller
         try {
             $request->validate([
                 'mail' => 'required|email',
+                'name' => 'required|string|max:255',
+                'last_name' => 'required|string|max:255',
                 'id_company' => 'required|exists:companies,id',
                 'id_user_company_rol' => 'required|exists:users_company_roles,id'
             ]);
@@ -82,6 +86,17 @@ class UserCompanyController extends Controller
             ]);
 
             $data->load('rol', 'company.locality', 'company.status', 'company.category');
+            $company = $data['company'];
+            $new_user = [
+                "name" => $request->name,
+                "last_name" => $request->last_name,
+                "email" => $request->mail,
+            ];
+
+            Log::info($new_user);
+            Log::info($company);
+            Log::info($data);
+            Mail::to($request->mail)->send(new InvitationUserCompanyMailable($new_user, $company, $data));
 
             Audith::new($id_user, $action, $request->all(), 201, compact('data'));
         } catch (Exception $e) {
@@ -251,7 +266,10 @@ class UserCompanyController extends Controller
 
             $userCompany->delete();
 
-            // Aquí podrías agregar lógica para cambiar plan del usuario a "semilla"
+            $user = User::find($userId);
+            if ($user) {
+                $user->update(['id_plan' => 1]);
+            }
 
             Audith::new($id_user, $action, ['id_user' => $userId, 'id_company' => $companyId], 200, "Usuario desasociado");
         } catch (Exception $e) {
