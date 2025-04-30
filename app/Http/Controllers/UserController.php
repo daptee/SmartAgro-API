@@ -92,10 +92,11 @@ class UserController extends Controller
 
             if ($data['id_plan'] == 3) {
                 $company = UsersCompany::where('id_user', $data['id'])
-                    ->with('rol')
+                    ->with('rol', 'company.locality', 'company.status', 'company.category')
                     ->first();
                     
                 $data['rol'] = $company?->rol;
+                $data['company'] = $company?->company;
             }
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
