@@ -473,6 +473,10 @@ class AuthController extends Controller
                 Audith::new($id_user, $action, $request->all(), 422, $response);
                 return response()->json($response, 422);
             }
+            
+            $invitation->update([
+                'status_id' => 2,
+            ]);
 
             // Crear relación users_companies
             $userCompany = UsersCompany::create([

@@ -16,6 +16,7 @@ class CompanyInvitation extends Model
         'mail',
         'id_user_company_rol',
         'invitation_date',
+        'status_id'
     ];
 
     protected $casts = [
@@ -32,5 +33,10 @@ class CompanyInvitation extends Model
     public function rol()
     {
         return $this->belongsTo(CompanyRole::class, 'id_user_company_rol');
+    }
+
+    public function status()
+    {
+        return $this->belongsTo(StatusInvitation::class, 'status_id');
     }
 }

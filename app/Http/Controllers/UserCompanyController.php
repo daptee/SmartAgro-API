@@ -70,7 +70,7 @@ class UserCompanyController extends Controller
         $id_user = Auth::user()->id ?? null;
         try {
             $data = CompanyInvitation::find($id);
-            $data->load('rol', 'company.locality', 'company.status', 'company.category');
+            $data->load('rol', 'company.locality', 'company.status', 'company.category', 'status');
             Audith::new($id_user, $action, $request->all(), 200, compact('data'));
         } catch (Exception $e) {
             Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
@@ -100,9 +100,10 @@ class UserCompanyController extends Controller
                 'mail' => $request->mail,
                 'id_user_company_rol' => $request->id_user_company_rol,
                 'invitation_date' => Carbon::now(),
+                'status_id' => 1,
             ]);
 
-            $data->load('rol', 'company.locality', 'company.status', 'company.category');
+            $data->load('rol', 'company.locality', 'company.status', 'company.category', 'status');
             $company = $data['company'];
             $new_user = [
                 "name" => $request->name,
@@ -129,7 +130,7 @@ class UserCompanyController extends Controller
         try {
             $company = $request->query('company');
 
-            $query = CompanyInvitation::with('rol', 'company.locality', 'company.status', 'company.category');
+            $query = CompanyInvitation::with('rol', 'company.locality', 'company.status', 'company.category', 'status');
 
             // Aplicar filtro si llega el parámetro 'company'
             if (!is_null($company)) {
@@ -170,9 +171,15 @@ class UserCompanyController extends Controller
                 return response()->json($response, 422);
             }
 
-            Log::info('invitacionnnn: ', ['invitacion'=> $invitation->id]);
-            Log::info($invitation->mail);
-
+            if ($invitation->status_id == 3) {
+                $response = [
+                    'message' => 'La invitación fue cancelada.',
+                    'error_code' => 404
+                ];
+                Audith::new($id_user, $action, $request->all(), 422, $response);
+                return response()->json($response, 422);
+            }
+            
             // Buscar usuario por email
             $user = User::where('email', $invitation->mail)->first();
 
@@ -198,6 +205,10 @@ class UserCompanyController extends Controller
                 Audith::new($id_user, $action, $request->all(), 422, $response);
                 return response()->json($response, 422);
             }
+
+            $invitation->update([
+                'status_id' => 2,
+            ]);
 
             // Crear relación users_companies
             $userCompany = UsersCompany::create([
@@ -245,7 +256,9 @@ class UserCompanyController extends Controller
                 return response()->json($response, 422);
             }
 
-            $invitation->delete();
+            $invitation->update([
+                'status_id' => 3,
+            ]);
 
             Audith::new($id_user, $action, ['invitation_id' => $id], 200, "Invitación cancelada");
         } catch (Exception $e) {

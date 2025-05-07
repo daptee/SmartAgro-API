@@ -92,8 +92,8 @@ Route::group(['middleware' => ['token']], function ($router) {
 
     Route::controller(UserCompanyController::class)->group(function () {
         Route::get('user-company', 'index');
-        Route::get('user-company/invitation/{id}', 'show');
         Route::get('user-company/invitation/list', 'list_invitations');
+        Route::get('user-company/invitation/{id}', 'show');
         Route::post('user-company/invitation/send', 'send_invitation');
         Route::post('user-company/invitation/accept', 'accept_invitation');
         Route::delete('user-company/invitation/cancel/{id}', 'cancel_invitation');
