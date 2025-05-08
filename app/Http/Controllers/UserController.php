@@ -92,9 +92,17 @@ class UserController extends Controller
 
             if ($data['id_plan'] == 3) {
                 $company = UsersCompany::where('id_user', $data['id'])
-                    ->with('rol', 'company.locality', 'company.status', 'company.category')
+                    ->with([
+                        'rol',
+                        'company.locality',
+                        'company.status',
+                        'company.category',
+                        'company.plan' => function ($query) {
+                            $query->where('status_id', 1);
+                        }
+                    ])
                     ->first();
-                    
+
                 $data['rol'] = $company?->rol;
                 $data['company'] = $company?->company;
             }
