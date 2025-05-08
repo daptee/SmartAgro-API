@@ -96,6 +96,7 @@ Route::group(['middleware' => ['token']], function ($router) {
         Route::get('user-company/invitation/status', 'status_invitations');
         Route::get('user-company/invitation/{id}', 'show');
         Route::post('user-company/invitation/send', 'send_invitation');
+        Route::post('user-company/invitation/resend', 'resend_invitation');
         Route::post('user-company/invitation/accept', 'accept_invitation');
         Route::delete('user-company/invitation/cancel/{id}', 'cancel_invitation');
         Route::delete('user-company/unassociate/{userId}/{companyId}', 'unassociate_user');

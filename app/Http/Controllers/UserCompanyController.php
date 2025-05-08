@@ -63,7 +63,7 @@ class UserCompanyController extends Controller
         return response(compact('data'));
     }
 
-    public function show ($id, Request $request)
+    public function show($id, Request $request)
     {
         $message = "Error al obtener la invitacion";
         $action = "Obtener invitacion a empresa";
@@ -91,10 +91,20 @@ class UserCompanyController extends Controller
         try {
             $request->validate([
                 'mail' => 'required|email',
-                'name' => 'required|string|max:255',
                 'id_company' => 'required|exists:companies,id',
                 'id_user_company_rol' => 'required|exists:users_company_roles,id'
             ]);
+
+            $user = User::where('email', $request->mail)->first();
+
+            if ($user) {
+                $response = [
+                    'message' => 'Ya hay un usuario registrado con este correo.',
+                    'error_code' => 404
+                ];
+                Audith::new($id_user, $action, $request->all(), 422, $response);
+                return response()->json($response, 422);
+            }
 
             $data = CompanyInvitation::create([
                 'id_company' => $request->id_company,
@@ -107,7 +117,6 @@ class UserCompanyController extends Controller
             $data->load('rol', 'company.locality', 'company.status', 'company.category', 'status');
             $company = $data['company'];
             $new_user = [
-                "name" => $request->name,
                 "email" => $request->mail,
             ];
             Mail::to($request->mail)->send(new InvitationUserCompanyMailable($new_user, $company, $data));
@@ -121,6 +130,68 @@ class UserCompanyController extends Controller
         return response(compact('data'), 201);
     }
 
+    public function resend_invitation(Request $request)
+    {
+        $message = "Error al reenviar la invitación";
+        $action = "Reenviar invitación a empresa";
+        $data = null;
+        $id_user = Auth::user()->id ?? null;
+
+        try {
+            $request->validate([
+                'mail' => 'required|email',
+                'id_company' => 'required|exists:companies,id',
+            ]);
+
+            $user = User::where('email', $request->mail)->first();
+
+            if ($user) {
+                $response = [
+                    'message' => 'Ya hay un usuario registrado con este correo.',
+                    'error_code' => 404
+                ];
+                Audith::new($id_user, $action, $request->all(), 422, $response);
+                return response()->json($response, 422);
+            }
+
+            $invitation = CompanyInvitation::where('mail', $request->mail)
+                ->where('id_company', $request->id_company)
+                ->latest()
+                ->first();
+
+            if (!$invitation) {
+                $response = [
+                    'message' => 'No se encontró una invitación existente para este correo y empresa.',
+                    'error_code' => 404
+                ];
+                Audith::new($id_user, $action, $request->all(), 404, $response);
+                return response()->json($response, 404);
+            }
+
+            $invitation->update([
+                'invitation_date' => Carbon::now(),
+            ]);
+
+            $invitation->load('rol', 'company.locality', 'company.status', 'company.category', 'status');
+            $company = $invitation['company'];
+            $new_user = [
+                "email" => $request->mail,
+            ];
+
+            Mail::to($request->mail)->send(new InvitationUserCompanyMailable($new_user, $company, $invitation));
+
+            $data = $invitation;
+
+            Audith::new($id_user, $action, $request->all(), 200, compact('data'));
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage()], 500);
+        }
+
+        return response(compact('data'), 200);
+    }
+
+
     public function list_invitations(Request $request)
     {
         $message = "Error al obtener las invitaciones";
@@ -130,6 +201,9 @@ class UserCompanyController extends Controller
 
         try {
             $company = $request->query('company');
+            $status = $request->query('status');
+            $perPage = $request->query('per_page', 10);
+            $page = $request->query('page', 1);
 
             $query = CompanyInvitation::with('rol', 'company.locality', 'company.status', 'company.category', 'status');
 
@@ -138,9 +212,47 @@ class UserCompanyController extends Controller
                 $query->where('id_company', $company);
             }
 
-            $results = $query->get();
+            // Aplicar filtro si llega el parámetro 'status'
+            if (!is_null($status)) {
+                $query->where('status_id', $status);
+            }
 
-            $data = $results;
+            $query->orderBy('created_at', 'desc');
+
+            $results = $query->paginate($perPage, ['*'], 'page', $page);
+
+            // Contar invitaciones activas (status_id 1 o 2)
+            $activeInvitationsCount = CompanyInvitation::whereIn('status_id', [1, 2])->count();
+
+            // Procesar cada invitación para verificar si hay un usuario registrado
+            $formatted = [];
+            foreach ($results->items() as $invitation) {
+                $invitationData = $invitation->toArray();
+
+                // Buscar usuario registrado con ese email
+                $user = User::where('email', $invitation->mail)->first();
+                if ($user) {
+                    $invitationData['registered_user'] = [
+                        'id_user' => $user->id,
+                        'name' => $user->name,
+                        'last_name' => $user->last_name,
+                        'registered_at' => $user->created_at->toDateTimeString(),
+                    ];
+                }
+
+                $formatted[] = $invitationData;
+            }
+
+            $data = [
+                'result' => $formatted,
+                'meta_data' => [
+                    'page' => $results->currentPage(),
+                    'per_page' => $results->perPage(),
+                    'total' => $results->total(),
+                    'last_page' => $results->lastPage(),
+                    'active_invitations_count' => $activeInvitationsCount,
+                ]
+            ];
 
             Audith::new($id_user, $action, $request->all(), 200, compact('data'));
         } catch (Exception $e) {
@@ -201,7 +313,7 @@ class UserCompanyController extends Controller
                 Audith::new($id_user, $action, $request->all(), 422, $response);
                 return response()->json($response, 422);
             }
-            
+
             // Buscar usuario por email
             $user = User::where('email', $invitation->mail)->first();
 
@@ -311,11 +423,18 @@ class UserCompanyController extends Controller
                 return response()->json($response, 422);
             }
 
+            $user = User::find($userId);
+            $userEmail = $user?->email;
+
             $userCompany->delete();
 
-            $user = User::find($userId);
             if ($user) {
                 $user->update(['id_plan' => 1]);
+
+                // Actualizar todas las invitaciones relacionadas al correo y empresa
+                CompanyInvitation::where('mail', $userEmail)
+                    ->where('id_company', $companyId)
+                    ->update(['status_id' => 4]); // Estado "desasociado"
             }
 
             Audith::new($id_user, $action, ['id_user' => $userId, 'id_company' => $companyId], 200, "Usuario desasociado");
