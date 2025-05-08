@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Mail\InvitationUserCompanyMailable;
+use App\Models\StatusInvitation;
 use App\Models\UsersCompany;
 use App\Models\CompanyInvitation;
 use Illuminate\Http\Request;
@@ -140,6 +141,27 @@ class UserCompanyController extends Controller
             $results = $query->get();
 
             $data = $results;
+
+            Audith::new($id_user, $action, $request->all(), 200, compact('data'));
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage()], 500);
+        }
+
+        return response(compact('data'));
+    }
+
+    public function status_invitations(Request $request)
+    {
+        $message = "Error al obtener los estados de invitacion";
+        $action = "Listado de estado de invitacion";
+        $data = null;
+        $id_user = Auth::user()->id ?? null;
+
+        try {
+            $query = StatusInvitation::get();
+
+            $data = $query;
 
             Audith::new($id_user, $action, $request->all(), 200, compact('data'));
         } catch (Exception $e) {
