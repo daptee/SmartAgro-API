@@ -1,8 +1,12 @@
 <?php
 
+use App\Http\Controllers\AdvertisingReportController;
+use App\Http\Controllers\AdvertisingSpaceController;
+use App\Http\Controllers\AdvertisingStatusController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BackupController;
 use App\Http\Controllers\CacheController;
+use App\Http\Controllers\CompaniesAdvertisingController;
 use App\Http\Controllers\CompanyCategoryController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\CompanyPlanController;
@@ -102,6 +106,21 @@ Route::group(['middleware' => ['token']], function ($router) {
         Route::delete('user-company/unassociate/{userId}/{companyId}', 'unassociate_user');
     });
 
+    Route::controller(AdvertisingSpaceController::class)->group(function () {
+        Route::post('advertising-space', 'store');
+        Route::put('advertising-space/{id}', 'update');
+    });
+
+    Route::controller(CompaniesAdvertisingController::class)->group(function () {
+        Route::post('advertising-companies', 'store');
+        Route::post('advertising-companies/{id}', 'update');
+    });
+
+    Route::controller(AdvertisingReportController::class)->group(function () {
+        Route::post('advertising-reports', 'store');
+        Route::put('advertising-reports/{id}', 'update');
+    });
+
     // Regions
     Route::controller(RegionController::class)->group(function () {
         Route::get('regions', 'get_regions');
@@ -130,6 +149,11 @@ Route::controller(GetsFunctionsController::class)->group(function () {
     Route::get('/countries', 'countries');
     Route::get('/plans', 'plans');
 });
+
+// Advertising
+Route::get('/advertising-status', [AdvertisingStatusController::class, 'index']);
+Route::get('/advertising-space', [AdvertisingSpaceController::class, 'index']);
+Route::get('/advertising-companies', [CompaniesAdvertisingController::class, 'index']);
 
 // Dolar API
 Route::get('dolar/oficial', function () {
