@@ -477,9 +477,16 @@ class AuthController extends Controller
                 return response()->json($response, 422);
             }
             
+            Log::info("antess del cambio de status");
+            Log::info($invitation);
+            Log::info($invitation->status_id);
+            
             $invitation->update([
                 'status_id' => 2,
             ]);
+
+            Log::info("luego del cambio de status");
+            Log::info($invitation->status_id);
 
             // Crear relación users_companies
             $userCompany = UsersCompany::create([
