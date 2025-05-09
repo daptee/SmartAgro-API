@@ -454,6 +454,8 @@ class AuthController extends Controller
             // Buscar usuario por email
             $user = User::where('email', $invitation->mail)->first();
 
+            Log::info($user);
+
             if (!$user) {
                 $response = [
                     'message' => 'No se encontró un usuario registrado con este correo.',
@@ -495,7 +497,7 @@ class AuthController extends Controller
                 'id_user_company_rol' => $invitation->id_user_company_rol,
             ]);
 
-            $userCompany->load('user', 'role', 'company.locality', 'company.status', 'company.category');
+            $userCompany->load('user', 'rol', 'company.locality', 'company.status', 'company.category');
 
             $data = [
                 'message' => 'Invitación aceptada exitosamente',
