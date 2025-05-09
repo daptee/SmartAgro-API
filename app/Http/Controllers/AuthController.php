@@ -114,7 +114,9 @@ class AuthController extends Controller
             if ($new_user) {
                 try {
                     if ($id_invitation) {
-                        $data_invitation = $this->accept_invitation($id_invitation, $request);
+                        Log::info("userrrrrr");
+                        Log::info($new_user);
+                        $data_invitation = $this->accept_invitation($id_invitation, $request, $new_user);
 
                         Log::info("data_invitationnnnnnnnnnnnnnn");
                         Log::info($data_invitation);
@@ -426,7 +428,7 @@ class AuthController extends Controller
 
 
 
-    public function accept_invitation($invitation_token, $request)
+    public function accept_invitation($invitation_token, $request, $new_user)
     {
         $message = "Error al aceptar la invitación";
         $action = "Aceptar invitación de empresa";
@@ -452,7 +454,7 @@ class AuthController extends Controller
             Log::info($invitation->mail);
 
             // Buscar usuario por email
-            $user = User::where('email', $invitation->mail)->first();
+            /* $user = User::where('email', $invitation->mail)->first();
 
             Log::info($user);
 
@@ -463,10 +465,10 @@ class AuthController extends Controller
                 ];
                 Audith::new($id_user, $action, $request->all(), 422, $response);
                 return response()->json($response, 422);
-            }
+            } */
 
             // Verificar si ya existe la relación user-company
-            $alreadyExists = UsersCompany::where('id_user', $user->id)
+            $alreadyExists = UsersCompany::where('id_user', $new_user->id)
                 ->where('id_company', $invitation->id_company)
                 ->exists();
 
@@ -492,7 +494,7 @@ class AuthController extends Controller
 
             // Crear relación users_companies
             $userCompany = UsersCompany::create([
-                'id_user' => $user->id,
+                'id_user' => $new_user->id,
                 'id_company' => $invitation->id_company,
                 'id_user_company_rol' => $invitation->id_user_company_rol,
             ]);
