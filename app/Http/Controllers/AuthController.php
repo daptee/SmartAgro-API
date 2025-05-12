@@ -126,6 +126,8 @@ class AuthController extends Controller
                 try {
                     if ($id_invitation) {
                         $data_invitation = $this->accept_invitation($id_invitation, $request);
+
+                        Log::info($data_invitation);
     
                         $company = $data_invitation['user_company']['company'] ?? null;
     
