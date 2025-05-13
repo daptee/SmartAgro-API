@@ -12,7 +12,7 @@ class CompanyInvitation extends Model
     protected $table = 'company_invitations';
 
     protected $fillable = [
-        'id_company',
+        'id_company_plan',
         'mail',
         'id_user_company_rol',
         'invitation_date',
@@ -24,9 +24,9 @@ class CompanyInvitation extends Model
     ];
 
     // Relación con la empresa
-    public function company()
+    public function plan()
     {
-        return $this->belongsTo(Company::class, 'id_company');
+        return $this->belongsTo(CompanyPlan::class, 'id_company_plan');
     }
 
     // Relación con el rol

@@ -94,17 +94,17 @@ class UserController extends Controller
                 $company = UsersCompany::where('id_user', $data['id'])
                     ->with([
                         'rol',
-                        'company.locality',
-                        'company.status',
-                        'company.category',
-                        'company.plan' => function ($query) {
+                        'plan.company.locality',
+                        'plan.company.status',
+                        'plan.company.category',
+                        'plan' => function ($query) {
                             $query->where('status_id', 1);
                         }
                     ])
                     ->first();
 
                 $data['rol'] = $company?->rol;
-                $data['company'] = $company?->company;
+                $data['company_plan'] = $company?->plan;
             }
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));

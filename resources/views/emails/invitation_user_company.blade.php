@@ -56,7 +56,7 @@
                     <td class="sm-px-24" style="mso-line-height-rule: exactly; border-radius: 4px; background-color: #ffffff; padding: 48px; text-align: left; font-family: Montserrat, -apple-system, 'Segoe UI', sans-serif; font-size: 16px; line-height: 24px; color: #626262;">
                       <p style="font-family: 'Montserrat', sans-serif; mso-line-height-rule: exactly; margin-bottom: 0; font-size: 20px; font-weight: 600;">Hola</p>
                       <p style="font-family: 'Montserrat', sans-serif; mso-line-height-rule: exactly; margin: 0; margin-bottom: 24px;">
-                        ¡Te avisamos que la empresa {{ $company->company_name }} te mando esta invitacion para que te registres y aproveches de la siguiente plataforma.
+                        ¡Te avisamos que la empresa {{ $company->company->company_name }} te mando esta invitacion para que te registres y aproveches de la siguiente plataforma.
                       </p>
                       <p style="font-family: 'Montserrat', sans-serif; mso-line-height-rule: exactly; margin: 0; margin-bottom: 36px;">Esperamos puedas disfrutar de la misma.</p>
                       <table cellpadding="0" cellspacing="0" role="presentation">

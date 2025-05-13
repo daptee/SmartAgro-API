@@ -129,7 +129,7 @@ class AuthController extends Controller
 
                         Log::info($data_invitation);
     
-                        $company = $data_invitation['user_company']['company'] ?? null;
+                        $company = $data_invitation['user_company']['plan']['company'] ?? null;
     
                         if ($company) {
                             $new_user->update(['id_plan' => 3]);
@@ -291,8 +291,8 @@ class AuthController extends Controller
 
             if ($user->id_plan == 3) {
                 $company = UsersCompany::where('id_user', $user->id)
-                    ->with('company')
-                    ->first()?->company;
+                    ->with('plan.company')
+                    ->first();
             }
 
             Audith::new($user->id, $action, $credentials, 200, $this->respondWithToken($token, $company));
@@ -475,7 +475,7 @@ class AuthController extends Controller
 
             // Verificar si ya existe la relación user-company
             $alreadyExists = UsersCompany::where('id_user', $user->id)
-                ->where('id_company', $invitation->id_company)
+                ->where('id_company_plan', $invitation->id_company_plan)
                 ->exists();
 
             if ($alreadyExists) {
@@ -494,11 +494,11 @@ class AuthController extends Controller
             // Crear relación users_companies
             $userCompany = UsersCompany::create([
                 'id_user' => $user->id,
-                'id_company' => $invitation->id_company,
+                'id_company_plan' => $invitation->id_company_plan,
                 'id_user_company_rol' => $invitation->id_user_company_rol,
             ]);
 
-            $userCompany->load('user', 'rol', 'company.locality', 'company.status', 'company.category');
+            $userCompany->load('user', 'rol', 'plan.company.locality', 'plan.company.status', 'plan.company.category');
 
             $data = [
                 'message' => 'Invitación aceptada exitosamente',
@@ -537,7 +537,7 @@ class AuthController extends Controller
         if ($company) {
             $data = [
                 'access_token' => $token,
-                'company' => $company
+                'company_plan' => $company
             ];
         } else {
             $data = [

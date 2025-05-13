@@ -10,6 +10,7 @@ use App\Http\Controllers\CompaniesAdvertisingController;
 use App\Http\Controllers\CompanyCategoryController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\CompanyPlanController;
+use App\Http\Controllers\CompanyPlanPublicityController;
 use App\Http\Controllers\CompanyRolesController;
 use App\Http\Controllers\GeneralImportController;
 use App\Http\Controllers\GetsFunctionsController;
@@ -119,6 +120,13 @@ Route::group(['middleware' => ['token']], function ($router) {
     Route::controller(AdvertisingReportController::class)->group(function () {
         Route::post('advertising-reports', 'store');
         Route::put('advertising-reports/{id}', 'update');
+    });
+
+    Route::controller(CompanyPlanPublicityController::class)->group(function () {
+        Route::get('company-plan-publicities/{id}', 'index');
+        Route::post('company-plan-publicities', 'store');
+        Route::post('company-plan-publicities/{id}', 'update');
+        Route::post('company-plan-publicities/settings/{id}', 'toggleGlobalAds');
     });
 
     // Regions
