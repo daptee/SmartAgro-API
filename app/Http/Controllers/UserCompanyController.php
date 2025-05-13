@@ -71,7 +71,7 @@ class UserCompanyController extends Controller
         $id_user = Auth::user()->id ?? null;
         try {
             $data = CompanyInvitation::find($id);
-            $data->load('rol', 'company.locality', 'company.status', 'company.category', 'status');
+            $data->load('rol', 'plan.company.locality', 'plan.company.status', 'plan.company.category', 'plan.status', 'status');
             Audith::new($id_user, $action, $request->all(), 200, compact('data'));
         } catch (Exception $e) {
             Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
@@ -91,7 +91,7 @@ class UserCompanyController extends Controller
         try {
             $request->validate([
                 'mail' => 'required|email',
-                'id_company' => 'required|exists:companies,id',
+                'id_company_plan' => 'required|exists:companies,id',
                 'id_user_company_rol' => 'required|exists:users_company_roles,id'
             ]);
 
@@ -107,19 +107,19 @@ class UserCompanyController extends Controller
             }
 
             $data = CompanyInvitation::create([
-                'id_company' => $request->id_company,
+                'id_company_plan' => $request->id_company_plan,
                 'mail' => $request->mail,
                 'id_user_company_rol' => $request->id_user_company_rol,
                 'invitation_date' => Carbon::now(),
                 'status_id' => 1,
             ]);
 
-            $data->load('rol', 'company.locality', 'company.status', 'company.category', 'status');
-            $company = $data['company'];
+            $data->load('rol', 'plan.company.locality', 'plan.company.status', 'plan.company.category', 'plan.status', 'status');
+            $plan = $data['plan'];
             $new_user = [
                 "email" => $request->mail,
             ];
-            Mail::to($request->mail)->send(new InvitationUserCompanyMailable($new_user, $company, $data));
+            Mail::to($request->mail)->send(new InvitationUserCompanyMailable($new_user, $plan, $data));
 
             Audith::new($id_user, $action, $request->all(), 201, compact('data'));
         } catch (Exception $e) {
@@ -140,7 +140,7 @@ class UserCompanyController extends Controller
         try {
             $request->validate([
                 'mail' => 'required|email',
-                'id_company' => 'required|exists:companies,id',
+                'id_company_plan' => 'required|exists:companies,id',
             ]);
 
             $user = User::where('email', $request->mail)->first();
@@ -155,7 +155,7 @@ class UserCompanyController extends Controller
             }
 
             $invitation = CompanyInvitation::where('mail', $request->mail)
-                ->where('id_company', $request->id_company)
+                ->where('id_company_plan', $request->id_company_plan)
                 ->latest()
                 ->first();
 
@@ -172,13 +172,13 @@ class UserCompanyController extends Controller
                 'invitation_date' => Carbon::now(),
             ]);
 
-            $invitation->load('rol', 'company.locality', 'company.status', 'company.category', 'status');
-            $company = $invitation['company'];
+            $invitation->load('rol', 'plan.company.locality', 'plan.company.status', 'plan.company.category', 'plan.status', 'status');
+            $plan = $invitation['plan'];
             $new_user = [
                 "email" => $request->mail,
             ];
 
-            Mail::to($request->mail)->send(new InvitationUserCompanyMailable($new_user, $company, $invitation));
+            Mail::to($request->mail)->send(new InvitationUserCompanyMailable($new_user, $plan, $invitation));
 
             $data = $invitation;
 
@@ -191,7 +191,6 @@ class UserCompanyController extends Controller
         return response(compact('data'), 200);
     }
 
-
     public function list_invitations(Request $request)
     {
         $message = "Error al obtener las invitaciones";
@@ -200,16 +199,16 @@ class UserCompanyController extends Controller
         $id_user = Auth::user()->id ?? null;
 
         try {
-            $company = $request->query('company');
+            $companyPlan = $request->query('company_plan');
             $status = $request->query('status');
             $perPage = $request->query('per_page', 10);
             $page = $request->query('page', 1);
 
-            $query = CompanyInvitation::with('rol', 'company.locality', 'company.status', 'company.category', 'status');
+            $query = CompanyInvitation::with('rol', 'plan.company.locality', 'plan.company.status', 'plan.company.category', 'plan.status', 'status');
 
             // Aplicar filtro si llega el parámetro 'company'
-            if (!is_null($company)) {
-                $query->where('id_company', $company);
+            if (!is_null($companyPlan)) {
+                $query->where('id_company_plan', $companyPlan);
             }
 
             // Aplicar filtro si llega el parámetro 'status'
@@ -328,7 +327,7 @@ class UserCompanyController extends Controller
 
             // Verificar si ya existe la relación user-company
             $alreadyExists = UsersCompany::where('id_user', $user->id)
-                ->where('id_company', $invitation->id_company)
+                ->where('id_company_plan', $invitation->id_company_plan)
                 ->exists();
 
             if ($alreadyExists) {
@@ -347,11 +346,11 @@ class UserCompanyController extends Controller
             // Crear relación users_companies
             $userCompany = UsersCompany::create([
                 'id_user' => $user->id,
-                'id_company' => $invitation->id_company,
+                'id_company_plan' => $invitation->id_company_plan,
                 'id_user_company_rol' => $invitation->id_user_company_rol,
             ]);
 
-            $userCompany->load('user', 'rol', 'company.locality', 'company.status', 'company.category');
+            $userCompany->load('user', 'rol', 'plan.company.locality', 'plan.company.status', 'plan.company.category');
 
             $data = [
                 'message' => 'Invitación aceptada exitosamente',
@@ -411,7 +410,7 @@ class UserCompanyController extends Controller
 
         try {
             $userCompany = UsersCompany::where('id_user', $userId)
-                ->where('id_company', $companyId)
+                ->where('id_company_plan', $companyId)
                 ->first();
 
             if (!$userCompany) {
@@ -433,13 +432,13 @@ class UserCompanyController extends Controller
 
                 // Actualizar todas las invitaciones relacionadas al correo y empresa
                 CompanyInvitation::where('mail', $userEmail)
-                    ->where('id_company', $companyId)
+                    ->where('id_company_plan', $companyId)
                     ->update(['status_id' => 4]); // Estado "desasociado"
             }
 
-            Audith::new($id_user, $action, ['id_user' => $userId, 'id_company' => $companyId], 200, "Usuario desasociado");
+            Audith::new($id_user, $action, ['id_user' => $userId, 'id_company_plan' => $companyId], 200, "Usuario desasociado");
         } catch (Exception $e) {
-            Audith::new($id_user, $action, ['id_user' => $userId, 'id_company' => $companyId], 500, $e->getMessage());
+            Audith::new($id_user, $action, ['id_user' => $userId, 'id_company_plan' => $companyId], 500, $e->getMessage());
             return response(["message" => $message, "error" => $e->getMessage()], 500);
         }
 

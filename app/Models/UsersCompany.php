@@ -10,7 +10,7 @@ class UsersCompany extends Model
 
     protected $fillable = [
         'id_user',
-        'id_company',
+        'id_company_plan',
         'id_user_company_rol',
     ];
 
@@ -19,9 +19,9 @@ class UsersCompany extends Model
         return $this->belongsTo(User::class, 'id_user');
     }
 
-    public function company()
+    public function plan()
     {
-        return $this->belongsTo(Company::class, 'id_company');
+        return $this->belongsTo(CompanyPlan::class, 'id_company_plan');
     }
 
     public function rol()
