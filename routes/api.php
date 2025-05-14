@@ -30,6 +30,9 @@ use Illuminate\Support\Facades\Http;
 // Backup
 Route::get('/backup', [BackupController::class, 'createBackup'])->name('backup');
 
+// update payment
+Route::get('/cron-payment', [SubscriptionController::class, 'cronPayment'])->name('cron-payment');
+
 // Auth
 Route::controller(AuthController::class)->group(function () {
     Route::post('auth/register', 'auth_register');
