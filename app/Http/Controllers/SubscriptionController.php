@@ -473,13 +473,10 @@ class SubscriptionController extends Controller
         $priceMonthly = round($pricesUSD['monthly']['price'] * $dollarRate, 2);
         $priceYearly = round($pricesUSD['yearly']['price'] * $dollarRate, 2);
 
-        Log::info($priceMonthly);
-        Log::info($priceYearly);
-
         $today = Carbon::today();
         $tomorrow = Carbon::tomorrow();
 
-        $accessToken = env('MERCADOPAGO_ACCESS_TOKEN');
+        $accessToken = config('app.mercadopago_token');
 
         $userPlans = UserPlan::where('id_plan', 2)
             ->whereDate('next_payment_date', '>=', $today)
@@ -489,15 +486,15 @@ class SubscriptionController extends Controller
             ->map(function ($plan) use ($priceMonthly, $priceYearly, $accessToken) {
                 $data = json_decode($plan->data, true);
                 $frequency = $data['auto_recurring']['frequency'] ?? null;
+                $frequency = $data['status'] ?? null;
                 $preapprovalId = $plan->preapproval_id;
 
-                if ($frequency && $preapprovalId) {
+                if ($frequency && $preapprovalId && $data['status'] != "cancelled" && $data['status'] != null) {
                     $newAmount = $frequency == 1 ? $priceMonthly : $priceYearly;
 
                     $payload = [
                         'auto_recurring' => [
-                            'transaction_amount' => $newAmount,
-                            'currency_id' => 'ARS'
+                            'transaction_amount' => $newAmount
                         ]
                     ];
 
