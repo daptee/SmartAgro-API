@@ -490,7 +490,7 @@ class SubscriptionController extends Controller
                 $preapprovalId = $plan->preapproval_id;
 
                 if ($frequency && $preapprovalId && $data['status'] != "cancelled" && $data['status'] != null) {
-                    $newAmount = $frequency == 1 ? $priceMonthly : $priceYearly;
+                    $newAmount = $frequency == "1" ? $priceMonthly : $priceYearly;
 
                     Log::info($newAmount);
 
