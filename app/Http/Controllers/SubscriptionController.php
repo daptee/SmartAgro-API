@@ -492,6 +492,8 @@ class SubscriptionController extends Controller
                 if ($frequency && $preapprovalId && $data['status'] != "cancelled" && $data['status'] != null) {
                     $newAmount = $frequency == 1 ? $priceMonthly : $priceYearly;
 
+                    Log::info($newAmount);
+
                     $payload = [
                         'auto_recurring' => [
                             'transaction_amount' => $newAmount
