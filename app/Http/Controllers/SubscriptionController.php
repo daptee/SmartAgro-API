@@ -486,10 +486,10 @@ class SubscriptionController extends Controller
             ->map(function ($plan) use ($priceMonthly, $priceYearly, $accessToken) {
                 $data = json_decode($plan->data, true);
                 $frequency = $data['auto_recurring']['frequency'] ?? null;
-                $frequency = $data['status'] ?? null;
+                $status = $data['status'] ?? null;
                 $preapprovalId = $plan->preapproval_id;
 
-                if ($frequency && $preapprovalId && $data['status'] != "cancelled" && $data['status'] != null) {
+                if ($frequency && $preapprovalId && $status != "cancelled" && !$status) {
                     Log::info("frequencyyyyyyyyyyyy");
                     Log::info($frequency);
                     $newAmount = $frequency == "1" ? $priceMonthly : $priceYearly;
