@@ -11,6 +11,7 @@ use App\Models\PaymentHistory;
 use App\Models\Plan;
 use App\Models\User;
 use App\Models\UserPlan;
+use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -74,7 +75,6 @@ class SubscriptionController extends Controller
             'init_point' => $subscriptionResponse->json('init_point')
         ]);
     }
-
 
     public function subscription_check(Request $request)
     {
@@ -161,7 +161,6 @@ class SubscriptionController extends Controller
         return response()->json(['error' => 'El usuario no coincide con la suscripción o algo sali mal'], 403);
     }
 
-
     public function subscription_cancel(Request $request)
     {
         $message = "Error al obtener registro";
@@ -208,7 +207,6 @@ class SubscriptionController extends Controller
             return response($response, 500);
         }
     }
-
     private $preapprovalId;
 
     public function handleWebhook(Request $request)
@@ -306,24 +304,24 @@ class SubscriptionController extends Controller
 
                 if ($data['action'] == 'payment.updated') {
                     Log::info("Actualizando pago para preapproval_id: {$subscriptionData['metadata']['preapproval_id']}");
-                
+
                     // Buscar el último PaymentHistory que coincida
                     $paymentHistory = PaymentHistory::where('preapproval_id', $subscriptionData['metadata']['preapproval_id'])
                         ->orderBy('created_at', 'desc')
                         ->first();
-                
+
                     if ($paymentHistory) {
                         // Actualizar los datos
                         $paymentHistory->update([
                             'data' => json_encode($subscriptionData), // Actualizas el campo `data`
                             'error_message' => null, // Si quieres limpiar el error o actualizarlo
                         ]);
-                
+
                         Log::info("PaymentHistory actualizado correctamente para id: {$paymentHistory->id}");
                     } else {
                         Log::warning("No se encontró PaymentHistory para preapproval_id: {$subscriptionData['metadata']['preapproval_id']}");
                     }
-                
+
                     return response()->json(['status' => 'payment updated']);
                 }
 
@@ -458,4 +456,77 @@ class SubscriptionController extends Controller
             'meta' => $metaData,
         ]);
     }
+
+    public function cronPayment(Request $request)
+    {
+        $plan = Plan::find(2);
+        $pricesUSD = $plan['price']['frecuency'];
+
+        $dollarResponse = Http::get('https://dolarapi.com/v1/dolares/oficial');
+        $dollarData = $dollarResponse->json();
+        $dollarRate = $dollarData['venta'] ?? null;
+
+        if (!$dollarRate) {
+            return response()->json(['error' => 'No se pudo obtener el valor del dólar'], 500);
+        }
+
+        $priceMonthly = round($pricesUSD['monthly']['price'] * $dollarRate, 2);
+        $priceYearly = round($pricesUSD['yearly']['price'] * $dollarRate, 2);
+
+        Log::info($priceMonthly);
+        Log::info($priceYearly);
+
+        $today = Carbon::today();
+        $tomorrow = Carbon::tomorrow();
+
+        $accessToken = env('MERCADOPAGO_ACCESS_TOKEN');
+
+        $userPlans = UserPlan::where('id_plan', 2)
+            ->whereDate('next_payment_date', '>=', $today)
+            ->whereDate('next_payment_date', '<=', $tomorrow)
+            ->orderBy('id', 'desc')
+            ->get()
+            ->map(function ($plan) use ($priceMonthly, $priceYearly, $accessToken) {
+                $data = json_decode($plan->data, true);
+                $frequency = $data['auto_recurring']['frequency'] ?? null;
+                $preapprovalId = $plan->preapproval_id;
+
+                if ($frequency && $preapprovalId) {
+                    $newAmount = $frequency == 1 ? $priceMonthly : $priceYearly;
+
+                    $payload = [
+                        'auto_recurring' => [
+                            'transaction_amount' => $newAmount,
+                            'currency_id' => 'ARS'
+                        ]
+                    ];
+
+                    // PUT request to MercadoPago
+                    $response = Http::withToken($accessToken)
+                        ->put("https://api.mercadopago.com/preapproval/{$preapprovalId}", $payload);
+
+                    if ($response->successful()) {
+                        // Guardamos la nueva data devuelta por MercadoPago
+                        $newData = $response->json();
+                        $plan->data = json_encode($newData);
+                        $plan->save();
+                    } else {
+                        // Si falló, podrías loguear o manejar el error
+                        $data['update_error'] = $response->json();
+                    }
+                }
+
+                // Devolver la data ya actualizada o con error
+                return [
+                    'id' => $plan->id,
+                    'preapproval_id' => $plan->preapproval_id,
+                    'data' => json_decode($plan->data, true),
+                ];
+            });
+
+        return response()->json([
+            'data' => $userPlans,
+        ]);
+    }
+
 }
