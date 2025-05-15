@@ -28,14 +28,14 @@ class UserCompanyController extends Controller
             $perPage = $request->query('per_page', 10);
             $page = $request->query('page', 1);
 
-            $query = UsersCompany::with(['user', 'company', 'rol']);
+            $query = UsersCompany::with(['user', 'plan.company', 'rol']);
 
             if ($request->filled('user')) {
                 $query->where('id_user', $request->user);
             }
 
-            if ($request->filled('company')) {
-                $query->where('id_company', $request->company);
+            if ($request->filled('company_plan')) {
+                $query->where('id_company_plan', $request->company_plan);
             }
 
             if ($request->filled('rol')) {
@@ -101,6 +101,21 @@ class UserCompanyController extends Controller
                 $response = [
                     'message' => 'Ya hay un usuario registrado con este correo.',
                     'error_code' => 404
+                ];
+                Audith::new($id_user, $action, $request->all(), 422, $response);
+                return response()->json($response, 422);
+            }
+
+            // ✅ Validar que no exista una invitación previa con status 1 o 2
+            $existingInvitation = CompanyInvitation::where('mail', $request->mail)
+                ->where('id_company_plan', $request->id_company_plan)
+                ->whereIn('status_id', [1, 2])
+                ->first();
+
+            if ($existingInvitation) {
+                $response = [
+                    'message' => 'Ya existe una invitación activa o pendiente para este correo en este plan.',
+                    'error_code' => 409
                 ];
                 Audith::new($id_user, $action, $request->all(), 422, $response);
                 return response()->json($response, 422);
@@ -378,7 +393,7 @@ class UserCompanyController extends Controller
 
             $exists = UsersCompany::whereHas('user', function ($q) use ($invitation) {
                 $q->where('email', $invitation->mail);
-            })->where('id_company', $invitation->id_company)->exists();
+            })->where('id_company_plan', $invitation->id_company_plan)->exists();
 
             if ($exists) {
                 $response = [
