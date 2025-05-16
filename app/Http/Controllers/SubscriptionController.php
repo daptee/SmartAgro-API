@@ -242,17 +242,23 @@ class SubscriptionController extends Controller
                             Mail::to(config('services.research_on_demand.email'))->send(new NotificationWelcomePlan($user));
                         }
 
-                        $existingRecord = UserPlan::where('id_user', $userId)
-                            ->where('next_payment_date', $subscriptionData['next_payment_date'])
+                        $latestRecord = UserPlan::where('id_user', $userId)
+                            ->where('preapproval_id', $this->preapprovalId)
+                            ->orderByDesc('created_at') // o 'updated_at' si prefieres
                             ->first();
 
-                        if (!$existingRecord) {
+                        if ($latestRecord) {
+                            $latestRecord->update([
+                                'data' => $subscriptionData, // asumiendo que 'data' es un campo JSON
+                                'next_payment_date' => $subscriptionData['next_payment_date'],
+                            ]);
+                            Log::info('Historial actualizado correctamente');
+                        } else{
+                            
                             UserPlan::save_history($userId, 2, $subscriptionData, $subscriptionData['next_payment_date'], $this->preapprovalId);
 
                             Log::info('Historial guardado correctamente');
-                        } else {
-                            Log::warning("Registro duplicado detectado para id_user: $userId y next_payment_date: {$subscriptionData['next_payment_date']}");
-                        }
+                        } 
                     } else {
                         Log::error("Usuario no encontrado: $userId");
                     }

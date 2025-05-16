@@ -127,8 +127,7 @@ Route::group(['middleware' => ['token']], function ($router) {
 
     Route::controller(CompanyPlanPublicityController::class)->group(function () {
         Route::get('company-plan-publicities/{id}', 'index');
-        Route::post('company-plan-publicities', 'store');
-        Route::post('company-plan-publicities/{id}', 'update');
+        Route::post('company-plan-publicities', 'upsertAll');
         Route::post('company-plan-publicities/settings/{id}', 'toggleGlobalAds');
     });
 

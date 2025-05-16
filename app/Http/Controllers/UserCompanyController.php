@@ -430,7 +430,7 @@ class UserCompanyController extends Controller
 
             if (!$userCompany) {
                 $response = [
-                    'message' => 'El usuario no está asociado a la empresa.',
+                    'message' => 'El usuario no está asociado a este plan empresa.',
                     'error_code' => 404
                 ];
                 Audith::new($id_user, $action, $request->all(), 422, $response);

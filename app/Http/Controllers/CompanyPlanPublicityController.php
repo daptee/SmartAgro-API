@@ -32,98 +32,83 @@ class CompanyPlanPublicityController extends Controller
         return response(compact('data'));
     }
 
-    public function store(Request $request)
+    public function upsertAll(Request $request)
     {
-        $message = "Error al guardar la publicidad personalizada";
-        $action = "Creación de publicidad del plan empresa";
+        $message = "Error al procesar las publicidades del plan empresa";
+        $action = "Creación/actualización masiva de publicidades del plan empresa";
         $data = null;
         $id_user = Auth::user()->id ?? null;
 
         try {
             $validated = $request->validate([
                 'id_company_plan' => 'required|exists:companies,id',
-                'id_advertising_space' => 'required|exists:advertising_spaces,id',
-                'file' => 'nullable|file|mimes:gif|max:10240',
-                'is_active' => 'boolean',
+                'publicities' => 'required|array',
+                'publicities.*.id' => 'nullable|exists:company_plan_publicities,id',
+                'publicities.*.id_advertising_space' => 'required|exists:advertising_spaces,id',
+                'publicities.*.is_active' => 'boolean',
+                'publicities.*.file' => 'nullable|file|mimes:gif|max:10240',
             ]);
 
+            $results = [];
             $imagePath = public_path('storage/publicities/gifs/');
 
             if (!file_exists($imagePath)) {
                 mkdir($imagePath, 0777, true);
             }
 
-            $filePath = null;
+            $setting = CompanyPlanPublicitySetting::where('id_company_plan', $validated['id_company_plan'])->first();
 
-            if ($request->hasFile('file')) {
-                $file = $request->file('file');
-                $fileName = time() . '_file_' . $file->getClientOriginalName();
-                $file->move($imagePath, $fileName);
-                $filePath = '/storage/publicities/gifs/' . $fileName;
+            if ($setting && $setting->show_any_ads == 0) {
+                Audith::new($id_user, $action, $request->all(), 403, "Las publicidades están desactivadas para este plan de empresa.");
+                return response(["message" => $message, "error" => "Las publicidades están desactivadas para este plan de empresa."], 403);
             }
 
-            $data = CompanyPlanPublicity::create([
-                'id_company_plan' => $validated['id_company_plan'],
-                'id_advertising_space' => $validated['id_advertising_space'],
-                'gif_path' => $filePath,
-                'is_active' => $validated['is_active'] ?? true,
-            ]);
+            foreach ($request->publicities as $item) {
+                $filePath = null;
 
-            $data->load('advertisingSpace');
-
-            Audith::new($id_user, $action, $request->all(), 201, compact('data'));
-        } catch (Exception $e) {
-            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
-            return response(["message" => $message, "error" => $e->getMessage()], 500);
-        }
-
-        return response(compact('data'), 201);
-    }
-
-    public function update(Request $request, $id)
-    {
-        $message = "Error al actualizar la publicidad personalizada";
-        $action = "Actualización de publicidad del plan empresa";
-        $data = null;
-        $id_user = Auth::user()->id ?? null;
-
-        try {
-            $validated = $request->validate([
-                'id_company_plan' => 'required|exists:companies,id',
-                'id_advertising_space' => 'required|exists:advertising_spaces,id',
-                'file' => 'nullable|file|mimes:gif|max:10240',
-                'is_active' => 'boolean',
-            ]);
-
-            $publicity = CompanyPlanPublicity::findOrFail($id);
-
-            // Verifica que la empresa coincida
-            if ($publicity->id_company_plan != $validated['id_company_plan']) {
-                return response(["message" => "No tienes permisos para editar esta publicidad"], 403);
-            }
-
-            $imagePath = public_path('storage/publicities/gifs/');
-            if (!file_exists($imagePath)) {
-                mkdir($imagePath, 0777, true);
-            }
-
-            if ($request->hasFile('file')) {
-                // Elimina el archivo anterior si existe
-                if ($publicity->gif_path && file_exists(public_path($publicity->gif_path))) {
-                    unlink(public_path($publicity->gif_path));
+                // Si viene archivo, lo guardamos
+                if (isset($item['file']) && $item['file'] instanceof \Illuminate\Http\UploadedFile) {
+                    $file = $item['file'];
+                    $fileName = time() . '_file_' . $file->getClientOriginalName();
+                    $file->move($imagePath, $fileName);
+                    $filePath = '/storage/publicities/gifs/' . $fileName;
                 }
 
-                $file = $request->file('file');
-                $fileName = time() . '_file_' . $file->getClientOriginalName();
-                $file->move($imagePath, $fileName);
-                $publicity->gif_path = '/storage/publicities/gifs/' . $fileName;
+                // Si tiene ID, actualiza
+                if (isset($item['id'])) {
+                    $publicity = CompanyPlanPublicity::findOrFail($item['id']);
+
+                    // Verifica que la empresa coincida
+                    if ($publicity->id_company_plan != $validated['id_company_plan']) {
+                        continue; // Skip si no pertenece
+                    }
+
+                    // Elimina el anterior si hay archivo nuevo
+                    if ($filePath && $publicity->gif_path && file_exists(public_path($publicity->gif_path))) {
+                        unlink(public_path($publicity->gif_path));
+                    }
+
+                    $publicity->update([
+                        'id_advertising_space' => $item['id_advertising_space'],
+                        'is_active' => $item['is_active'] ?? $publicity->is_active,
+                        'gif_path' => $filePath ?? $publicity->gif_path,
+                    ]);
+
+                    $results[] = $publicity->fresh('advertisingSpace');
+                } else {
+                    // Crear nuevo
+                    $publicity = CompanyPlanPublicity::create([
+                        'id_company_plan' => $validated['id_company_plan'],
+                        'id_advertising_space' => $item['id_advertising_space'],
+                        'gif_path' => $filePath,
+                        'is_active' => $item['is_active'] ?? true,
+                    ]);
+
+                    $results[] = $publicity->load('advertisingSpace');
+                }
             }
 
-            $publicity->id_advertising_space = $validated['id_advertising_space'];
-            $publicity->is_active = $validated['is_active'] ?? $publicity->is_active;
-            $publicity->save();
-
-            $data = $publicity->fresh('advertisingSpace');
+            $data = $results;
 
             Audith::new($id_user, $action, $request->all(), 200, compact('data'));
         } catch (Exception $e) {
@@ -131,7 +116,7 @@ class CompanyPlanPublicityController extends Controller
             return response(["message" => $message, "error" => $e->getMessage()], 500);
         }
 
-        return response(compact('data'));
+        return response(compact('data'), 200);
     }
 
     public function toggleGlobalAds(Request $request, $id)
