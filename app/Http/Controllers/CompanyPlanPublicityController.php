@@ -21,7 +21,7 @@ class CompanyPlanPublicityController extends Controller
         try {
             $data = CompanyPlanPublicitySetting::with('plan', 'publicity.advertisingSpace')
                 ->where('id_company_plan', $id)
-                ->get();
+                ->first();
 
             Audith::new($id_user, $action, $request->all(), 200, compact('data'));
         } catch (Exception $e) {
