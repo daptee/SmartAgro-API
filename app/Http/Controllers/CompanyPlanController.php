@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\CompanyPlan;
+use App\Models\CompanyPlanPublicitySetting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Audith;
@@ -99,6 +100,11 @@ class CompanyPlanController extends Controller
                 'data' => $request->data,
                 'status_id' => $request->status,
             ]);
+
+            CompanyPlanPublicitySetting::updateOrCreate(
+                ['id_company_plan' => $data->id],
+                ['show_any_ads' => 0]
+            );
 
             $data->load(['company.category', 'company.locality', 'company.status', 'status']);
 
