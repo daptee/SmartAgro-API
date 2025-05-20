@@ -8,6 +8,7 @@ use App\Models\Audith;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Exception;
+use Log;
 
 class CompanyPlanPublicityController extends Controller
 {
@@ -19,9 +20,11 @@ class CompanyPlanPublicityController extends Controller
         $id_user = Auth::user()->id ?? null;
 
         try {
-            $data = CompanyPlanPublicitySetting::with('plan', 'publicity.advertisingSpace')
+            $data = CompanyPlanPublicitySetting::with('plan', 'publicity')
                 ->where('id_company_plan', $id)
                 ->first();
+
+            Log::info('Data retrieved successfully', ['data' => $data]);
 
             Audith::new($id_user, $action, $request->all(), 200, compact('data'));
         } catch (Exception $e) {
