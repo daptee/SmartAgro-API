@@ -46,7 +46,7 @@ class CompanyPlanPublicityController extends Controller
                 'publicities.*.id' => 'nullable|exists:company_plan_publicities,id',
                 'publicities.*.id_advertising_space' => 'required|exists:advertising_spaces,id',
                 'publicities.*.is_active' => 'boolean',
-                'publicities.*.file' => 'nullable|file|mimes:gif|max:10240',
+                'publicities.*.file' => 'nullable', // Cambiado para permitir string "null"
             ]);
 
             $results = [];
@@ -66,24 +66,25 @@ class CompanyPlanPublicityController extends Controller
             foreach ($request->publicities as $item) {
                 $filePath = null;
 
-                // Si viene archivo, lo guardamos
+                // Manejo del archivo
                 if (isset($item['file']) && $item['file'] instanceof \Illuminate\Http\UploadedFile) {
                     $file = $item['file'];
                     $fileName = time() . '_file_' . $file->getClientOriginalName();
                     $file->move($imagePath, $fileName);
                     $filePath = '/storage/publicities/gifs/' . $fileName;
+                } elseif (isset($item['file']) && $item['file'] === "null") {
+                    $filePath = null; // Mantener el archivo existente
                 }
 
-                // Si tiene ID, actualiza
+                // Actualización
                 if (isset($item['id'])) {
                     $publicity = CompanyPlanPublicity::findOrFail($item['id']);
 
-                    // Verifica que la empresa coincida
                     if ($publicity->id_company_plan != $validated['id_company_plan']) {
-                        continue; // Skip si no pertenece
+                        continue;
                     }
 
-                    // Elimina el anterior si hay archivo nuevo
+                    // Eliminar archivo anterior si se sube uno nuevo
                     if ($filePath && $publicity->gif_path && file_exists(public_path($publicity->gif_path))) {
                         unlink(public_path($publicity->gif_path));
                     }
@@ -91,12 +92,12 @@ class CompanyPlanPublicityController extends Controller
                     $publicity->update([
                         'id_advertising_space' => $item['id_advertising_space'],
                         'is_active' => $item['is_active'] ?? $publicity->is_active,
-                        'gif_path' => $filePath ?? $publicity->gif_path,
+                        'gif_path' => $filePath !== null ? $filePath : $publicity->gif_path,
                     ]);
 
                     $results[] = $publicity->fresh('advertisingSpace');
                 } else {
-                    // Crear nuevo
+                    // Creación
                     $publicity = CompanyPlanPublicity::create([
                         'id_company_plan' => $validated['id_company_plan'],
                         'id_advertising_space' => $item['id_advertising_space'],
@@ -109,7 +110,6 @@ class CompanyPlanPublicityController extends Controller
             }
 
             $data = $results;
-
             Audith::new($id_user, $action, $request->all(), 200, compact('data'));
         } catch (Exception $e) {
             Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());

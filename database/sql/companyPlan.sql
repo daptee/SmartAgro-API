@@ -2,13 +2,14 @@ CREATE TABLE company_plan_publicities (
     id INT AUTO_INCREMENT PRIMARY KEY,
     id_company_plan INT NOT NULL,
     id_advertising_space INT NOT NULL,
-    gif_path VARCHAR(255) NOT NULL,
+    gif_path VARCHAR(255) NULL,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (id_company_plan) REFERENCES company_plans(id),
     FOREIGN KEY (id_advertising_space) REFERENCES advertising_spaces(id)
 );
+
 CREATE TABLE company_plan_publicity_settings (
     id INT AUTO_INCREMENT PRIMARY KEY,
     id_company_plan INT NOT NULL UNIQUE,
