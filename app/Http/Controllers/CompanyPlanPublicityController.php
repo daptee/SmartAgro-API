@@ -20,9 +20,18 @@ class CompanyPlanPublicityController extends Controller
         $id_user = Auth::user()->id ?? null;
 
         try {
-            $data = CompanyPlanPublicitySetting::with('plan', 'publicity')
+            $data = CompanyPlanPublicitySetting::with('plan')
                 ->where('id_company_plan', $id)
                 ->first();
+
+            if (!$data) {
+                Audith::new($id_user, $action, $request->all(), 404, "No se encontró la configuración de publicidad para el plan de empresa.");
+                return response(["message" => $message, "error" => "No se encontró la configuración de publicidad para el plan de empresa."], 404);
+            };
+
+            $data->publicity = CompanyPlanPublicity::with('advertisingSpace')
+                ->where('id_company_plan', $id)
+                ->get();    
 
             Log::info('Data retrieved successfully', ['data' => $data]);
 
