@@ -85,7 +85,7 @@ class CompanyPlanPublicityController extends Controller
                     $file->move($imagePath, $fileName);
                     $filePath = '/storage/publicities/gifs/' . $fileName;
                 } elseif (isset($item['file']) && $item['file'] === "null") {
-                    $filePath = null; // Mantener el archivo existente
+                    $filePath = true; // Mantener el archivo existente
                 }
 
                 // Actualización
@@ -96,18 +96,31 @@ class CompanyPlanPublicityController extends Controller
                         continue;
                     }
 
-                    // Eliminar archivo anterior si se sube uno nuevo
-                    if ($filePath && $publicity->gif_path && file_exists(public_path($publicity->gif_path))) {
-                        unlink(public_path($publicity->gif_path));
+                    if ($filePath) {
+                        // Eliminar archivo anterior si se sube uno nuevo
+                        if ($publicity->gif_path && file_exists(public_path($publicity->gif_path))) {
+                            unlink(public_path($publicity->gif_path));
+                        }
+
+                        $publicity->update([
+                            'id_advertising_space' => $item['id_advertising_space'],
+                            'is_active' => $item['is_active'] ?? $publicity->is_active,
+                            'gif_path' => $filePath !== true ? $filePath : $publicity->gif_path,
+                        ]);
+
+                        $results[] = $publicity->fresh('advertisingSpace');
+                    } elseif ($filePath === null) {
+                        // Eliminar archivo anterior si se sube uno nuevo
+                        if ($publicity->gif_path && file_exists(public_path($publicity->gif_path))) {
+                            unlink(public_path($publicity->gif_path));
+                        }
+                        $publicity->update([
+                            'id_advertising_space' => $item['id_advertising_space'],
+                            'is_active' => $item['is_active'] ?? $publicity->is_active,
+                            'gif_path' => null,
+                        ]);
+                        $results[] = $publicity->fresh('advertisingSpace');
                     }
-
-                    $publicity->update([
-                        'id_advertising_space' => $item['id_advertising_space'],
-                        'is_active' => $item['is_active'] ?? $publicity->is_active,
-                        'gif_path' => $filePath !== null ? $filePath : $publicity->gif_path,
-                    ]);
-
-                    $results[] = $publicity->fresh('advertisingSpace');
                 } else {
                     // Creación
                     $publicity = CompanyPlanPublicity::create([
