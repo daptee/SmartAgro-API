@@ -98,7 +98,7 @@ class CompanyPlanPublicityController extends Controller
 
                     if ($filePath) {
                         // Eliminar archivo anterior si se sube uno nuevo
-                        if ($publicity->gif_path && file_exists(public_path($publicity->gif_path))) {
+                        if ($publicity->gif_path && file_exists(public_path($publicity->gif_path)) && $filePath !== true) {
                             unlink(public_path($publicity->gif_path));
                         }
 
