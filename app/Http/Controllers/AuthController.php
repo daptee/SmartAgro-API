@@ -525,6 +525,37 @@ class AuthController extends Controller
             return null;
         }
     }
+
+    public function check_invitation($invitation_token)
+    {
+        $action = "Validación de invitación";
+        $status = 422;
+        $data = null;
+
+        try {
+            $id_invitation = Crypt::decrypt($invitation_token);
+            $invitation = CompanyInvitation::find($id_invitation);
+
+            if (!$invitation) {
+                $response = ['message' => 'No se encontró una invitación para este correo.'];
+                Audith::new(null, $action, null, 422, $response);
+                return response()->json($response, 422);
+            }
+            $data = [
+                'message' => 'Invitación válida.',
+                'data' => $invitation
+            ];
+
+            Audith::new(null, $action, null, 200, $data);
+        } catch (DecryptException $e) {
+            $response = ['message' => 'Error al validar la invitación.'];
+            Audith::new(null, $action, null, 500, $response);
+            return response()->json($response, 500);
+        }
+
+        return response()->json($data, 200);
+    }
+
     protected function respondWithToken($token, $company)
     {
         // $user = JWTAuth::user();
