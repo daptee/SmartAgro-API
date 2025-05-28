@@ -27,9 +27,15 @@ class ResearchOnDemandMailable extends Mailable
      */
     public function envelope(): Envelope
     {
-        return new Envelope(
-            subject: 'Nueva solicitud SmartAgro - Research On Demand',
-        );
+        if (config('services.app_environment') == 'DEV') {
+            return new Envelope(
+                subject: 'Nueva solicitud SmartAgro - Research On Demand - DEV',
+            );
+        } else {
+            return new Envelope(
+                subject: 'Nueva solicitud SmartAgro - Research On Demand',
+            );
+        }
     }
 
     /**

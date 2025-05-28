@@ -1,8 +1,17 @@
 <?php
 
+use App\Http\Controllers\AdvertisingReportController;
+use App\Http\Controllers\AdvertisingSpaceController;
+use App\Http\Controllers\AdvertisingStatusController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BackupController;
 use App\Http\Controllers\CacheController;
+use App\Http\Controllers\CompaniesAdvertisingController;
+use App\Http\Controllers\CompanyCategoryController;
+use App\Http\Controllers\CompanyController;
+use App\Http\Controllers\CompanyPlanController;
+use App\Http\Controllers\CompanyPlanPublicityController;
+use App\Http\Controllers\CompanyRolesController;
 use App\Http\Controllers\GeneralImportController;
 use App\Http\Controllers\GetsFunctionsController;
 use App\Http\Controllers\LocalityProvinceController;
@@ -10,6 +19,7 @@ use App\Http\Controllers\RegionController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ResearchOnDemand;
+use App\Http\Controllers\UserCompanyController;
 use App\Http\Controllers\UserController;
 use App\Http\Middleware\CheckPlan;
 use Illuminate\Http\Request;
@@ -20,6 +30,9 @@ use Illuminate\Support\Facades\Http;
 // Backup
 Route::get('/backup', [BackupController::class, 'createBackup'])->name('backup');
 
+// update payment
+Route::get('/cron-payment', [SubscriptionController::class, 'cronPayment'])->name('cron-payment');
+
 // Auth
 Route::controller(AuthController::class)->group(function () {
     Route::post('auth/register', 'auth_register');
@@ -28,6 +41,7 @@ Route::controller(AuthController::class)->group(function () {
     Route::post('auth/password-recovery-token', 'auth_password_recovery_token');
     Route::post('auth/account-confirmation', 'auth_account_confirmation');
     Route::post('auth/resend-welcome-email', 'resend_welcome_email');
+    Route::get('auth/check-invitation/{id}', 'check_invitation');
 });
 
 Route::group(['middleware' => ['token']], function ($router) {
@@ -60,6 +74,64 @@ Route::group(['middleware' => ['token']], function ($router) {
         Route::get('subscription/payment/history', 'subscription_plan');
     });
 
+    Route::controller(CompanyCategoryController::class)->group(function () {
+        Route::get('company-category', 'index');
+        Route::post('company-category', 'store');
+        Route::put('company-category/{id}', 'update');
+    });
+
+    Route::controller(CompanyController::class)->group(function () {
+        Route::get('company', 'index');
+        Route::get('company/{id}', 'show');
+        Route::post('company', 'store');
+        Route::post('company/{id}', 'update');
+        Route::post('company/logo/{id}', 'update_logo');
+    });
+
+    Route::controller(CompanyRolesController::class)->group(function () {
+        Route::get('company-roles', 'index');
+        Route::post('company-roles', 'store');
+        Route::put('company-roles/{id}', 'update');
+    });
+
+    Route::controller(CompanyPlanController::class)->group(function () {
+        Route::get('company-plans', 'index');
+        Route::post('company-plans', 'store');
+    });
+
+    Route::controller(UserCompanyController::class)->group(function () {
+        Route::get('user-company', 'index');
+        Route::get('user-company/invitation/list', 'list_invitations');
+        Route::get('user-company/invitation/status', 'status_invitations');
+        Route::get('user-company/invitation/{id}', 'show');
+        Route::post('user-company/invitation/send', 'send_invitation');
+        Route::post('user-company/invitation/resend', 'resend_invitation');
+        Route::post('user-company/invitation/accept', 'accept_invitation');
+        Route::delete('user-company/invitation/cancel/{id}', 'cancel_invitation');
+        Route::delete('user-company/unassociate/{userId}/{companyId}', 'unassociate_user');
+    });
+
+    Route::controller(AdvertisingSpaceController::class)->group(function () {
+        Route::post('advertising-space', 'store');
+        Route::put('advertising-space/{id}', 'update');
+    });
+
+    Route::controller(CompaniesAdvertisingController::class)->group(function () {
+        Route::post('advertising-companies', 'store');
+        Route::post('advertising-companies/{id}', 'update');
+    });
+
+    Route::controller(AdvertisingReportController::class)->group(function () {
+        Route::post('advertising-reports', 'store');
+        Route::put('advertising-reports/{id}', 'update');
+    });
+
+    Route::controller(CompanyPlanPublicityController::class)->group(function () {
+        Route::get('company-plan-publicities/{id}', 'index');
+        Route::post('company-plan-publicities', 'upsertAll');
+        Route::post('company-plan-publicities/settings/{id}', 'toggleGlobalAds');
+    });
+
     // Regions
     Route::controller(RegionController::class)->group(function () {
         Route::get('regions', 'get_regions');
@@ -88,6 +160,11 @@ Route::controller(GetsFunctionsController::class)->group(function () {
     Route::get('/countries', 'countries');
     Route::get('/plans', 'plans');
 });
+
+// Advertising
+Route::get('/advertising-status', [AdvertisingStatusController::class, 'index']);
+Route::get('/advertising-space', [AdvertisingSpaceController::class, 'index']);
+Route::get('/advertising-companies', [CompaniesAdvertisingController::class, 'index']);
 
 // Dolar API
 Route::get('dolar/oficial', function () {

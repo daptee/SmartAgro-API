@@ -10,7 +10,7 @@
   <!--[if mso]>
     <xml><o:officedocumentsettings><o:pixelsperinch>96</o:pixelsperinch></o:officedocumentsettings></xml>
   <![endif]-->
-  <title>Bienvenido al plan Siembra - SmartAgro</title>
+  <title>Bienvenido a SmartAgro</title>
   <link href="https://fonts.googleapis.com/css?family=Montserrat:ital,wght@0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,200;1,300;1,400;1,500;1,600;1,700" rel="stylesheet" media="screen">
   <style>
     .hover-underline:hover {
@@ -36,7 +36,7 @@
 </head>
 
 <body style="margin: 0; width: 100%; padding: 0; word-break: break-word; -webkit-font-smoothing: antialiased; background-color: #eceff1;">
-  <div style="font-family: 'Montserrat', sans-serif; mso-line-height-rule: exactly; display: none;">¡Bienvenido al plan Siembra - SmartAgro!</div>
+  <div style="font-family: 'Montserrat', sans-serif; mso-line-height-rule: exactly; display: none;">¡Bienvenido a la comunidad SmartAgro!</div>
   <div role="article" aria-roledescription="email" aria-label="Reset your Password" lang="en" style="font-family: 'Montserrat', sans-serif; mso-line-height-rule: exactly;">
     <table style="width: 100%; font-family: Montserrat, -apple-system, 'Segoe UI', sans-serif;" cellpadding="0" cellspacing="0" role="presentation">
       <tr>
@@ -55,11 +55,17 @@
                   <tr>
                     <td class="sm-px-24" style="mso-line-height-rule: exactly; border-radius: 4px; background-color: #ffffff; padding: 48px; text-align: left; font-family: Montserrat, -apple-system, 'Segoe UI', sans-serif; font-size: 16px; line-height: 24px; color: #626262;">
                       <p style="font-family: 'Montserrat', sans-serif; mso-line-height-rule: exactly; margin-bottom: 0; font-size: 20px; font-weight: 600;">Hola</p>
-                      <p style="font-family: 'Montserrat', sans-serif; mso-line-height-rule: exactly; margin-top: 0; font-size: 24px; font-weight: 700; color: #008C44;">{{ $user->name }}</p>
                       <p style="font-family: 'Montserrat', sans-serif; mso-line-height-rule: exactly; margin: 0; margin-bottom: 24px;">
-                        Nos complace darte la bienvenida al plan Siembra de nuestra plataforma.
+                        ¡Te avisamos que la empresa {{ $company->company->company_name }} te mando esta invitacion para que te registres y aproveches de la siguiente plataforma.
                       </p>
-                      <p style="font-family: 'Montserrat', sans-serif; mso-line-height-rule: exactly; margin: 0; margin-bottom: 36px;">Deseamos que puedas diusfrutar de la información que brindamos.</p>
+                      <p style="font-family: 'Montserrat', sans-serif; mso-line-height-rule: exactly; margin: 0; margin-bottom: 36px;">Esperamos puedas disfrutar de la misma.</p>
+                      <table cellpadding="0" cellspacing="0" role="presentation">
+                        <tr>
+                          <td style="mso-line-height-rule: exactly; mso-padding-alt: 16px 24px; border-radius: 4px; background-color: #16A860; font-family: Montserrat, -apple-system, 'Segoe UI', sans-serif;">
+                            <a href="{{ config('services.app_url_front') }}/registro?id_invitation={{ Crypt::encrypt($data->id) }}" style="font-family: 'Montserrat', sans-serif; mso-line-height-rule: exactly; display: block; padding-left: 24px; padding-right: 24px; padding-top: 16px; padding-bottom: 16px; font-size: 16px; font-weight: 600; line-height: 100%; color: #ffffff; text-decoration: none;">Activar cuenta</a>
+                          </td>
+                        </tr>
+                      </table>
                       <p style="font-family: 'Montserrat', sans-serif; mso-line-height-rule: exactly; margin: 0; margin-top: 24px;">
                         <span style="font-weight: 600;">Nota:</span> Ante cualquier problema no dudes en contactarnos a
                         <a href="mailto:soporte@smartagro.io" class="hover-underline" style="font-family: 'Montserrat', sans-serif; mso-line-height-rule: exactly; color: #16A860; text-decoration: none;">soporte@smartagro.io</a>

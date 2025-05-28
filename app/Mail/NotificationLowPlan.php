@@ -26,10 +26,16 @@ class NotificationLowPlan extends Mailable
      * Get the message envelope.
      */
     public function envelope(): Envelope
-    {
-        return new Envelope(
-            subject: 'Baja plan siembra - SmartAgro',
-        );
+    {   
+        if (config('services.app_environment') == 'DEV') {
+            return new Envelope(
+                subject: 'Baja plan siembra - SmartAgro - DEV',
+            );
+        } else {
+            return new Envelope(
+                subject: 'Baja plan siembra - SmartAgro',
+            );
+        }
     }
 
     /**

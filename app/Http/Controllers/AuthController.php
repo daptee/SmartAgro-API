@@ -4,12 +4,17 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\LoginRequest;
 use App\Http\Requests\RegisterRequest;
+use App\Mail\InvitationUserCompanyMailable;
 use App\Mail\RecoverPasswordMailable;
+use App\Mail\WelcomeUserCompanyMailable;
 use App\Mail\WelcomeUserMailable;
 use App\Models\Audith;
 use App\Models\BranchOffice;
 use App\Models\Company;
+use App\Models\CompanyInvitation;
 use App\Models\Country;
+use App\Models\UserPlan;
+use App\Models\UsersCompany;
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
 use App\Models\UserType;
@@ -46,6 +51,7 @@ class AuthController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
+            'id_invitation' => 'nullable|string|max:255',
             'last_name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email',
             'password' => 'required|string|min:8',
@@ -67,6 +73,7 @@ class AuthController extends Controller
 
         $message = "Error al crear {$this->s} en registro";
         $data = $request->all();
+        $id_invitation = $request->input('id_invitation');
         // $new_user = null;
 
         // Configura los parámetros para enviar en la URL
@@ -89,6 +96,17 @@ class AuthController extends Controller
             try {
                 DB::beginTransaction();
 
+                $valid_invitation = $this->valid_invitation($id_invitation, $request->input('email'));
+
+                if (!$valid_invitation) {
+                    $response = [
+                        'message' => 'Debes registrarte con el correo que recibiste la invitación.',
+                        'error_code' => 404
+                    ];
+                    Audith::new(null, $action, $request->all(), 422, $response);
+                    return response()->json($response, 422);
+                }
+
                 $new_user = new $this->model($data);
                 $new_user->save();
 
@@ -106,8 +124,28 @@ class AuthController extends Controller
 
             if ($new_user) {
                 try {
-                    Mail::to($new_user->email)->send(new WelcomeUserMailable($new_user));
-                    Audith::new($new_user->id, "Envio de mail de bienvenida exitoso.", $request->all(), 200, null);
+                    if ($id_invitation) {
+                        $data_invitation = $this->accept_invitation($id_invitation, $request);
+
+                        Log::info($data_invitation);
+    
+                        $company = $data_invitation['user_company']['plan']['company'] ?? null;
+    
+                        if ($company) {
+                            $new_user->update(['id_plan' => 3]);
+    
+                            $data['company'] = $company;
+    
+                            UserPlan::save_history($new_user->id, 3, ['reason' => 'Aceptó la invitación al plan de empresa', 'company' => $company], null, null);
+                            Mail::to($new_user->email)->send(new WelcomeUserMailable($new_user));
+                            Audith::new($new_user->id, "Envio de mail de bienvenida de empresa exitoso.", $request->all(), 200, null);
+                        } else {
+                            Audith::new($new_user->id, "Error al enviar mail de bienvenida de empresa.", $request->all(), 500, $company);
+                        }
+                    } else {
+                        Mail::to($new_user->email)->send(new WelcomeUserMailable($new_user));
+                        Audith::new($new_user->id, "Envio de mail de bienvenida exitoso.", $request->all(), 200, null);
+                    }
                 } catch (Exception $e) {
                     Audith::new($new_user->id, "Error al enviar mail de bienvenida.", $request->all(), 500, $e->getMessage());
                     Log::debug(["message" => "Error al enviar mail de bienvenida.", "error" => $e->getMessage(), "line" => $e->getLine()]);
@@ -122,13 +160,13 @@ class AuthController extends Controller
 
         return response(compact("message", "data"));
     }
-
+    
     public function resend_welcome_email(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'email' => 'required|string|email',
         ]);
-    
+
         $action = "Reenvio de mail de bienvenida.";
         $status = 422;
 
@@ -144,10 +182,10 @@ class AuthController extends Controller
         $email = $request->email;
         $message = "Reenvio de mail de bienvenida exitoso.";
         try {
-            $user = User::where('email' , $email)->first();
-            if(!$user){
+            $user = User::where('email', $email)->first();
+            if (!$user) {
                 $response = ['message' => 'Usuario no valido.'];
-                Audith::new(null, $action, $request->all(), 400, $response);                
+                Audith::new(null, $action, $request->all(), 400, $response);
                 return response()->json($response, 400);
             }
             Mail::to($user->email)->send(new WelcomeUserMailable($user));
@@ -193,7 +231,7 @@ class AuthController extends Controller
             // dd($decrypted_email);
             $user = User::where('email', $decrypted_email)->first();
 
-            if (!$user){
+            if (!$user) {
                 $response = ['message' => 'Datos incompletos para procesar la confirmación de la cuenta.'];
                 Audith::new(null, $action, $request->all(), 400, $response);
                 return response()->json($response, 400);
@@ -222,12 +260,13 @@ class AuthController extends Controller
     {
         $credentials = $request->only('email', 'password');
         $action = "Login de usuario";
+        $company = null;
         try {
             $user = User::where('email', $credentials['email'])->first();
 
-            if (!$user){
+            if (!$user) {
                 $response = ['message' => 'Usuario y/o clave no válidos.'];
-                Audith::new(null, $action, $credentials, 400, $response);          
+                Audith::new(null, $action, $credentials, 400, $response);
                 return response()->json($response, 400);
             }
 
@@ -238,19 +277,25 @@ class AuthController extends Controller
                 return response()->json($response, 400);
             }
 
-            if($user->id_status == 2){
+            if ($user->id_status == 2) {
                 $response = ['message' => 'Usuario y/o clave no válidos.'];
                 Audith::new($user->id, $action, $credentials, 400, $response);
                 return response()->json($response, 400);
             }
 
-            if (! $token = auth()->attempt($credentials)) {
+            if (!$token = auth()->attempt($credentials)) {
                 $response = ['message' => 'Usuario y/o clave no válidos.'];
                 Audith::new(null, $action, $credentials, 401, $response);
                 return response()->json($response, 401);
             }
 
-            Audith::new($user->id, $action, $credentials, 200, $this->respondWithToken($token));
+            if ($user->id_plan == 3) {
+                $company = UsersCompany::where('id_user', $user->id)
+                    ->with('plan.company')
+                    ->first();
+            }
+
+            Audith::new($user->id, $action, $credentials, 200, $this->respondWithToken($token, $company));
         } catch (Exception $e) {
             $response = ["message" => "No fue posible crear el Token de Autenticación.", "error" => $e->getMessage(), "line" => $e->getLine()];
             Audith::new(null, $action, $credentials, 500, $response);
@@ -258,7 +303,9 @@ class AuthController extends Controller
             return response()->json($response, 500);
         }
 
-        return $this->respondWithToken($token);
+        Log::info($company);
+
+        return $this->respondWithToken($token, $company);
     }
 
 
@@ -287,7 +334,7 @@ class AuthController extends Controller
 
             $user = User::where('email', $request->email)->first();
 
-            if (!$user){
+            if (!$user) {
                 $response = ['message' => 'Datos incompletos para procesar el cambio de contraseña.'];
                 Audith::new(null, $action, $request->all(), 400, $response);
                 return response()->json($response, 400);
@@ -387,7 +434,129 @@ class AuthController extends Controller
         }
     }
 
-    protected function respondWithToken($token)
+
+
+    public function accept_invitation($invitation_token, $request)
+    {
+        $message = "Error al aceptar la invitación";
+        $action = "Aceptar invitación de empresa";
+        $data = null;
+        $id_user = Auth::user()->id ?? null; // Quien está aceptando
+
+        try {
+
+            $id_invitation = Crypt::decrypt($invitation_token);
+
+            $invitation = CompanyInvitation::find($id_invitation);
+
+            if (!$invitation) {
+                $response = [
+                    'message' => 'No se encontró una invitación para este correo.',
+                    'error_code' => 404
+                ];
+                Audith::new($id_user, $action, $request->all(), 422, $response);
+                return response()->json($response, 422);
+            }
+
+            Log::info('invitacionnnn: ', ['invitacion' => $invitation->id]);
+            Log::info($invitation->mail);
+
+            // Buscar usuario por email
+            $user = User::where('email', $invitation->mail)->first();
+
+            if (!$user) {
+                $response = [
+                    'message' => 'No se encontró un usuario registrado con este correo.',
+                    'error_code' => 404
+                ];
+                Audith::new($id_user, $action, $request->all(), 422, $response);
+                return response()->json($response, 422);
+            }
+
+            // Verificar si ya existe la relación user-company
+            $alreadyExists = UsersCompany::where('id_user', $user->id)
+                ->where('id_company_plan', $invitation->id_company_plan)
+                ->exists();
+
+            if ($alreadyExists) {
+                $response = [
+                    'message' => 'Este usuario ya pertenece a la empresa.',
+                    'error_code' => 404
+                ];
+                Audith::new($id_user, $action, $request->all(), 422, $response);
+                return response()->json($response, 422);
+            }
+            
+            $invitation->update([
+                'status_id' => 2,
+            ]);
+
+            // Crear relación users_companies
+            $userCompany = UsersCompany::create([
+                'id_user' => $user->id,
+                'id_company_plan' => $invitation->id_company_plan,
+                'id_user_company_rol' => $invitation->id_user_company_rol,
+            ]);
+
+            $userCompany->load('user', 'rol', 'plan.company.locality', 'plan.company.status', 'plan.company.category');
+
+            $data = [
+                'message' => 'Invitación aceptada exitosamente',
+                'user_company' => $userCompany
+            ];
+
+            Audith::new($id_user, $action, $request->all(), 201, compact('data'));
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage()], 500);
+        }
+
+        return $data;
+    }
+
+    public function valid_invitation($invitation_token, $user_email){
+
+        $id_invitation = Crypt::decrypt($invitation_token);
+        $invitation = CompanyInvitation::find($id_invitation);
+
+        if ($invitation->mail == $user_email) {
+            return $invitation;
+        } else {
+            return null;
+        }
+    }
+
+    public function check_invitation($invitation_token)
+    {
+        $action = "Validación de invitación";
+        $status = 422;
+        $data = null;
+
+        try {
+            $id_invitation = Crypt::decrypt($invitation_token);
+            $invitation = CompanyInvitation::find($id_invitation);
+
+            if (!$invitation) {
+                $response = ['message' => 'No se encontró una invitación para este correo.'];
+                Audith::new(null, $action, null, 422, $response);
+                return response()->json($response, 422);
+            }
+            $data = [
+                'message' => 'Invitación válida.',
+                'data' => $invitation
+            ];
+
+            Audith::new(null, $action, null, 200, $data);
+        } catch (DecryptException $e) {
+            $response = ['message' => 'Error al validar la invitación.'];
+            Audith::new(null, $action, null, 500, $response);
+            return response()->json($response, 500);
+        }
+
+        return response()->json($data, 200);
+    }
+
+    protected function respondWithToken($token, $company)
     {
         // $user = JWTAuth::user();
 
@@ -396,10 +565,16 @@ class AuthController extends Controller
         // $user_response->last_name = $user->last_name;
         // $user_response->user_type = $user->user_type;
 
-        $data = [
-            'access_token' => $token,
-            // 'user' => $user_response
-        ];
+        if ($company) {
+            $data = [
+                'access_token' => $token,
+                'company_plan' => $company
+            ];
+        } else {
+            $data = [
+                'access_token' => $token
+            ];
+        }
 
         return response()->json([
             'message' => 'Login exitoso.',

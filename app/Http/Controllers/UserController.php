@@ -6,6 +6,7 @@ use App\Models\Audith;
 use App\Models\User;
 use App\Models\UserPlan;
 use App\Models\UserProfile;
+use App\Models\UsersCompany;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -76,7 +77,7 @@ class UserController extends Controller
         try {
             $data = User::getAllDataUser($id_user);
 
-            if ($data['id_plan'] == 2) {
+            if ($data['id_plan'] != 1) {
                 Log::info($data['id']);
                 $existingRecord = UserPlan::where('id_user', $data['id'])->latest()->first();
                 if ($existingRecord) {
@@ -87,6 +88,23 @@ class UserController extends Controller
                 // Agrega el registro dentro de "plan"
                 $data['plan']['user_plan'] = $existingRecord ?? 'Sin plan asignado';
                 Log::info($data);
+            }
+
+            if ($data['id_plan'] == 3) {
+                $company = UsersCompany::where('id_user', $data['id'])
+                    ->with([
+                        'rol',
+                        'plan.company.locality',
+                        'plan.company.status',
+                        'plan.company.category',
+                        'plan' => function ($query) {
+                            $query->where('status_id', 1);
+                        }
+                    ])
+                    ->first();
+
+                $data['rol'] = $company?->rol;
+                $data['company_plan'] = $company?->plan;
             }
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
