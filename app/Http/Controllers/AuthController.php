@@ -73,7 +73,8 @@ class AuthController extends Controller
 
         $message = "Error al crear {$this->s} en registro";
         $data = $request->all();
-        $id_invitation = $request->input('id_invitation');
+        // aveces no viene el id_invitation
+        $id_invitation = $data['id_invitation'] ?? null;
         // $new_user = null;
 
         // Configura los parámetros para enviar en la URL
@@ -96,15 +97,20 @@ class AuthController extends Controller
             try {
                 DB::beginTransaction();
 
-                $valid_invitation = $this->valid_invitation($id_invitation, $request->input('email'));
+                // validamos si existe una invitación
+                if ($id_invitation) {
+                    $valid_invitation = $this->valid_invitation($id_invitation, $request->input('email'));
 
-                if (!$valid_invitation) {
-                    $response = [
-                        'message' => 'Debes registrarte con el correo que recibiste la invitación.',
-                        'error_code' => 404
-                    ];
-                    Audith::new(null, $action, $request->all(), 422, $response);
-                    return response()->json($response, 422);
+                    if (!$valid_invitation) {
+                        $response = [
+                            'message' => 'Debes registrarte con el correo que recibiste la invitación.',
+                            'error_code' => 404
+                        ];
+                        Audith::new(null, $action, $request->all(), 422, $response);
+                        return response()->json($response, 422);
+                    }
+                } else {
+                    $valid_invitation = null;
                 }
 
                 $new_user = new $this->model($data);
