@@ -138,6 +138,22 @@ Route::group(['middleware' => ['token']], function ($router) {
     });
 });
 
+//Habilitar, dentro de nuestra API, un grupo de peticiones que sean /api/company/... Estas peticiones deben tener authenticacion por APIKEY en lugar de token, para poder identificar a la empresa.
+
+Route::group(['middleware' => ['company_api_key']], function () {
+    Route::controller(CompanyController::class)->group(function () {
+        Route::get('companies/news', 'news');
+        Route::get('companies/insights', 'insights');
+        Route::get('companies/mag-lease-index', 'mag_lease_index');
+        Route::get('companies/mag-steer-index', 'mag_steer_index');
+        Route::get('companies/major-crops', 'major_crops');
+        Route::get('companies/price-main-active-ingredients-producers', 'price_main_active_ingredients_producers');
+        Route::get('companies/producer-segment-prices', 'producer_segment_prices');
+        Route::get('companies/rainfall-records-provinces', 'rainfall_records_provinces');
+        Route::get('companies/main-grain-prices', 'main_grain_prices');
+    });
+});
+
 Route::post('research-on-demand', [ResearchOnDemand::class, 'research_on_demand']);
 Route::post('/import-reports', [GeneralImportController::class, 'import'])->name('import.reports');
 Route::post('/import-business-indicators', [GeneralImportController::class, 'import_business_indicators']);
