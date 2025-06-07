@@ -4,9 +4,20 @@ namespace App\Http\Controllers;
 
 use App\Models\Audith;
 use App\Models\Company;
+use App\Models\CompanyApiUsages;
+use App\Models\Insight;
+use App\Models\MagLeaseIndex;
+use App\Models\MagSteerIndex;
+use App\Models\MainGrainPrice;
+use App\Models\MajorCrop;
+use App\Models\News;
+use App\Models\PriceMainActiveIngredientsProducer;
+use App\Models\ProducerSegmentPrice;
+use App\Models\RainfallRecordProvince;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
 class CompanyController extends Controller
@@ -81,6 +92,10 @@ class CompanyController extends Controller
                 'range_number_of_employees' => 'nullable|string|max:255',
                 'website' => 'nullable|url|max:255',
                 'status' => 'nullable|integer|in:1,2',
+                // Nuevos campos opcionales
+                'generate_api_key' => 'nullable|boolean',
+                'api_permissions' => 'nullable|array',
+                'api_permissions.*' => 'string',
             ]);
 
             // Actualizar campos
@@ -96,6 +111,16 @@ class CompanyController extends Controller
                 'website' => $request->website,
                 'status_id' => $request->status ?? 1,
             ]);
+
+            // Si el request indica generar nueva APIKEY
+            if ($request->boolean('generate_api_key')) {
+                $company->api_key = bin2hex(random_bytes(32));
+            }
+
+            // Si se envían permisos
+            if ($request->has('api_permissions')) {
+                $company->api_permissions = $request->api_permissions;
+            }
 
             $company->save();
 
@@ -234,7 +259,7 @@ class CompanyController extends Controller
                     'last_page' => $companies->lastPage(),
                 ]
             ];
-            
+
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
         } catch (Exception $e) {
             Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
@@ -251,9 +276,397 @@ class CompanyController extends Controller
         $action = "Empresa";
         $data = null;
         $id_user = Auth::user()->id ?? null;
-        try{
+        try {
             $company = Company::with(['category', 'locality.province', 'status'])->findOrFail($id);
             $data = $company;
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+        }
+
+        return response(compact("data"));
+    }
+
+    public function news(Request $request)
+    {
+        $message = "Error al obtener las noticias";
+        $action = "Noticias";
+        $data = null;
+        $id_user = Auth::user()->id ?? null;
+
+        try {
+            $company = $request->get('_company');
+            // GET news - Peticion que reciba una fecha desde y fecha hasta y retorne las noticias dentro de ese rango de fecha
+            $dateFrom = $request->query('date_from');
+            $dateTo = $request->query('date_to');
+
+            $permissions = $company->api_permissions ?? [];
+            if (!in_array('news', $permissions)) {
+                Audith::new($id_user, $action, $request->all(), 403, "No tiene permisos para acceder a las noticias");
+                return response(["message" => "No tiene permisos para acceder a las noticias"], 403);
+            }
+
+            CompanyApiUsages::create([
+                'id_company' => $company->id,
+                'request_name' => $action,
+                'params' => $request->all(),
+            ]);
+
+            $data = News::query()
+                ->when($dateFrom, function ($query) use ($dateFrom) {
+                    return $query->where('date', '>=', $dateFrom);
+                })
+                ->when($dateTo, function ($query) use ($dateTo) {
+                    return $query->where('date', '<=', $dateTo);
+                })
+                ->orderBy('date', 'desc')
+                ->get();
+
+            Audith::new($id_user, $action, $request->all(), 200, compact("data"));
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+        }
+
+        return response(compact("data"));
+    }
+
+    public function insights(Request $request)
+    {
+        $message = "Error al obtener las perspectivas";
+        $action = "Perspectivas";
+        $data = null;
+        $id_user = Auth::user()->id ?? null;
+
+        try {
+            $company = $request->get('_company');
+            $dateFrom = $request->query('date_from');
+            $dateTo = $request->query('date_to');
+
+            $permissions = $company->api_permissions ?? [];
+            if (!in_array('insights', $permissions)) {
+                Audith::new($id_user, $action, $request->all(), 403, "No tiene permisos para acceder a las perspectivas");
+                return response(["message" => "No tiene permisos para acceder a las perspectivas"], 403);
+            }
+
+            CompanyApiUsages::create([
+                'id_company' => $company->id,
+                'request_name' => $action,
+                'params' => $request->all(),
+            ]);
+
+            $data = Insight::query()
+                ->when($dateFrom, function ($query) use ($dateFrom) {
+                    return $query->where('date', '>=', $dateFrom);
+                })
+                ->when($dateTo, function ($query) use ($dateTo) {
+                    return $query->where('date', '<=', $dateTo);
+                })
+                ->orderBy('date', 'desc')
+                ->get();
+
+            Audith::new($id_user, $action, $request->all(), 200, compact("data"));
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+        }
+
+        return response(compact("data"));
+    }
+
+    public function mag_lease_index(Request $request)
+    {
+        $message = "Error al obtener los indice arrendamiento magnético";
+        $action = "Indice arrendamiento mag";
+        $data = null;
+        $id_user = Auth::user()->id ?? null;
+
+        try {
+            $company = $request->get('_company');
+            $dateFrom = $request->query('date_from');
+            $dateTo = $request->query('date_to');
+
+            $permissions = $company->api_permissions ?? [];
+            if (!in_array('mag lease index', $permissions)) {
+                Audith::new($id_user, $action, $request->all(), 403, "No tiene permisos para acceder a los indice arrendamiento magnético");
+                return response(["message" => "No tiene permisos para acceder a los indice arrendamiento magnético"], 403);
+            }
+
+            CompanyApiUsages::create([
+                'id_company' => $company->id,
+                'request_name' => $action,
+                'params' => $request->all(),
+            ]);
+
+            $data = MagLeaseIndex::query()
+                ->when($dateFrom, function ($query) use ($dateFrom) {
+                    return $query->where('date', '>=', $dateFrom);
+                })
+                ->when($dateTo, function ($query) use ($dateTo) {
+                    return $query->where('date', '<=', $dateTo);
+                })
+                ->orderBy('date', 'desc')
+                ->get();
+
+            Audith::new($id_user, $action, $request->all(), 200, compact("data"));
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+        }
+
+        return response(compact("data"));
+    }
+
+    public function mag_steer_index(Request $request)
+    {
+        $message = "Error al obtener los indice novillo magnético";
+        $action = "Indice novillo mag";
+        $data = null;
+        $id_user = Auth::user()->id ?? null;
+
+        try {
+            $company = $request->get('_company');
+            $dateFrom = $request->query('date_from');
+            $dateTo = $request->query('date_to');
+
+            $permissions = $company->api_permissions ?? [];
+            if (!in_array('mag steer index', $permissions)) {
+                Audith::new($id_user, $action, $request->all(), 403, "No tiene permisos para acceder a los indice novillo magnético");
+                return response(["message" => "No tiene permisos para acceder a los indice novillo magnético"], 403);
+            }
+
+            CompanyApiUsages::create([
+                'id_company' => $company->id,
+                'request_name' => $action,
+                'params' => $request->all(),
+            ]);
+
+            $data = MagSteerIndex::query()
+                ->when($dateFrom, function ($query) use ($dateFrom) {
+                    return $query->where('date', '>=', $dateFrom);
+                })
+                ->when($dateTo, function ($query) use ($dateTo) {
+                    return $query->where('date', '<=', $dateTo);
+                })
+                ->orderBy('date', 'desc')
+                ->get();
+
+            Audith::new($id_user, $action, $request->all(), 200, compact("data"));
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+        }
+
+        return response(compact("data"));
+    }
+
+    public function major_crops(Request $request)
+    {
+        $message = "Error al obtener las perspectivas de los principales cultivos";
+        $action = "Perspectivas de los principales cultivos";
+        $data = null;
+        $id_user = Auth::user()->id ?? null;
+
+        try {
+            $company = $request->get('_company');
+            $dateFrom = $request->query('date_from');
+            $dateTo = $request->query('date_to');
+
+            $permissions = $company->api_permissions ?? [];
+            if (!in_array('major crops', $permissions)) {
+                Audith::new($id_user, $action, $request->all(), 403, "No tiene permisos para acceder a las perspectivas de los principales cultivos");
+                return response(["message" => "No tiene permisos para acceder a las perspectivas de los principales cultivos"], 403);
+            }
+
+            CompanyApiUsages::create([
+                'id_company' => $company->id,
+                'request_name' => $action,
+                'params' => $request->all(),
+            ]);
+
+            $data = MajorCrop::query()
+                ->when($dateFrom, function ($query) use ($dateFrom) {
+                    return $query->where('date', '>=', $dateFrom);
+                })
+                ->when($dateTo, function ($query) use ($dateTo) {
+                    return $query->where('date', '<=', $dateTo);
+                })
+                ->orderBy('date', 'desc')
+                ->get();
+
+            Audith::new($id_user, $action, $request->all(), 200, compact("data"));
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+        }
+
+        return response(compact("data"));
+    }
+
+    public function price_main_active_ingredients_producers(Request $request)
+    {
+        $message = "Error al obtener los precio de los principales ingredientes activos de los productores";
+        $action = "Precio de los principales ingredientes activos de los productores";
+        $data = null;
+        $id_user = Auth::user()->id ?? null;
+
+        try {
+            $company = $request->get('_company');
+            $dateFrom = $request->query('date_from');
+            $dateTo = $request->query('date_to');
+
+            $permissions = $company->api_permissions ?? [];
+            if (!in_array('price main active ingredients producers', $permissions)) {
+                Audith::new($id_user, $action, $request->all(), 403, "No tiene permisos para acceder a los precio de los principales ingredientes activos de los productores");
+                return response(["message" => "No tiene permisos para acceder a los precio de los principales ingredientes activos de los productores"], 403);
+            }
+
+            CompanyApiUsages::create([
+                'id_company' => $company->id,
+                'request_name' => $action,
+                'params' => $request->all(),
+            ]);
+
+            $data = PriceMainActiveIngredientsProducer::query()
+                ->when($dateFrom, function ($query) use ($dateFrom) {
+                    return $query->where('date', '>=', $dateFrom);
+                })
+                ->when($dateTo, function ($query) use ($dateTo) {
+                    return $query->where('date', '<=', $dateTo);
+                })
+                ->orderBy('date', 'desc')
+                ->get();
+
+            Audith::new($id_user, $action, $request->all(), 200, compact("data"));
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+        }
+
+        return response(compact("data"));
+    }
+
+    public function producer_segment_prices(Request $request)
+    {
+        $message = "Error al obtener los precios por segmentos a productor";
+        $action = "Precios por segmentos a productor";
+        $data = null;
+        $id_user = Auth::user()->id ?? null;
+
+        try {
+            $company = $request->get('_company');
+            $dateFrom = $request->query('date_from');
+            $dateTo = $request->query('date_to');
+
+            $permissions = $company->api_permissions ?? [];
+            if (!in_array('producer segment prices', $permissions)) {
+                Audith::new($id_user, $action, $request->all(), 403, "No tiene permisos para acceder a los precios por segmentos a productor");
+                return response(["message" => "No tiene permisos para acceder a los precios por segmentos a productor"], 403);
+            }
+
+            CompanyApiUsages::create([
+                'id_company' => $company->id,
+                'request_name' => $action,
+                'params' => $request->all(),
+            ]);
+
+            $data = ProducerSegmentPrice::query()
+                ->when($dateFrom, function ($query) use ($dateFrom) {
+                    return $query->where('date', '>=', $dateFrom);
+                })
+                ->when($dateTo, function ($query) use ($dateTo) {
+                    return $query->where('date', '<=', $dateTo);
+                })
+                ->orderBy('date', 'desc')
+                ->get();
+
+            Audith::new($id_user, $action, $request->all(), 200, compact("data"));
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+        }
+
+        return response(compact("data"));
+    }
+
+    public function rainfall_records_provinces(Request $request)
+    {
+        $message = "Error al obtener los registros de lluvias por provincia";
+        $action = "Registro de lluvias por provincia";
+        $data = null;
+        $id_user = Auth::user()->id ?? null;
+
+        try {
+            $company = $request->get('_company');
+            $dateFrom = $request->query('date_from');
+            $dateTo = $request->query('date_to');
+
+            $permissions = $company->api_permissions ?? [];
+            if (!in_array('rainfall records provinces', $permissions)) {
+                Audith::new($id_user, $action, $request->all(), 403, "No tiene permisos para acceder a los registros de lluvias por provincia");
+                return response(["message" => "No tiene permisos para acceder a los registros de lluvias por provincia"], 403);
+            }
+
+            CompanyApiUsages::create([
+                'id_company' => $company->id,
+                'request_name' => $action,
+                'params' => $request->all(),
+            ]);
+
+            $data = RainfallRecordProvince::query()
+                ->when($dateFrom, function ($query) use ($dateFrom) {
+                    return $query->where('date', '>=', $dateFrom);
+                })
+                ->when($dateTo, function ($query) use ($dateTo) {
+                    return $query->where('date', '<=', $dateTo);
+                })
+                ->orderBy('date', 'desc')
+                ->get();
+
+            Audith::new($id_user, $action, $request->all(), 200, compact("data"));
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+        }
+
+        return response(compact("data"));
+    }
+
+    public function main_grain_prices(Request $request)
+    {
+        $message = "Error al obtener los precios de los principales granos";
+        $action = "Precios de los principales granos";
+        $data = null;
+        $id_user = Auth::user()->id ?? null;
+
+        try {
+            $company = $request->get('_company');
+            $dateFrom = $request->query('date_from');
+            $dateTo = $request->query('date_to');
+
+            $permissions = $company->api_permissions ?? [];
+            if (!in_array('main grain prices', $permissions)) {
+                Audith::new($id_user, $action, $request->all(), 403, "No tiene permisos para acceder a los precios de los principales granos");
+                return response(["message" => "No tiene permisos para acceder a los precios de los principales granos"], 403);
+            }
+
+            CompanyApiUsages::create([
+                'id_company' => $company->id,
+                'request_name' => $action,
+                'params' => $request->all(),
+            ]);
+
+            $data = MainGrainPrice::query()
+                ->when($dateFrom, function ($query) use ($dateFrom) {
+                    return $query->where('date', '>=', $dateFrom);
+                })
+                ->when($dateTo, function ($query) use ($dateTo) {
+                    return $query->where('date', '<=', $dateTo);
+                })
+                ->orderBy('date', 'desc')
+                ->get();
+
+            Audith::new($id_user, $action, $request->all(), 200, compact("data"));
         } catch (Exception $e) {
             Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
             return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);

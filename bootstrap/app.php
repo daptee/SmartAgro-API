@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\CompanyApiKeyMiddleware;
 use App\Http\Middleware\Token;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
@@ -16,6 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
             'token' => Token::class,
+            'company_api_key' => CompanyApiKeyMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

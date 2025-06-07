@@ -20,6 +20,10 @@ class Company extends Model
         'status_id'
     ];
 
+    protected $casts = [
+        'api_permissions' => 'array',
+    ];
+
     public function category()
     {
         return $this->belongsTo(CompanyCategory::class, 'id_company_category');

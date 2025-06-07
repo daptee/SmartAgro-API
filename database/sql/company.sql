@@ -1,0 +1,12 @@
+ALTER TABLE companies
+ADD COLUMN api_key VARCHAR(255) DEFAULT NULL,
+ADD COLUMN api_permissions JSON DEFAULT NULL;
+
+CREATE TABLE company_api_usages (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    id_company INT NOT NULL,
+    request_name VARCHAR(255) NOT NULL,
+    params JSON DEFAULT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_company) REFERENCES companies(id) ON DELETE CASCADE
+);
