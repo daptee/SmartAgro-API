@@ -81,6 +81,18 @@ class CompanyController extends Controller
         try {
             $company = Company::findOrFail($id);
 
+            if ($request->has('api_permissions') && is_string($request->api_permissions)) {
+                $decoded = json_decode($request->api_permissions, true);
+                if (json_last_error() === JSON_ERROR_NONE) {
+                    $request->merge(['api_permissions' => $decoded]);
+                } else {
+                    return response()->json([
+                        'message' => 'Error al actualizar empresa',
+                        'error' => 'El campo api_permissions debe ser un JSON válido.',
+                    ], 422);
+                }
+            }
+
             $request->validate([
                 'company_name' => 'required|unique:companies,company_name,' . $company->id,
                 'cuit' => 'required|unique:companies,cuit,' . $company->id,
@@ -95,7 +107,7 @@ class CompanyController extends Controller
                 // Nuevos campos opcionales
                 'generate_api_key' => 'nullable|boolean',
                 'api_permissions' => 'nullable|array',
-                'api_permissions.*' => 'string',
+                'api_permissions.*' => 'array',
             ]);
 
             // Actualizar campos
@@ -301,10 +313,13 @@ class CompanyController extends Controller
             $dateTo = $request->query('date_to');
 
             $permissions = $company->api_permissions ?? [];
-            if (!in_array('news', $permissions)) {
+            if (!isset($permissions['news']['enabled']) || !$permissions['news']['enabled']) {
                 Audith::new($id_user, $action, $request->all(), 403, "No tiene permisos para acceder a las noticias");
                 return response(["message" => "No tiene permisos para acceder a las noticias"], 403);
             }
+
+            $monthsLimit = $permissions['news']['months_back_limit'] ?? null;
+            $maxResults = $permissions['news']['max_results'] ?? null;
 
             CompanyApiUsages::create([
                 'id_company' => $company->id,
@@ -319,7 +334,11 @@ class CompanyController extends Controller
                 ->when($dateTo, function ($query) use ($dateTo) {
                     return $query->where('date', '<=', $dateTo);
                 })
+                ->when(function ($query) use ($monthsLimit) {
+                    return $query->where('date', '>=', now()->subMonths($monthsLimit));
+                })
                 ->orderBy('date', 'desc')
+                ->limit($maxResults)
                 ->get();
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
@@ -344,10 +363,14 @@ class CompanyController extends Controller
             $dateTo = $request->query('date_to');
 
             $permissions = $company->api_permissions ?? [];
-            if (!in_array('insights', $permissions)) {
+            
+            if (!isset($permissions['insights']['enabled']) || !$permissions['insights']['enabled']) {
                 Audith::new($id_user, $action, $request->all(), 403, "No tiene permisos para acceder a las perspectivas");
                 return response(["message" => "No tiene permisos para acceder a las perspectivas"], 403);
             }
+
+            $monthsLimit = $permissions['insights']['months_back_limit'] ?? null;
+            $maxResults = $permissions['insights']['max_results'] ?? null;
 
             CompanyApiUsages::create([
                 'id_company' => $company->id,
@@ -362,7 +385,11 @@ class CompanyController extends Controller
                 ->when($dateTo, function ($query) use ($dateTo) {
                     return $query->where('date', '<=', $dateTo);
                 })
+                ->when(function ($query) use ($monthsLimit) {
+                    return $query->where('date', '>=', now()->subMonths($monthsLimit));
+                })
                 ->orderBy('date', 'desc')
+                ->limit($maxResults)
                 ->get();
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
@@ -387,10 +414,13 @@ class CompanyController extends Controller
             $dateTo = $request->query('date_to');
 
             $permissions = $company->api_permissions ?? [];
-            if (!in_array('mag lease index', $permissions)) {
+            if (!isset($permissions['mag lease index']['enabled']) || !$permissions['mag lease index']['enabled']) {
                 Audith::new($id_user, $action, $request->all(), 403, "No tiene permisos para acceder a los indice arrendamiento magnético");
                 return response(["message" => "No tiene permisos para acceder a los indice arrendamiento magnético"], 403);
             }
+
+            $monthsLimit = $permissions['mag lease index']['months_back_limit'] ?? null;
+            $maxResults = $permissions['mag lease index']['max_results'] ?? null;
 
             CompanyApiUsages::create([
                 'id_company' => $company->id,
@@ -405,7 +435,11 @@ class CompanyController extends Controller
                 ->when($dateTo, function ($query) use ($dateTo) {
                     return $query->where('date', '<=', $dateTo);
                 })
+                ->when(function ($query) use ($monthsLimit) {
+                    return $query->where('date', '>=', now()->subMonths($monthsLimit));
+                })
                 ->orderBy('date', 'desc')
+                ->limit($maxResults)
                 ->get();
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
@@ -430,10 +464,13 @@ class CompanyController extends Controller
             $dateTo = $request->query('date_to');
 
             $permissions = $company->api_permissions ?? [];
-            if (!in_array('mag steer index', $permissions)) {
+            if (!isset($permissions['mag steer index']['enabled']) || !$permissions['mag steer index']['enabled']) {
                 Audith::new($id_user, $action, $request->all(), 403, "No tiene permisos para acceder a los indice novillo magnético");
                 return response(["message" => "No tiene permisos para acceder a los indice novillo magnético"], 403);
             }
+
+            $monthsLimit = $permissions['mag steer index']['months_back_limit'] ?? null;
+            $maxResults = $permissions['mag steer index']['max_results'] ?? null;
 
             CompanyApiUsages::create([
                 'id_company' => $company->id,
@@ -448,7 +485,11 @@ class CompanyController extends Controller
                 ->when($dateTo, function ($query) use ($dateTo) {
                     return $query->where('date', '<=', $dateTo);
                 })
+                ->when(function ($query) use ($monthsLimit) {
+                    return $query->where('date', '>=', now()->subMonths($monthsLimit));
+                })
                 ->orderBy('date', 'desc')
+                ->limit($maxResults)
                 ->get();
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
@@ -473,10 +514,13 @@ class CompanyController extends Controller
             $dateTo = $request->query('date_to');
 
             $permissions = $company->api_permissions ?? [];
-            if (!in_array('major crops', $permissions)) {
+            if (!isset($permissions['major crops']['enabled']) || !$permissions['major crops']['enabled']) {
                 Audith::new($id_user, $action, $request->all(), 403, "No tiene permisos para acceder a las perspectivas de los principales cultivos");
                 return response(["message" => "No tiene permisos para acceder a las perspectivas de los principales cultivos"], 403);
             }
+
+            $monthsLimit = $permissions['major crops']['months_back_limit'] ?? null;
+            $maxResults = $permissions['major crops']['max_results'] ?? null;
 
             CompanyApiUsages::create([
                 'id_company' => $company->id,
@@ -491,7 +535,11 @@ class CompanyController extends Controller
                 ->when($dateTo, function ($query) use ($dateTo) {
                     return $query->where('date', '<=', $dateTo);
                 })
+                ->when(function ($query) use ($monthsLimit) {
+                    return $query->where('date', '>=', now()->subMonths($monthsLimit));
+                })
                 ->orderBy('date', 'desc')
+                ->limit($maxResults)
                 ->get();
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
@@ -516,10 +564,13 @@ class CompanyController extends Controller
             $dateTo = $request->query('date_to');
 
             $permissions = $company->api_permissions ?? [];
-            if (!in_array('price main active ingredients producers', $permissions)) {
+            if (!isset($permissions['price main active ingredients producers']['enabled']) || !$permissions['price main active ingredients producers']['enabled']) {
                 Audith::new($id_user, $action, $request->all(), 403, "No tiene permisos para acceder a los precio de los principales ingredientes activos de los productores");
                 return response(["message" => "No tiene permisos para acceder a los precio de los principales ingredientes activos de los productores"], 403);
             }
+
+            $monthsLimit = $permissions['price main active ingredients producers']['months_back_limit'] ?? null;
+            $maxResults = $permissions['price main active ingredients producers']['max_results'] ?? null;
 
             CompanyApiUsages::create([
                 'id_company' => $company->id,
@@ -534,7 +585,11 @@ class CompanyController extends Controller
                 ->when($dateTo, function ($query) use ($dateTo) {
                     return $query->where('date', '<=', $dateTo);
                 })
+                ->when(function ($query) use ($monthsLimit) {
+                    return $query->where('date', '>=', now()->subMonths($monthsLimit));
+                })
                 ->orderBy('date', 'desc')
+                ->limit($maxResults)
                 ->get();
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
@@ -559,10 +614,13 @@ class CompanyController extends Controller
             $dateTo = $request->query('date_to');
 
             $permissions = $company->api_permissions ?? [];
-            if (!in_array('producer segment prices', $permissions)) {
+            if (!isset($permissions['producer segment prices']['enabled']) || !$permissions['producer segment prices']['enabled']) {
                 Audith::new($id_user, $action, $request->all(), 403, "No tiene permisos para acceder a los precios por segmentos a productor");
                 return response(["message" => "No tiene permisos para acceder a los precios por segmentos a productor"], 403);
             }
+
+            $monthsLimit = $permissions['producer segment prices']['months_back_limit'] ?? null;
+            $maxResults = $permissions['producer segment prices']['max_results'] ?? null;
 
             CompanyApiUsages::create([
                 'id_company' => $company->id,
@@ -577,7 +635,11 @@ class CompanyController extends Controller
                 ->when($dateTo, function ($query) use ($dateTo) {
                     return $query->where('date', '<=', $dateTo);
                 })
+                ->when(function ($query) use ($monthsLimit) {
+                    return $query->where('date', '>=', now()->subMonths($monthsLimit));
+                })
                 ->orderBy('date', 'desc')
+                ->limit($maxResults)
                 ->get();
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
@@ -602,10 +664,13 @@ class CompanyController extends Controller
             $dateTo = $request->query('date_to');
 
             $permissions = $company->api_permissions ?? [];
-            if (!in_array('rainfall records provinces', $permissions)) {
+            if (!isset($permissions['rainfall records provinces']['enabled']) || !$permissions['rainfall records provinces']['enabled']) {
                 Audith::new($id_user, $action, $request->all(), 403, "No tiene permisos para acceder a los registros de lluvias por provincia");
                 return response(["message" => "No tiene permisos para acceder a los registros de lluvias por provincia"], 403);
             }
+
+            $monthsLimit = $permissions['rainfall records provinces']['months_back_limit'] ?? null;
+            $maxResults = $permissions['rainfall records provinces']['max_results'] ?? null;
 
             CompanyApiUsages::create([
                 'id_company' => $company->id,
@@ -620,7 +685,11 @@ class CompanyController extends Controller
                 ->when($dateTo, function ($query) use ($dateTo) {
                     return $query->where('date', '<=', $dateTo);
                 })
+                ->when(function ($query) use ($monthsLimit) {
+                    return $query->where('date', '>=', now()->subMonths($monthsLimit));
+                })
                 ->orderBy('date', 'desc')
+                ->limit($maxResults)
                 ->get();
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
@@ -645,10 +714,13 @@ class CompanyController extends Controller
             $dateTo = $request->query('date_to');
 
             $permissions = $company->api_permissions ?? [];
-            if (!in_array('main grain prices', $permissions)) {
+            if (!isset($permissions['main grain prices']['enabled']) || !$permissions['main grain prices']['enabled']) {
                 Audith::new($id_user, $action, $request->all(), 403, "No tiene permisos para acceder a los precios de los principales granos");
                 return response(["message" => "No tiene permisos para acceder a los precios de los principales granos"], 403);
             }
+
+            $monthsLimit = $permissions['main grain prices']['months_back_limit'] ?? null;
+            $maxResults = $permissions['main grain prices']['max_results'] ?? null;
 
             CompanyApiUsages::create([
                 'id_company' => $company->id,
@@ -663,7 +735,11 @@ class CompanyController extends Controller
                 ->when($dateTo, function ($query) use ($dateTo) {
                     return $query->where('date', '<=', $dateTo);
                 })
+                ->when(function ($query) use ($monthsLimit) {
+                    return $query->where('date', '>=', now()->subMonths($monthsLimit));
+                })
                 ->orderBy('date', 'desc')
+                ->limit($maxResults)
                 ->get();
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
