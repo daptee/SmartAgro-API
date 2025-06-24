@@ -324,13 +324,17 @@ class CompanyController extends Controller
 
             // Límite de meses permitido
             if ($monthsLimit !== null) {
-                $startAllowed = now()->startOfMonth()->subMonths($monthsLimit - 1);
+                // ⚠️ corregido: NO se resta 1, así se incluyen los N meses completos
+                $startAllowed = now()->startOfMonth()->subMonths($monthsLimit);
                 $endAllowed = now()->endOfMonth();
 
-                // Validar si las fechas solicitadas están completamente fuera del rango
+                $parsedFrom = $dateFrom ? Carbon::parse($dateFrom) : null;
+                $parsedTo = $dateTo ? Carbon::parse($dateTo) : null;
+
+                // Si ambas fechas están completamente fuera del rango, no mostrar nada
                 if (
-                    ($dateFrom && Carbon::parse($dateFrom)->lt($startAllowed)) &&
-                    ($dateTo && Carbon::parse($dateTo)->lt($startAllowed))
+                    ($parsedFrom && $parsedFrom->gt($endAllowed)) ||
+                    ($parsedTo && $parsedTo->lt($startAllowed))
                 ) {
                     return response()->json([
                         "data" => [],
@@ -338,9 +342,9 @@ class CompanyController extends Controller
                     ], 200);
                 }
 
-                // Ajustar rangos según lo permitido
-                $dateFrom = $dateFrom ? max($dateFrom, $startAllowed->toDateString()) : $startAllowed->toDateString();
-                $dateTo = $dateTo ? min($dateTo, $endAllowed->toDateString()) : $endAllowed->toDateString();
+                // Ajustar fechas
+                $dateFrom = $parsedFrom ? max($parsedFrom, $startAllowed)->toDateString() : $startAllowed->toDateString();
+                $dateTo = $parsedTo ? min($parsedTo, $endAllowed)->toDateString() : $endAllowed->toDateString();
             }
 
             CompanyApiUsages::create([
@@ -393,13 +397,17 @@ class CompanyController extends Controller
 
             // Límite de meses permitido
             if ($monthsLimit !== null) {
-                $startAllowed = now()->startOfMonth()->subMonths($monthsLimit - 1);
+                // ⚠️ corregido: NO se resta 1, así se incluyen los N meses completos
+                $startAllowed = now()->startOfMonth()->subMonths($monthsLimit);
                 $endAllowed = now()->endOfMonth();
 
-                // Validar si las fechas solicitadas están completamente fuera del rango
+                $parsedFrom = $dateFrom ? Carbon::parse($dateFrom) : null;
+                $parsedTo = $dateTo ? Carbon::parse($dateTo) : null;
+
+                // Si ambas fechas están completamente fuera del rango, no mostrar nada
                 if (
-                    ($dateFrom && Carbon::parse($dateFrom)->lt($startAllowed)) &&
-                    ($dateTo && Carbon::parse($dateTo)->lt($startAllowed))
+                    ($parsedFrom && $parsedFrom->gt($endAllowed)) ||
+                    ($parsedTo && $parsedTo->lt($startAllowed))
                 ) {
                     return response()->json([
                         "data" => [],
@@ -407,9 +415,9 @@ class CompanyController extends Controller
                     ], 200);
                 }
 
-                // Ajustar rangos según lo permitido
-                $dateFrom = $dateFrom ? max($dateFrom, $startAllowed->toDateString()) : $startAllowed->toDateString();
-                $dateTo = $dateTo ? min($dateTo, $endAllowed->toDateString()) : $endAllowed->toDateString();
+                // Ajustar fechas
+                $dateFrom = $parsedFrom ? max($parsedFrom, $startAllowed)->toDateString() : $startAllowed->toDateString();
+                $dateTo = $parsedTo ? min($parsedTo, $endAllowed)->toDateString() : $endAllowed->toDateString();
             }
 
             CompanyApiUsages::create([
@@ -461,13 +469,17 @@ class CompanyController extends Controller
 
             // Límite de meses permitido
             if ($monthsLimit !== null) {
-                $startAllowed = now()->startOfMonth()->subMonths($monthsLimit - 1);
+                // ⚠️ corregido: NO se resta 1, así se incluyen los N meses completos
+                $startAllowed = now()->startOfMonth()->subMonths($monthsLimit);
                 $endAllowed = now()->endOfMonth();
 
-                // Validar si las fechas solicitadas están completamente fuera del rango
+                $parsedFrom = $dateFrom ? Carbon::parse($dateFrom) : null;
+                $parsedTo = $dateTo ? Carbon::parse($dateTo) : null;
+
+                // Si ambas fechas están completamente fuera del rango, no mostrar nada
                 if (
-                    ($dateFrom && Carbon::parse($dateFrom)->lt($startAllowed)) &&
-                    ($dateTo && Carbon::parse($dateTo)->lt($startAllowed))
+                    ($parsedFrom && $parsedFrom->gt($endAllowed)) ||
+                    ($parsedTo && $parsedTo->lt($startAllowed))
                 ) {
                     return response()->json([
                         "data" => [],
@@ -475,9 +487,9 @@ class CompanyController extends Controller
                     ], 200);
                 }
 
-                // Ajustar rangos según lo permitido
-                $dateFrom = $dateFrom ? max($dateFrom, $startAllowed->toDateString()) : $startAllowed->toDateString();
-                $dateTo = $dateTo ? min($dateTo, $endAllowed->toDateString()) : $endAllowed->toDateString();
+                // Ajustar fechas
+                $dateFrom = $parsedFrom ? max($parsedFrom, $startAllowed)->toDateString() : $startAllowed->toDateString();
+                $dateTo = $parsedTo ? min($parsedTo, $endAllowed)->toDateString() : $endAllowed->toDateString();
             }
 
             CompanyApiUsages::create([
@@ -529,13 +541,17 @@ class CompanyController extends Controller
 
             // Límite de meses permitido
             if ($monthsLimit !== null) {
-                $startAllowed = now()->startOfMonth()->subMonths($monthsLimit - 1);
+                // ⚠️ corregido: NO se resta 1, así se incluyen los N meses completos
+                $startAllowed = now()->startOfMonth()->subMonths($monthsLimit);
                 $endAllowed = now()->endOfMonth();
 
-                // Validar si las fechas solicitadas están completamente fuera del rango
+                $parsedFrom = $dateFrom ? Carbon::parse($dateFrom) : null;
+                $parsedTo = $dateTo ? Carbon::parse($dateTo) : null;
+
+                // Si ambas fechas están completamente fuera del rango, no mostrar nada
                 if (
-                    ($dateFrom && Carbon::parse($dateFrom)->lt($startAllowed)) &&
-                    ($dateTo && Carbon::parse($dateTo)->lt($startAllowed))
+                    ($parsedFrom && $parsedFrom->gt($endAllowed)) ||
+                    ($parsedTo && $parsedTo->lt($startAllowed))
                 ) {
                     return response()->json([
                         "data" => [],
@@ -543,9 +559,9 @@ class CompanyController extends Controller
                     ], 200);
                 }
 
-                // Ajustar rangos según lo permitido
-                $dateFrom = $dateFrom ? max($dateFrom, $startAllowed->toDateString()) : $startAllowed->toDateString();
-                $dateTo = $dateTo ? min($dateTo, $endAllowed->toDateString()) : $endAllowed->toDateString();
+                // Ajustar fechas
+                $dateFrom = $parsedFrom ? max($parsedFrom, $startAllowed)->toDateString() : $startAllowed->toDateString();
+                $dateTo = $parsedTo ? min($parsedTo, $endAllowed)->toDateString() : $endAllowed->toDateString();
             }
 
             CompanyApiUsages::create([
@@ -597,13 +613,17 @@ class CompanyController extends Controller
 
             // Límite de meses permitido
             if ($monthsLimit !== null) {
-                $startAllowed = now()->startOfMonth()->subMonths($monthsLimit - 1);
+                // ⚠️ corregido: NO se resta 1, así se incluyen los N meses completos
+                $startAllowed = now()->startOfMonth()->subMonths($monthsLimit);
                 $endAllowed = now()->endOfMonth();
 
-                // Validar si las fechas solicitadas están completamente fuera del rango
+                $parsedFrom = $dateFrom ? Carbon::parse($dateFrom) : null;
+                $parsedTo = $dateTo ? Carbon::parse($dateTo) : null;
+
+                // Si ambas fechas están completamente fuera del rango, no mostrar nada
                 if (
-                    ($dateFrom && Carbon::parse($dateFrom)->lt($startAllowed)) &&
-                    ($dateTo && Carbon::parse($dateTo)->lt($startAllowed))
+                    ($parsedFrom && $parsedFrom->gt($endAllowed)) ||
+                    ($parsedTo && $parsedTo->lt($startAllowed))
                 ) {
                     return response()->json([
                         "data" => [],
@@ -611,9 +631,9 @@ class CompanyController extends Controller
                     ], 200);
                 }
 
-                // Ajustar rangos según lo permitido
-                $dateFrom = $dateFrom ? max($dateFrom, $startAllowed->toDateString()) : $startAllowed->toDateString();
-                $dateTo = $dateTo ? min($dateTo, $endAllowed->toDateString()) : $endAllowed->toDateString();
+                // Ajustar fechas
+                $dateFrom = $parsedFrom ? max($parsedFrom, $startAllowed)->toDateString() : $startAllowed->toDateString();
+                $dateTo = $parsedTo ? min($parsedTo, $endAllowed)->toDateString() : $endAllowed->toDateString();
             }
 
             CompanyApiUsages::create([
@@ -665,13 +685,17 @@ class CompanyController extends Controller
 
             // Límite de meses permitido
             if ($monthsLimit !== null) {
-                $startAllowed = now()->startOfMonth()->subMonths($monthsLimit - 1);
+                // ⚠️ corregido: NO se resta 1, así se incluyen los N meses completos
+                $startAllowed = now()->startOfMonth()->subMonths($monthsLimit);
                 $endAllowed = now()->endOfMonth();
 
-                // Validar si las fechas solicitadas están completamente fuera del rango
+                $parsedFrom = $dateFrom ? Carbon::parse($dateFrom) : null;
+                $parsedTo = $dateTo ? Carbon::parse($dateTo) : null;
+
+                // Si ambas fechas están completamente fuera del rango, no mostrar nada
                 if (
-                    ($dateFrom && Carbon::parse($dateFrom)->lt($startAllowed)) &&
-                    ($dateTo && Carbon::parse($dateTo)->lt($startAllowed))
+                    ($parsedFrom && $parsedFrom->gt($endAllowed)) ||
+                    ($parsedTo && $parsedTo->lt($startAllowed))
                 ) {
                     return response()->json([
                         "data" => [],
@@ -679,9 +703,9 @@ class CompanyController extends Controller
                     ], 200);
                 }
 
-                // Ajustar rangos según lo permitido
-                $dateFrom = $dateFrom ? max($dateFrom, $startAllowed->toDateString()) : $startAllowed->toDateString();
-                $dateTo = $dateTo ? min($dateTo, $endAllowed->toDateString()) : $endAllowed->toDateString();
+                // Ajustar fechas
+                $dateFrom = $parsedFrom ? max($parsedFrom, $startAllowed)->toDateString() : $startAllowed->toDateString();
+                $dateTo = $parsedTo ? min($parsedTo, $endAllowed)->toDateString() : $endAllowed->toDateString();
             }
 
             CompanyApiUsages::create([
@@ -733,13 +757,17 @@ class CompanyController extends Controller
 
             // Límite de meses permitido
             if ($monthsLimit !== null) {
-                $startAllowed = now()->startOfMonth()->subMonths($monthsLimit - 1);
+                // ⚠️ corregido: NO se resta 1, así se incluyen los N meses completos
+                $startAllowed = now()->startOfMonth()->subMonths($monthsLimit);
                 $endAllowed = now()->endOfMonth();
 
-                // Validar si las fechas solicitadas están completamente fuera del rango
+                $parsedFrom = $dateFrom ? Carbon::parse($dateFrom) : null;
+                $parsedTo = $dateTo ? Carbon::parse($dateTo) : null;
+
+                // Si ambas fechas están completamente fuera del rango, no mostrar nada
                 if (
-                    ($dateFrom && Carbon::parse($dateFrom)->lt($startAllowed)) &&
-                    ($dateTo && Carbon::parse($dateTo)->lt($startAllowed))
+                    ($parsedFrom && $parsedFrom->gt($endAllowed)) ||
+                    ($parsedTo && $parsedTo->lt($startAllowed))
                 ) {
                     return response()->json([
                         "data" => [],
@@ -747,9 +775,9 @@ class CompanyController extends Controller
                     ], 200);
                 }
 
-                // Ajustar rangos según lo permitido
-                $dateFrom = $dateFrom ? max($dateFrom, $startAllowed->toDateString()) : $startAllowed->toDateString();
-                $dateTo = $dateTo ? min($dateTo, $endAllowed->toDateString()) : $endAllowed->toDateString();
+                // Ajustar fechas
+                $dateFrom = $parsedFrom ? max($parsedFrom, $startAllowed)->toDateString() : $startAllowed->toDateString();
+                $dateTo = $parsedTo ? min($parsedTo, $endAllowed)->toDateString() : $endAllowed->toDateString();
             }
 
             CompanyApiUsages::create([
@@ -801,13 +829,17 @@ class CompanyController extends Controller
 
             // Límite de meses permitido
             if ($monthsLimit !== null) {
-                $startAllowed = now()->startOfMonth()->subMonths($monthsLimit - 1);
+                // ⚠️ corregido: NO se resta 1, así se incluyen los N meses completos
+                $startAllowed = now()->startOfMonth()->subMonths($monthsLimit);
                 $endAllowed = now()->endOfMonth();
 
-                // Validar si las fechas solicitadas están completamente fuera del rango
+                $parsedFrom = $dateFrom ? Carbon::parse($dateFrom) : null;
+                $parsedTo = $dateTo ? Carbon::parse($dateTo) : null;
+
+                // Si ambas fechas están completamente fuera del rango, no mostrar nada
                 if (
-                    ($dateFrom && Carbon::parse($dateFrom)->lt($startAllowed)) &&
-                    ($dateTo && Carbon::parse($dateTo)->lt($startAllowed))
+                    ($parsedFrom && $parsedFrom->gt($endAllowed)) ||
+                    ($parsedTo && $parsedTo->lt($startAllowed))
                 ) {
                     return response()->json([
                         "data" => [],
@@ -815,9 +847,9 @@ class CompanyController extends Controller
                     ], 200);
                 }
 
-                // Ajustar rangos según lo permitido
-                $dateFrom = $dateFrom ? max($dateFrom, $startAllowed->toDateString()) : $startAllowed->toDateString();
-                $dateTo = $dateTo ? min($dateTo, $endAllowed->toDateString()) : $endAllowed->toDateString();
+                // Ajustar fechas
+                $dateFrom = $parsedFrom ? max($parsedFrom, $startAllowed)->toDateString() : $startAllowed->toDateString();
+                $dateTo = $parsedTo ? min($parsedTo, $endAllowed)->toDateString() : $endAllowed->toDateString();
             }
 
             CompanyApiUsages::create([
@@ -869,13 +901,17 @@ class CompanyController extends Controller
 
             // Límite de meses permitido
             if ($monthsLimit !== null) {
-                $startAllowed = now()->startOfMonth()->subMonths($monthsLimit - 1);
+                // ⚠️ corregido: NO se resta 1, así se incluyen los N meses completos
+                $startAllowed = now()->startOfMonth()->subMonths($monthsLimit);
                 $endAllowed = now()->endOfMonth();
 
-                // Validar si las fechas solicitadas están completamente fuera del rango
+                $parsedFrom = $dateFrom ? Carbon::parse($dateFrom) : null;
+                $parsedTo = $dateTo ? Carbon::parse($dateTo) : null;
+
+                // Si ambas fechas están completamente fuera del rango, no mostrar nada
                 if (
-                    ($dateFrom && Carbon::parse($dateFrom)->lt($startAllowed)) &&
-                    ($dateTo && Carbon::parse($dateTo)->lt($startAllowed))
+                    ($parsedFrom && $parsedFrom->gt($endAllowed)) ||
+                    ($parsedTo && $parsedTo->lt($startAllowed))
                 ) {
                     return response()->json([
                         "data" => [],
@@ -883,9 +919,9 @@ class CompanyController extends Controller
                     ], 200);
                 }
 
-                // Ajustar rangos según lo permitido
-                $dateFrom = $dateFrom ? max($dateFrom, $startAllowed->toDateString()) : $startAllowed->toDateString();
-                $dateTo = $dateTo ? min($dateTo, $endAllowed->toDateString()) : $endAllowed->toDateString();
+                // Ajustar fechas
+                $dateFrom = $parsedFrom ? max($parsedFrom, $startAllowed)->toDateString() : $startAllowed->toDateString();
+                $dateTo = $parsedTo ? min($parsedTo, $endAllowed)->toDateString() : $endAllowed->toDateString();
             }
 
             CompanyApiUsages::create([
