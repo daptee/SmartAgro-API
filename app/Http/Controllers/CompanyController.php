@@ -16,6 +16,7 @@ use App\Models\ProducerSegmentPrice;
 use App\Models\RainfallRecordProvince;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
@@ -321,6 +322,27 @@ class CompanyController extends Controller
             $monthsLimit = $permissions['news']['months_back_limit'] ?? null;
             $maxResults = $permissions['news']['max_results'] ?? null;
 
+            // Límite de meses permitido
+            if ($monthsLimit !== null) {
+                $startAllowed = now()->startOfMonth()->subMonths($monthsLimit - 1);
+                $endAllowed = now()->endOfMonth();
+
+                // Validar si las fechas solicitadas están completamente fuera del rango
+                if (
+                    ($dateFrom && Carbon::parse($dateFrom)->lt($startAllowed)) &&
+                    ($dateTo && Carbon::parse($dateTo)->lt($startAllowed))
+                ) {
+                    return response()->json([
+                        "data" => [],
+                        "message" => "Las fechas solicitadas están fuera del límite permitido de meses."
+                    ], 200);
+                }
+
+                // Ajustar rangos según lo permitido
+                $dateFrom = $dateFrom ? max($dateFrom, $startAllowed->toDateString()) : $startAllowed->toDateString();
+                $dateTo = $dateTo ? min($dateTo, $endAllowed->toDateString()) : $endAllowed->toDateString();
+            }
+
             CompanyApiUsages::create([
                 'id_company' => $company->id,
                 'request_name' => $action,
@@ -334,11 +356,8 @@ class CompanyController extends Controller
                 ->when($dateTo, function ($query) use ($dateTo) {
                     return $query->where('date', '<=', $dateTo);
                 })
-                ->when(function ($query) use ($monthsLimit) {
-                    return $query->where('date', '>=', now()->subMonths($monthsLimit));
-                })
+                ->when($maxResults, fn($q) => $q->limit($maxResults))
                 ->orderBy('date', 'desc')
-                ->limit($maxResults)
                 ->get();
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
@@ -363,7 +382,7 @@ class CompanyController extends Controller
             $dateTo = $request->query('date_to');
 
             $permissions = $company->api_permissions ?? [];
-            
+
             if (!isset($permissions['insights']['enabled']) || !$permissions['insights']['enabled']) {
                 Audith::new($id_user, $action, $request->all(), 403, "No tiene permisos para acceder a las perspectivas");
                 return response(["message" => "No tiene permisos para acceder a las perspectivas"], 403);
@@ -371,6 +390,27 @@ class CompanyController extends Controller
 
             $monthsLimit = $permissions['insights']['months_back_limit'] ?? null;
             $maxResults = $permissions['insights']['max_results'] ?? null;
+
+            // Límite de meses permitido
+            if ($monthsLimit !== null) {
+                $startAllowed = now()->startOfMonth()->subMonths($monthsLimit - 1);
+                $endAllowed = now()->endOfMonth();
+
+                // Validar si las fechas solicitadas están completamente fuera del rango
+                if (
+                    ($dateFrom && Carbon::parse($dateFrom)->lt($startAllowed)) &&
+                    ($dateTo && Carbon::parse($dateTo)->lt($startAllowed))
+                ) {
+                    return response()->json([
+                        "data" => [],
+                        "message" => "Las fechas solicitadas están fuera del límite permitido de meses."
+                    ], 200);
+                }
+
+                // Ajustar rangos según lo permitido
+                $dateFrom = $dateFrom ? max($dateFrom, $startAllowed->toDateString()) : $startAllowed->toDateString();
+                $dateTo = $dateTo ? min($dateTo, $endAllowed->toDateString()) : $endAllowed->toDateString();
+            }
 
             CompanyApiUsages::create([
                 'id_company' => $company->id,
@@ -385,11 +425,8 @@ class CompanyController extends Controller
                 ->when($dateTo, function ($query) use ($dateTo) {
                     return $query->where('date', '<=', $dateTo);
                 })
-                ->when(function ($query) use ($monthsLimit) {
-                    return $query->where('date', '>=', now()->subMonths($monthsLimit));
-                })
+                ->when($maxResults, fn($q) => $q->limit($maxResults))
                 ->orderBy('date', 'desc')
-                ->limit($maxResults)
                 ->get();
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
@@ -422,6 +459,27 @@ class CompanyController extends Controller
             $monthsLimit = $permissions['mag lease index']['months_back_limit'] ?? null;
             $maxResults = $permissions['mag lease index']['max_results'] ?? null;
 
+            // Límite de meses permitido
+            if ($monthsLimit !== null) {
+                $startAllowed = now()->startOfMonth()->subMonths($monthsLimit - 1);
+                $endAllowed = now()->endOfMonth();
+
+                // Validar si las fechas solicitadas están completamente fuera del rango
+                if (
+                    ($dateFrom && Carbon::parse($dateFrom)->lt($startAllowed)) &&
+                    ($dateTo && Carbon::parse($dateTo)->lt($startAllowed))
+                ) {
+                    return response()->json([
+                        "data" => [],
+                        "message" => "Las fechas solicitadas están fuera del límite permitido de meses."
+                    ], 200);
+                }
+
+                // Ajustar rangos según lo permitido
+                $dateFrom = $dateFrom ? max($dateFrom, $startAllowed->toDateString()) : $startAllowed->toDateString();
+                $dateTo = $dateTo ? min($dateTo, $endAllowed->toDateString()) : $endAllowed->toDateString();
+            }
+
             CompanyApiUsages::create([
                 'id_company' => $company->id,
                 'request_name' => $action,
@@ -435,11 +493,8 @@ class CompanyController extends Controller
                 ->when($dateTo, function ($query) use ($dateTo) {
                     return $query->where('date', '<=', $dateTo);
                 })
-                ->when(function ($query) use ($monthsLimit) {
-                    return $query->where('date', '>=', now()->subMonths($monthsLimit));
-                })
+                ->when($maxResults, fn($q) => $q->limit($maxResults))
                 ->orderBy('date', 'desc')
-                ->limit($maxResults)
                 ->get();
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
@@ -472,6 +527,27 @@ class CompanyController extends Controller
             $monthsLimit = $permissions['mag steer index']['months_back_limit'] ?? null;
             $maxResults = $permissions['mag steer index']['max_results'] ?? null;
 
+            // Límite de meses permitido
+            if ($monthsLimit !== null) {
+                $startAllowed = now()->startOfMonth()->subMonths($monthsLimit - 1);
+                $endAllowed = now()->endOfMonth();
+
+                // Validar si las fechas solicitadas están completamente fuera del rango
+                if (
+                    ($dateFrom && Carbon::parse($dateFrom)->lt($startAllowed)) &&
+                    ($dateTo && Carbon::parse($dateTo)->lt($startAllowed))
+                ) {
+                    return response()->json([
+                        "data" => [],
+                        "message" => "Las fechas solicitadas están fuera del límite permitido de meses."
+                    ], 200);
+                }
+
+                // Ajustar rangos según lo permitido
+                $dateFrom = $dateFrom ? max($dateFrom, $startAllowed->toDateString()) : $startAllowed->toDateString();
+                $dateTo = $dateTo ? min($dateTo, $endAllowed->toDateString()) : $endAllowed->toDateString();
+            }
+
             CompanyApiUsages::create([
                 'id_company' => $company->id,
                 'request_name' => $action,
@@ -485,11 +561,8 @@ class CompanyController extends Controller
                 ->when($dateTo, function ($query) use ($dateTo) {
                     return $query->where('date', '<=', $dateTo);
                 })
-                ->when(function ($query) use ($monthsLimit) {
-                    return $query->where('date', '>=', now()->subMonths($monthsLimit));
-                })
+                ->when($maxResults, fn($q) => $q->limit($maxResults))
                 ->orderBy('date', 'desc')
-                ->limit($maxResults)
                 ->get();
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
@@ -522,6 +595,27 @@ class CompanyController extends Controller
             $monthsLimit = $permissions['major crops']['months_back_limit'] ?? null;
             $maxResults = $permissions['major crops']['max_results'] ?? null;
 
+            // Límite de meses permitido
+            if ($monthsLimit !== null) {
+                $startAllowed = now()->startOfMonth()->subMonths($monthsLimit - 1);
+                $endAllowed = now()->endOfMonth();
+
+                // Validar si las fechas solicitadas están completamente fuera del rango
+                if (
+                    ($dateFrom && Carbon::parse($dateFrom)->lt($startAllowed)) &&
+                    ($dateTo && Carbon::parse($dateTo)->lt($startAllowed))
+                ) {
+                    return response()->json([
+                        "data" => [],
+                        "message" => "Las fechas solicitadas están fuera del límite permitido de meses."
+                    ], 200);
+                }
+
+                // Ajustar rangos según lo permitido
+                $dateFrom = $dateFrom ? max($dateFrom, $startAllowed->toDateString()) : $startAllowed->toDateString();
+                $dateTo = $dateTo ? min($dateTo, $endAllowed->toDateString()) : $endAllowed->toDateString();
+            }
+
             CompanyApiUsages::create([
                 'id_company' => $company->id,
                 'request_name' => $action,
@@ -535,11 +629,8 @@ class CompanyController extends Controller
                 ->when($dateTo, function ($query) use ($dateTo) {
                     return $query->where('date', '<=', $dateTo);
                 })
-                ->when(function ($query) use ($monthsLimit) {
-                    return $query->where('date', '>=', now()->subMonths($monthsLimit));
-                })
+                ->when($maxResults, fn($q) => $q->limit($maxResults))
                 ->orderBy('date', 'desc')
-                ->limit($maxResults)
                 ->get();
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
@@ -572,6 +663,27 @@ class CompanyController extends Controller
             $monthsLimit = $permissions['price main active ingredients producers']['months_back_limit'] ?? null;
             $maxResults = $permissions['price main active ingredients producers']['max_results'] ?? null;
 
+            // Límite de meses permitido
+            if ($monthsLimit !== null) {
+                $startAllowed = now()->startOfMonth()->subMonths($monthsLimit - 1);
+                $endAllowed = now()->endOfMonth();
+
+                // Validar si las fechas solicitadas están completamente fuera del rango
+                if (
+                    ($dateFrom && Carbon::parse($dateFrom)->lt($startAllowed)) &&
+                    ($dateTo && Carbon::parse($dateTo)->lt($startAllowed))
+                ) {
+                    return response()->json([
+                        "data" => [],
+                        "message" => "Las fechas solicitadas están fuera del límite permitido de meses."
+                    ], 200);
+                }
+
+                // Ajustar rangos según lo permitido
+                $dateFrom = $dateFrom ? max($dateFrom, $startAllowed->toDateString()) : $startAllowed->toDateString();
+                $dateTo = $dateTo ? min($dateTo, $endAllowed->toDateString()) : $endAllowed->toDateString();
+            }
+
             CompanyApiUsages::create([
                 'id_company' => $company->id,
                 'request_name' => $action,
@@ -585,11 +697,8 @@ class CompanyController extends Controller
                 ->when($dateTo, function ($query) use ($dateTo) {
                     return $query->where('date', '<=', $dateTo);
                 })
-                ->when(function ($query) use ($monthsLimit) {
-                    return $query->where('date', '>=', now()->subMonths($monthsLimit));
-                })
+                ->when($maxResults, fn($q) => $q->limit($maxResults))
                 ->orderBy('date', 'desc')
-                ->limit($maxResults)
                 ->get();
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
@@ -622,6 +731,27 @@ class CompanyController extends Controller
             $monthsLimit = $permissions['producer segment prices']['months_back_limit'] ?? null;
             $maxResults = $permissions['producer segment prices']['max_results'] ?? null;
 
+            // Límite de meses permitido
+            if ($monthsLimit !== null) {
+                $startAllowed = now()->startOfMonth()->subMonths($monthsLimit - 1);
+                $endAllowed = now()->endOfMonth();
+
+                // Validar si las fechas solicitadas están completamente fuera del rango
+                if (
+                    ($dateFrom && Carbon::parse($dateFrom)->lt($startAllowed)) &&
+                    ($dateTo && Carbon::parse($dateTo)->lt($startAllowed))
+                ) {
+                    return response()->json([
+                        "data" => [],
+                        "message" => "Las fechas solicitadas están fuera del límite permitido de meses."
+                    ], 200);
+                }
+
+                // Ajustar rangos según lo permitido
+                $dateFrom = $dateFrom ? max($dateFrom, $startAllowed->toDateString()) : $startAllowed->toDateString();
+                $dateTo = $dateTo ? min($dateTo, $endAllowed->toDateString()) : $endAllowed->toDateString();
+            }
+
             CompanyApiUsages::create([
                 'id_company' => $company->id,
                 'request_name' => $action,
@@ -635,11 +765,8 @@ class CompanyController extends Controller
                 ->when($dateTo, function ($query) use ($dateTo) {
                     return $query->where('date', '<=', $dateTo);
                 })
-                ->when(function ($query) use ($monthsLimit) {
-                    return $query->where('date', '>=', now()->subMonths($monthsLimit));
-                })
+                ->when($maxResults, fn($q) => $q->limit($maxResults))
                 ->orderBy('date', 'desc')
-                ->limit($maxResults)
                 ->get();
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
@@ -672,6 +799,27 @@ class CompanyController extends Controller
             $monthsLimit = $permissions['rainfall records provinces']['months_back_limit'] ?? null;
             $maxResults = $permissions['rainfall records provinces']['max_results'] ?? null;
 
+            // Límite de meses permitido
+            if ($monthsLimit !== null) {
+                $startAllowed = now()->startOfMonth()->subMonths($monthsLimit - 1);
+                $endAllowed = now()->endOfMonth();
+
+                // Validar si las fechas solicitadas están completamente fuera del rango
+                if (
+                    ($dateFrom && Carbon::parse($dateFrom)->lt($startAllowed)) &&
+                    ($dateTo && Carbon::parse($dateTo)->lt($startAllowed))
+                ) {
+                    return response()->json([
+                        "data" => [],
+                        "message" => "Las fechas solicitadas están fuera del límite permitido de meses."
+                    ], 200);
+                }
+
+                // Ajustar rangos según lo permitido
+                $dateFrom = $dateFrom ? max($dateFrom, $startAllowed->toDateString()) : $startAllowed->toDateString();
+                $dateTo = $dateTo ? min($dateTo, $endAllowed->toDateString()) : $endAllowed->toDateString();
+            }
+
             CompanyApiUsages::create([
                 'id_company' => $company->id,
                 'request_name' => $action,
@@ -685,11 +833,8 @@ class CompanyController extends Controller
                 ->when($dateTo, function ($query) use ($dateTo) {
                     return $query->where('date', '<=', $dateTo);
                 })
-                ->when(function ($query) use ($monthsLimit) {
-                    return $query->where('date', '>=', now()->subMonths($monthsLimit));
-                })
+                ->when($maxResults, fn($q) => $q->limit($maxResults))
                 ->orderBy('date', 'desc')
-                ->limit($maxResults)
                 ->get();
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
@@ -722,6 +867,27 @@ class CompanyController extends Controller
             $monthsLimit = $permissions['main grain prices']['months_back_limit'] ?? null;
             $maxResults = $permissions['main grain prices']['max_results'] ?? null;
 
+            // Límite de meses permitido
+            if ($monthsLimit !== null) {
+                $startAllowed = now()->startOfMonth()->subMonths($monthsLimit - 1);
+                $endAllowed = now()->endOfMonth();
+
+                // Validar si las fechas solicitadas están completamente fuera del rango
+                if (
+                    ($dateFrom && Carbon::parse($dateFrom)->lt($startAllowed)) &&
+                    ($dateTo && Carbon::parse($dateTo)->lt($startAllowed))
+                ) {
+                    return response()->json([
+                        "data" => [],
+                        "message" => "Las fechas solicitadas están fuera del límite permitido de meses."
+                    ], 200);
+                }
+
+                // Ajustar rangos según lo permitido
+                $dateFrom = $dateFrom ? max($dateFrom, $startAllowed->toDateString()) : $startAllowed->toDateString();
+                $dateTo = $dateTo ? min($dateTo, $endAllowed->toDateString()) : $endAllowed->toDateString();
+            }
+
             CompanyApiUsages::create([
                 'id_company' => $company->id,
                 'request_name' => $action,
@@ -735,11 +901,8 @@ class CompanyController extends Controller
                 ->when($dateTo, function ($query) use ($dateTo) {
                     return $query->where('date', '<=', $dateTo);
                 })
-                ->when(function ($query) use ($monthsLimit) {
-                    return $query->where('date', '>=', now()->subMonths($monthsLimit));
-                })
+                ->when($maxResults, fn($q) => $q->limit($maxResults))
                 ->orderBy('date', 'desc')
-                ->limit($maxResults)
                 ->get();
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
