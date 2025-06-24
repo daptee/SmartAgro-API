@@ -59,6 +59,7 @@ class CompanyPlanPublicityController extends Controller
                 'publicities.*.id_advertising_space' => 'required|exists:advertising_spaces,id',
                 'publicities.*.is_active' => 'boolean',
                 'publicities.*.file' => 'nullable', // Cambiado para permitir string "null"
+                'publicities.*.link' => 'nullable|string|max:255',
             ]);
 
             $results = [];
@@ -106,6 +107,8 @@ class CompanyPlanPublicityController extends Controller
                             'id_advertising_space' => $item['id_advertising_space'],
                             'is_active' => $item['is_active'] ?? $publicity->is_active,
                             'gif_path' => $filePath !== true ? $filePath : $publicity->gif_path,
+                            // si ya hay un link y se envia null lo dejamos en nulo, si no se envia link lo dejamos como estaba
+                            'link' => $item['link'] ?? null,
                         ]);
 
                         $results[] = $publicity->fresh('advertisingSpace');
@@ -118,6 +121,7 @@ class CompanyPlanPublicityController extends Controller
                             'id_advertising_space' => $item['id_advertising_space'],
                             'is_active' => $item['is_active'] ?? $publicity->is_active,
                             'gif_path' => null,
+                            'link' => $item['link'] ?? null,
                         ]);
                         $results[] = $publicity->fresh('advertisingSpace');
                     }
@@ -128,6 +132,7 @@ class CompanyPlanPublicityController extends Controller
                         'id_advertising_space' => $item['id_advertising_space'],
                         'gif_path' => $filePath,
                         'is_active' => $item['is_active'] ?? true,
+                        'link' => $item['link'] ?? null,
                     ]);
 
                     $results[] = $publicity->load('advertisingSpace');

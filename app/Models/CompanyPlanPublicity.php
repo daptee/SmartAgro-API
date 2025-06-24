@@ -13,6 +13,7 @@ class CompanyPlanPublicity extends Model
         'id_advertising_space',
         'gif_path',
         'is_active',
+        'link',
     ];
 
     public function plan()
