@@ -27,7 +27,7 @@ class CompanyPlanController extends Controller
             $dateStart = $request->query('date_start');
             $dateEnd = $request->query('date_end');
 
-            $query = CompanyPlan::with(['company.category', 'company.locality', 'company.status', 'status']);
+            $query = CompanyPlan::with(['company.category', 'company.locality', 'company.status', 'company.advertisingSpaces', 'status']);
 
             // Filtros
             if (!is_null($company)) {

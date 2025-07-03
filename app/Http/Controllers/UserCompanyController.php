@@ -235,9 +235,12 @@ class UserCompanyController extends Controller
 
             $results = $query->paginate($perPage, ['*'], 'page', $page);
 
-            // Contar invitaciones activas (status_id 1 o 2)
-            $activeInvitationsCount = CompanyInvitation::whereIn('status_id', [1, 2])->count();
-
+            // Contar invitaciones activas (status_id 1 o 2) y filtrar por el id_company_plan si se proporciona
+            $activeInvitationsCount = CompanyInvitation::whereIn('status_id', [1, 2]);
+            if ($companyPlan) {
+                $activeInvitationsCount->where('id_company_plan', $companyPlan);
+            }
+            $activeInvitationsCount = $activeInvitationsCount->count();
             // Procesar cada invitación para verificar si hay un usuario registrado
             $formatted = [];
             foreach ($results->items() as $invitation) {
@@ -251,6 +254,7 @@ class UserCompanyController extends Controller
                         'name' => $user->name,
                         'last_name' => $user->last_name,
                         'registered_at' => $user->created_at->toDateTimeString(),
+                        'email_confirmation' => $user->email_confirmation ? true : false,
                     ];
                 }
 

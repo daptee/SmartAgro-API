@@ -4,9 +4,21 @@ namespace App\Http\Controllers;
 
 use App\Models\Audith;
 use App\Models\Company;
+use App\Models\CompanyApiUsages;
+use App\Models\Insight;
+use App\Models\MagLeaseIndex;
+use App\Models\MagSteerIndex;
+use App\Models\MainGrainPrice;
+use App\Models\MajorCrop;
+use App\Models\News;
+use App\Models\PriceMainActiveIngredientsProducer;
+use App\Models\ProducerSegmentPrice;
+use App\Models\RainfallRecordProvince;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
 class CompanyController extends Controller
@@ -70,6 +82,18 @@ class CompanyController extends Controller
         try {
             $company = Company::findOrFail($id);
 
+            if ($request->has('api_permissions') && is_string($request->api_permissions)) {
+                $decoded = json_decode($request->api_permissions, true);
+                if (json_last_error() === JSON_ERROR_NONE) {
+                    $request->merge(['api_permissions' => $decoded]);
+                } else {
+                    return response()->json([
+                        'message' => 'Error al actualizar empresa',
+                        'error' => 'El campo api_permissions debe ser un JSON válido.',
+                    ], 422);
+                }
+            }
+
             $request->validate([
                 'company_name' => 'required|unique:companies,company_name,' . $company->id,
                 'cuit' => 'required|unique:companies,cuit,' . $company->id,
@@ -81,6 +105,10 @@ class CompanyController extends Controller
                 'range_number_of_employees' => 'nullable|string|max:255',
                 'website' => 'nullable|url|max:255',
                 'status' => 'nullable|integer|in:1,2',
+                // Nuevos campos opcionales
+                'generate_api_key' => 'nullable|boolean',
+                'api_permissions' => 'nullable|array',
+                'api_permissions.*' => 'array',
             ]);
 
             // Actualizar campos
@@ -96,6 +124,16 @@ class CompanyController extends Controller
                 'website' => $request->website,
                 'status_id' => $request->status ?? 1,
             ]);
+
+            // Si el request indica generar nueva APIKEY
+            if ($request->boolean('generate_api_key')) {
+                $company->api_key = bin2hex(random_bytes(32));
+            }
+
+            // Si se envían permisos
+            if ($request->has('api_permissions')) {
+                $company->api_permissions = $request->api_permissions;
+            }
 
             $company->save();
 
@@ -234,7 +272,7 @@ class CompanyController extends Controller
                     'last_page' => $companies->lastPage(),
                 ]
             ];
-            
+
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
         } catch (Exception $e) {
             Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
@@ -251,9 +289,659 @@ class CompanyController extends Controller
         $action = "Empresa";
         $data = null;
         $id_user = Auth::user()->id ?? null;
-        try{
+        try {
             $company = Company::with(['category', 'locality.province', 'status'])->findOrFail($id);
             $data = $company;
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+        }
+
+        return response(compact("data"));
+    }
+
+    public function news(Request $request)
+    {
+        $message = "Error al obtener las noticias";
+        $action = "Noticias";
+        $data = null;
+        $id_user = Auth::user()->id ?? null;
+
+        try {
+            $company = $request->get('_company');
+            // GET news - Peticion que reciba una fecha desde y fecha hasta y retorne las noticias dentro de ese rango de fecha
+            $dateFrom = $request->query('date_from');
+            $dateTo = $request->query('date_to');
+
+            $permissions = $company->api_permissions ?? [];
+            if (!isset($permissions['news']['enabled']) || !$permissions['news']['enabled']) {
+                Audith::new($id_user, $action, $request->all(), 403, "No tiene permisos para acceder a las noticias");
+                return response(["message" => "No tiene permisos para acceder a las noticias"], 403);
+            }
+
+            $monthsLimit = $permissions['news']['months_back_limit'] ?? null;
+            $maxResults = $permissions['news']['max_results'] ?? null;
+
+            // Límite de meses permitido
+            if ($monthsLimit !== null) {
+                // ⚠️ corregido: NO se resta 1, así se incluyen los N meses completos
+                $startAllowed = now()->startOfMonth()->subMonths($monthsLimit);
+                $endAllowed = now()->endOfMonth();
+
+                $parsedFrom = $dateFrom ? Carbon::parse($dateFrom) : null;
+                $parsedTo = $dateTo ? Carbon::parse($dateTo) : null;
+
+                // Si ambas fechas están completamente fuera del rango, no mostrar nada
+                if (
+                    ($parsedFrom && $parsedFrom->gt($endAllowed)) ||
+                    ($parsedTo && $parsedTo->lt($startAllowed))
+                ) {
+                    return response()->json([
+                        "data" => [],
+                        "message" => "Las fechas solicitadas están fuera del límite permitido de meses."
+                    ], 200);
+                }
+
+                // Ajustar fechas
+                $dateFrom = $parsedFrom ? max($parsedFrom, $startAllowed)->toDateString() : $startAllowed->toDateString();
+                $dateTo = $parsedTo ? min($parsedTo, $endAllowed)->toDateString() : $endAllowed->toDateString();
+            }
+
+            CompanyApiUsages::create([
+                'id_company' => $company->id,
+                'request_name' => $action,
+                'params' => $request->all(),
+            ]);
+
+            $data = News::query()
+                ->when($dateFrom, function ($query) use ($dateFrom) {
+                    return $query->where('date', '>=', $dateFrom);
+                })
+                ->when($dateTo, function ($query) use ($dateTo) {
+                    return $query->where('date', '<=', $dateTo);
+                })
+                ->when($maxResults, fn($q) => $q->limit($maxResults))
+                ->orderBy('date', 'desc')
+                ->get();
+
+            Audith::new($id_user, $action, $request->all(), 200, compact("data"));
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+        }
+
+        return response(compact("data"));
+    }
+
+    public function insights(Request $request)
+    {
+        $message = "Error al obtener las perspectivas";
+        $action = "Perspectivas";
+        $data = null;
+        $id_user = Auth::user()->id ?? null;
+
+        try {
+            $company = $request->get('_company');
+            $dateFrom = $request->query('date_from');
+            $dateTo = $request->query('date_to');
+
+            $permissions = $company->api_permissions ?? [];
+
+            if (!isset($permissions['insights']['enabled']) || !$permissions['insights']['enabled']) {
+                Audith::new($id_user, $action, $request->all(), 403, "No tiene permisos para acceder a las perspectivas");
+                return response(["message" => "No tiene permisos para acceder a las perspectivas"], 403);
+            }
+
+            $monthsLimit = $permissions['insights']['months_back_limit'] ?? null;
+            $maxResults = $permissions['insights']['max_results'] ?? null;
+
+            // Límite de meses permitido
+            if ($monthsLimit !== null) {
+                // ⚠️ corregido: NO se resta 1, así se incluyen los N meses completos
+                $startAllowed = now()->startOfMonth()->subMonths($monthsLimit);
+                $endAllowed = now()->endOfMonth();
+
+                $parsedFrom = $dateFrom ? Carbon::parse($dateFrom) : null;
+                $parsedTo = $dateTo ? Carbon::parse($dateTo) : null;
+
+                // Si ambas fechas están completamente fuera del rango, no mostrar nada
+                if (
+                    ($parsedFrom && $parsedFrom->gt($endAllowed)) ||
+                    ($parsedTo && $parsedTo->lt($startAllowed))
+                ) {
+                    return response()->json([
+                        "data" => [],
+                        "message" => "Las fechas solicitadas están fuera del límite permitido de meses."
+                    ], 200);
+                }
+
+                // Ajustar fechas
+                $dateFrom = $parsedFrom ? max($parsedFrom, $startAllowed)->toDateString() : $startAllowed->toDateString();
+                $dateTo = $parsedTo ? min($parsedTo, $endAllowed)->toDateString() : $endAllowed->toDateString();
+            }
+
+            CompanyApiUsages::create([
+                'id_company' => $company->id,
+                'request_name' => $action,
+                'params' => $request->all(),
+            ]);
+
+            $data = Insight::query()
+                ->when($dateFrom, function ($query) use ($dateFrom) {
+                    return $query->where('date', '>=', $dateFrom);
+                })
+                ->when($dateTo, function ($query) use ($dateTo) {
+                    return $query->where('date', '<=', $dateTo);
+                })
+                ->when($maxResults, fn($q) => $q->limit($maxResults))
+                ->orderBy('date', 'desc')
+                ->get();
+
+            Audith::new($id_user, $action, $request->all(), 200, compact("data"));
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+        }
+
+        return response(compact("data"));
+    }
+
+    public function mag_lease_index(Request $request)
+    {
+        $message = "Error al obtener los indice arrendamiento magnético";
+        $action = "Indice arrendamiento mag";
+        $data = null;
+        $id_user = Auth::user()->id ?? null;
+
+        try {
+            $company = $request->get('_company');
+            $dateFrom = $request->query('date_from');
+            $dateTo = $request->query('date_to');
+
+            $permissions = $company->api_permissions ?? [];
+            if (!isset($permissions['mag lease index']['enabled']) || !$permissions['mag lease index']['enabled']) {
+                Audith::new($id_user, $action, $request->all(), 403, "No tiene permisos para acceder a los indice arrendamiento magnético");
+                return response(["message" => "No tiene permisos para acceder a los indice arrendamiento magnético"], 403);
+            }
+
+            $monthsLimit = $permissions['mag lease index']['months_back_limit'] ?? null;
+            $maxResults = $permissions['mag lease index']['max_results'] ?? null;
+
+            // Límite de meses permitido
+            if ($monthsLimit !== null) {
+                // ⚠️ corregido: NO se resta 1, así se incluyen los N meses completos
+                $startAllowed = now()->startOfMonth()->subMonths($monthsLimit);
+                $endAllowed = now()->endOfMonth();
+
+                $parsedFrom = $dateFrom ? Carbon::parse($dateFrom) : null;
+                $parsedTo = $dateTo ? Carbon::parse($dateTo) : null;
+
+                // Si ambas fechas están completamente fuera del rango, no mostrar nada
+                if (
+                    ($parsedFrom && $parsedFrom->gt($endAllowed)) ||
+                    ($parsedTo && $parsedTo->lt($startAllowed))
+                ) {
+                    return response()->json([
+                        "data" => [],
+                        "message" => "Las fechas solicitadas están fuera del límite permitido de meses."
+                    ], 200);
+                }
+
+                // Ajustar fechas
+                $dateFrom = $parsedFrom ? max($parsedFrom, $startAllowed)->toDateString() : $startAllowed->toDateString();
+                $dateTo = $parsedTo ? min($parsedTo, $endAllowed)->toDateString() : $endAllowed->toDateString();
+            }
+
+            CompanyApiUsages::create([
+                'id_company' => $company->id,
+                'request_name' => $action,
+                'params' => $request->all(),
+            ]);
+
+            $data = MagLeaseIndex::query()
+                ->when($dateFrom, function ($query) use ($dateFrom) {
+                    return $query->where('date', '>=', $dateFrom);
+                })
+                ->when($dateTo, function ($query) use ($dateTo) {
+                    return $query->where('date', '<=', $dateTo);
+                })
+                ->when($maxResults, fn($q) => $q->limit($maxResults))
+                ->orderBy('date', 'desc')
+                ->get();
+
+            Audith::new($id_user, $action, $request->all(), 200, compact("data"));
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+        }
+
+        return response(compact("data"));
+    }
+
+    public function mag_steer_index(Request $request)
+    {
+        $message = "Error al obtener los indice novillo magnético";
+        $action = "Indice novillo mag";
+        $data = null;
+        $id_user = Auth::user()->id ?? null;
+
+        try {
+            $company = $request->get('_company');
+            $dateFrom = $request->query('date_from');
+            $dateTo = $request->query('date_to');
+
+            $permissions = $company->api_permissions ?? [];
+            if (!isset($permissions['mag steer index']['enabled']) || !$permissions['mag steer index']['enabled']) {
+                Audith::new($id_user, $action, $request->all(), 403, "No tiene permisos para acceder a los indice novillo magnético");
+                return response(["message" => "No tiene permisos para acceder a los indice novillo magnético"], 403);
+            }
+
+            $monthsLimit = $permissions['mag steer index']['months_back_limit'] ?? null;
+            $maxResults = $permissions['mag steer index']['max_results'] ?? null;
+
+            // Límite de meses permitido
+            if ($monthsLimit !== null) {
+                // ⚠️ corregido: NO se resta 1, así se incluyen los N meses completos
+                $startAllowed = now()->startOfMonth()->subMonths($monthsLimit);
+                $endAllowed = now()->endOfMonth();
+
+                $parsedFrom = $dateFrom ? Carbon::parse($dateFrom) : null;
+                $parsedTo = $dateTo ? Carbon::parse($dateTo) : null;
+
+                // Si ambas fechas están completamente fuera del rango, no mostrar nada
+                if (
+                    ($parsedFrom && $parsedFrom->gt($endAllowed)) ||
+                    ($parsedTo && $parsedTo->lt($startAllowed))
+                ) {
+                    return response()->json([
+                        "data" => [],
+                        "message" => "Las fechas solicitadas están fuera del límite permitido de meses."
+                    ], 200);
+                }
+
+                // Ajustar fechas
+                $dateFrom = $parsedFrom ? max($parsedFrom, $startAllowed)->toDateString() : $startAllowed->toDateString();
+                $dateTo = $parsedTo ? min($parsedTo, $endAllowed)->toDateString() : $endAllowed->toDateString();
+            }
+
+            CompanyApiUsages::create([
+                'id_company' => $company->id,
+                'request_name' => $action,
+                'params' => $request->all(),
+            ]);
+
+            $data = MagSteerIndex::query()
+                ->when($dateFrom, function ($query) use ($dateFrom) {
+                    return $query->where('date', '>=', $dateFrom);
+                })
+                ->when($dateTo, function ($query) use ($dateTo) {
+                    return $query->where('date', '<=', $dateTo);
+                })
+                ->when($maxResults, fn($q) => $q->limit($maxResults))
+                ->orderBy('date', 'desc')
+                ->get();
+
+            Audith::new($id_user, $action, $request->all(), 200, compact("data"));
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+        }
+
+        return response(compact("data"));
+    }
+
+    public function major_crops(Request $request)
+    {
+        $message = "Error al obtener las perspectivas de los principales cultivos";
+        $action = "Perspectivas de los principales cultivos";
+        $data = null;
+        $id_user = Auth::user()->id ?? null;
+
+        try {
+            $company = $request->get('_company');
+            $dateFrom = $request->query('date_from');
+            $dateTo = $request->query('date_to');
+
+            $permissions = $company->api_permissions ?? [];
+            if (!isset($permissions['major crops']['enabled']) || !$permissions['major crops']['enabled']) {
+                Audith::new($id_user, $action, $request->all(), 403, "No tiene permisos para acceder a las perspectivas de los principales cultivos");
+                return response(["message" => "No tiene permisos para acceder a las perspectivas de los principales cultivos"], 403);
+            }
+
+            $monthsLimit = $permissions['major crops']['months_back_limit'] ?? null;
+            $maxResults = $permissions['major crops']['max_results'] ?? null;
+
+            // Límite de meses permitido
+            if ($monthsLimit !== null) {
+                // ⚠️ corregido: NO se resta 1, así se incluyen los N meses completos
+                $startAllowed = now()->startOfMonth()->subMonths($monthsLimit);
+                $endAllowed = now()->endOfMonth();
+
+                $parsedFrom = $dateFrom ? Carbon::parse($dateFrom) : null;
+                $parsedTo = $dateTo ? Carbon::parse($dateTo) : null;
+
+                // Si ambas fechas están completamente fuera del rango, no mostrar nada
+                if (
+                    ($parsedFrom && $parsedFrom->gt($endAllowed)) ||
+                    ($parsedTo && $parsedTo->lt($startAllowed))
+                ) {
+                    return response()->json([
+                        "data" => [],
+                        "message" => "Las fechas solicitadas están fuera del límite permitido de meses."
+                    ], 200);
+                }
+
+                // Ajustar fechas
+                $dateFrom = $parsedFrom ? max($parsedFrom, $startAllowed)->toDateString() : $startAllowed->toDateString();
+                $dateTo = $parsedTo ? min($parsedTo, $endAllowed)->toDateString() : $endAllowed->toDateString();
+            }
+
+            CompanyApiUsages::create([
+                'id_company' => $company->id,
+                'request_name' => $action,
+                'params' => $request->all(),
+            ]);
+
+            $data = MajorCrop::query()
+                ->when($dateFrom, function ($query) use ($dateFrom) {
+                    return $query->where('date', '>=', $dateFrom);
+                })
+                ->when($dateTo, function ($query) use ($dateTo) {
+                    return $query->where('date', '<=', $dateTo);
+                })
+                ->when($maxResults, fn($q) => $q->limit($maxResults))
+                ->orderBy('date', 'desc')
+                ->get();
+
+            Audith::new($id_user, $action, $request->all(), 200, compact("data"));
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+        }
+
+        return response(compact("data"));
+    }
+
+    public function price_main_active_ingredients_producers(Request $request)
+    {
+        $message = "Error al obtener los precio de los principales ingredientes activos de los productores";
+        $action = "Precio de los principales ingredientes activos de los productores";
+        $data = null;
+        $id_user = Auth::user()->id ?? null;
+
+        try {
+            $company = $request->get('_company');
+            $dateFrom = $request->query('date_from');
+            $dateTo = $request->query('date_to');
+
+            $permissions = $company->api_permissions ?? [];
+            if (!isset($permissions['price main active ingredients producers']['enabled']) || !$permissions['price main active ingredients producers']['enabled']) {
+                Audith::new($id_user, $action, $request->all(), 403, "No tiene permisos para acceder a los precio de los principales ingredientes activos de los productores");
+                return response(["message" => "No tiene permisos para acceder a los precio de los principales ingredientes activos de los productores"], 403);
+            }
+
+            $monthsLimit = $permissions['price main active ingredients producers']['months_back_limit'] ?? null;
+            $maxResults = $permissions['price main active ingredients producers']['max_results'] ?? null;
+
+            // Límite de meses permitido
+            if ($monthsLimit !== null) {
+                // ⚠️ corregido: NO se resta 1, así se incluyen los N meses completos
+                $startAllowed = now()->startOfMonth()->subMonths($monthsLimit);
+                $endAllowed = now()->endOfMonth();
+
+                $parsedFrom = $dateFrom ? Carbon::parse($dateFrom) : null;
+                $parsedTo = $dateTo ? Carbon::parse($dateTo) : null;
+
+                // Si ambas fechas están completamente fuera del rango, no mostrar nada
+                if (
+                    ($parsedFrom && $parsedFrom->gt($endAllowed)) ||
+                    ($parsedTo && $parsedTo->lt($startAllowed))
+                ) {
+                    return response()->json([
+                        "data" => [],
+                        "message" => "Las fechas solicitadas están fuera del límite permitido de meses."
+                    ], 200);
+                }
+
+                // Ajustar fechas
+                $dateFrom = $parsedFrom ? max($parsedFrom, $startAllowed)->toDateString() : $startAllowed->toDateString();
+                $dateTo = $parsedTo ? min($parsedTo, $endAllowed)->toDateString() : $endAllowed->toDateString();
+            }
+
+            CompanyApiUsages::create([
+                'id_company' => $company->id,
+                'request_name' => $action,
+                'params' => $request->all(),
+            ]);
+
+            $data = PriceMainActiveIngredientsProducer::query()
+                ->when($dateFrom, function ($query) use ($dateFrom) {
+                    return $query->where('date', '>=', $dateFrom);
+                })
+                ->when($dateTo, function ($query) use ($dateTo) {
+                    return $query->where('date', '<=', $dateTo);
+                })
+                ->when($maxResults, fn($q) => $q->limit($maxResults))
+                ->orderBy('date', 'desc')
+                ->get();
+
+            Audith::new($id_user, $action, $request->all(), 200, compact("data"));
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+        }
+
+        return response(compact("data"));
+    }
+
+    public function producer_segment_prices(Request $request)
+    {
+        $message = "Error al obtener los precios por segmentos a productor";
+        $action = "Precios por segmentos a productor";
+        $data = null;
+        $id_user = Auth::user()->id ?? null;
+
+        try {
+            $company = $request->get('_company');
+            $dateFrom = $request->query('date_from');
+            $dateTo = $request->query('date_to');
+
+            $permissions = $company->api_permissions ?? [];
+            if (!isset($permissions['producer segment prices']['enabled']) || !$permissions['producer segment prices']['enabled']) {
+                Audith::new($id_user, $action, $request->all(), 403, "No tiene permisos para acceder a los precios por segmentos a productor");
+                return response(["message" => "No tiene permisos para acceder a los precios por segmentos a productor"], 403);
+            }
+
+            $monthsLimit = $permissions['producer segment prices']['months_back_limit'] ?? null;
+            $maxResults = $permissions['producer segment prices']['max_results'] ?? null;
+
+            // Límite de meses permitido
+            if ($monthsLimit !== null) {
+                // ⚠️ corregido: NO se resta 1, así se incluyen los N meses completos
+                $startAllowed = now()->startOfMonth()->subMonths($monthsLimit);
+                $endAllowed = now()->endOfMonth();
+
+                $parsedFrom = $dateFrom ? Carbon::parse($dateFrom) : null;
+                $parsedTo = $dateTo ? Carbon::parse($dateTo) : null;
+
+                // Si ambas fechas están completamente fuera del rango, no mostrar nada
+                if (
+                    ($parsedFrom && $parsedFrom->gt($endAllowed)) ||
+                    ($parsedTo && $parsedTo->lt($startAllowed))
+                ) {
+                    return response()->json([
+                        "data" => [],
+                        "message" => "Las fechas solicitadas están fuera del límite permitido de meses."
+                    ], 200);
+                }
+
+                // Ajustar fechas
+                $dateFrom = $parsedFrom ? max($parsedFrom, $startAllowed)->toDateString() : $startAllowed->toDateString();
+                $dateTo = $parsedTo ? min($parsedTo, $endAllowed)->toDateString() : $endAllowed->toDateString();
+            }
+
+            CompanyApiUsages::create([
+                'id_company' => $company->id,
+                'request_name' => $action,
+                'params' => $request->all(),
+            ]);
+
+            $data = ProducerSegmentPrice::query()
+                ->when($dateFrom, function ($query) use ($dateFrom) {
+                    return $query->where('date', '>=', $dateFrom);
+                })
+                ->when($dateTo, function ($query) use ($dateTo) {
+                    return $query->where('date', '<=', $dateTo);
+                })
+                ->when($maxResults, fn($q) => $q->limit($maxResults))
+                ->orderBy('date', 'desc')
+                ->get();
+
+            Audith::new($id_user, $action, $request->all(), 200, compact("data"));
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+        }
+
+        return response(compact("data"));
+    }
+
+    public function rainfall_records_provinces(Request $request)
+    {
+        $message = "Error al obtener los registros de lluvias por provincia";
+        $action = "Registro de lluvias por provincia";
+        $data = null;
+        $id_user = Auth::user()->id ?? null;
+
+        try {
+            $company = $request->get('_company');
+            $dateFrom = $request->query('date_from');
+            $dateTo = $request->query('date_to');
+
+            $permissions = $company->api_permissions ?? [];
+            if (!isset($permissions['rainfall records provinces']['enabled']) || !$permissions['rainfall records provinces']['enabled']) {
+                Audith::new($id_user, $action, $request->all(), 403, "No tiene permisos para acceder a los registros de lluvias por provincia");
+                return response(["message" => "No tiene permisos para acceder a los registros de lluvias por provincia"], 403);
+            }
+
+            $monthsLimit = $permissions['rainfall records provinces']['months_back_limit'] ?? null;
+            $maxResults = $permissions['rainfall records provinces']['max_results'] ?? null;
+
+            // Límite de meses permitido
+            if ($monthsLimit !== null) {
+                // ⚠️ corregido: NO se resta 1, así se incluyen los N meses completos
+                $startAllowed = now()->startOfMonth()->subMonths($monthsLimit);
+                $endAllowed = now()->endOfMonth();
+
+                $parsedFrom = $dateFrom ? Carbon::parse($dateFrom) : null;
+                $parsedTo = $dateTo ? Carbon::parse($dateTo) : null;
+
+                // Si ambas fechas están completamente fuera del rango, no mostrar nada
+                if (
+                    ($parsedFrom && $parsedFrom->gt($endAllowed)) ||
+                    ($parsedTo && $parsedTo->lt($startAllowed))
+                ) {
+                    return response()->json([
+                        "data" => [],
+                        "message" => "Las fechas solicitadas están fuera del límite permitido de meses."
+                    ], 200);
+                }
+
+                // Ajustar fechas
+                $dateFrom = $parsedFrom ? max($parsedFrom, $startAllowed)->toDateString() : $startAllowed->toDateString();
+                $dateTo = $parsedTo ? min($parsedTo, $endAllowed)->toDateString() : $endAllowed->toDateString();
+            }
+
+            CompanyApiUsages::create([
+                'id_company' => $company->id,
+                'request_name' => $action,
+                'params' => $request->all(),
+            ]);
+
+            $data = RainfallRecordProvince::query()
+                ->when($dateFrom, function ($query) use ($dateFrom) {
+                    return $query->where('date', '>=', $dateFrom);
+                })
+                ->when($dateTo, function ($query) use ($dateTo) {
+                    return $query->where('date', '<=', $dateTo);
+                })
+                ->when($maxResults, fn($q) => $q->limit($maxResults))
+                ->orderBy('date', 'desc')
+                ->get();
+
+            Audith::new($id_user, $action, $request->all(), 200, compact("data"));
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+        }
+
+        return response(compact("data"));
+    }
+
+    public function main_grain_prices(Request $request)
+    {
+        $message = "Error al obtener los precios de los principales granos";
+        $action = "Precios de los principales granos";
+        $data = null;
+        $id_user = Auth::user()->id ?? null;
+
+        try {
+            $company = $request->get('_company');
+            $dateFrom = $request->query('date_from');
+            $dateTo = $request->query('date_to');
+
+            $permissions = $company->api_permissions ?? [];
+            if (!isset($permissions['main grain prices']['enabled']) || !$permissions['main grain prices']['enabled']) {
+                Audith::new($id_user, $action, $request->all(), 403, "No tiene permisos para acceder a los precios de los principales granos");
+                return response(["message" => "No tiene permisos para acceder a los precios de los principales granos"], 403);
+            }
+
+            $monthsLimit = $permissions['main grain prices']['months_back_limit'] ?? null;
+            $maxResults = $permissions['main grain prices']['max_results'] ?? null;
+
+            // Límite de meses permitido
+            if ($monthsLimit !== null) {
+                // ⚠️ corregido: NO se resta 1, así se incluyen los N meses completos
+                $startAllowed = now()->startOfMonth()->subMonths($monthsLimit);
+                $endAllowed = now()->endOfMonth();
+
+                $parsedFrom = $dateFrom ? Carbon::parse($dateFrom) : null;
+                $parsedTo = $dateTo ? Carbon::parse($dateTo) : null;
+
+                // Si ambas fechas están completamente fuera del rango, no mostrar nada
+                if (
+                    ($parsedFrom && $parsedFrom->gt($endAllowed)) ||
+                    ($parsedTo && $parsedTo->lt($startAllowed))
+                ) {
+                    return response()->json([
+                        "data" => [],
+                        "message" => "Las fechas solicitadas están fuera del límite permitido de meses."
+                    ], 200);
+                }
+
+                // Ajustar fechas
+                $dateFrom = $parsedFrom ? max($parsedFrom, $startAllowed)->toDateString() : $startAllowed->toDateString();
+                $dateTo = $parsedTo ? min($parsedTo, $endAllowed)->toDateString() : $endAllowed->toDateString();
+            }
+
+            CompanyApiUsages::create([
+                'id_company' => $company->id,
+                'request_name' => $action,
+                'params' => $request->all(),
+            ]);
+
+            $data = MainGrainPrice::query()
+                ->when($dateFrom, function ($query) use ($dateFrom) {
+                    return $query->where('date', '>=', $dateFrom);
+                })
+                ->when($dateTo, function ($query) use ($dateTo) {
+                    return $query->where('date', '<=', $dateTo);
+                })
+                ->when($maxResults, fn($q) => $q->limit($maxResults))
+                ->orderBy('date', 'desc')
+                ->get();
+
+            Audith::new($id_user, $action, $request->all(), 200, compact("data"));
         } catch (Exception $e) {
             Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
             return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
