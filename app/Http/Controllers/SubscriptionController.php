@@ -45,11 +45,11 @@ class SubscriptionController extends Controller
         }
 
         $request->merge([
-            'transaction_amount' => number_format($request->transaction_amount, 2, '.', ''), // Asegura 2 decimales
+            'transaction_amount' => number_format($request->transaction_amount, 2, '.', ''),
         ]);
 
-        // Crear el Subscription
-        $subscriptionResponse = Http::withToken($accessToken)->post('https://api.mercadopago.com/preapproval', [
+        // Preparar cuerpo de la solicitud a MercadoPago
+        $subscriptionPayload = [
             "auto_recurring" => [
                 "frequency" => $request->frequency,
                 "frequency_type" => $request->frequency_type,
@@ -61,7 +61,26 @@ class SubscriptionController extends Controller
             "back_url" => $request->back_url,
             "reason" => $request->reason,
             "status" => "pending"
-        ]);
+        ];
+
+        // Agregar mes gratis si corresponde
+        if (
+            strtolower($request->frequency_type) === 'months' &&
+            intval($request->frequency) === 1 &&
+            $request->has('free_trial') &&
+            filter_var($request->free_trial, FILTER_VALIDATE_BOOLEAN)
+        ) {
+            $subscriptionPayload['auto_recurring']['free_trial'] = [
+                "frequency" => 1,
+                "frequency_type" => "months"
+            ];
+        }
+
+        // Enviar la solicitud
+        $subscriptionResponse = Http::withToken($accessToken)->post(
+            'https://api.mercadopago.com/preapproval',
+            $subscriptionPayload
+        );
 
         if (!$subscriptionResponse->successful()) {
             return response()->json([
@@ -69,7 +88,7 @@ class SubscriptionController extends Controller
                 'details' => $subscriptionResponse->json()
             ], $subscriptionResponse->status());
         }
-        // Retornar el link de pago
+
         return response()->json([
             'message' => 'Suscripción creada con éxito',
             'init_point' => $subscriptionResponse->json('init_point')
@@ -253,12 +272,12 @@ class SubscriptionController extends Controller
                                 'next_payment_date' => $subscriptionData['next_payment_date'],
                             ]);
                             Log::info('Historial actualizado correctamente');
-                        } else{
-                            
+                        } else {
+
                             UserPlan::save_history($userId, 2, $subscriptionData, $subscriptionData['next_payment_date'], $this->preapprovalId);
 
                             Log::info('Historial guardado correctamente');
-                        } 
+                        }
                     } else {
                         Log::error("Usuario no encontrado: $userId");
                     }
