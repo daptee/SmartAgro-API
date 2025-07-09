@@ -12,6 +12,7 @@ use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\CompanyPlanController;
 use App\Http\Controllers\CompanyPlanPublicityController;
 use App\Http\Controllers\CompanyRolesController;
+use App\Http\Controllers\FaqController;
 use App\Http\Controllers\GeneralImportController;
 use App\Http\Controllers\GetsFunctionsController;
 use App\Http\Controllers\LocalityProvinceController;
@@ -32,6 +33,9 @@ Route::get('/backup', [BackupController::class, 'createBackup'])->name('backup')
 
 // update payment
 Route::get('/cron-payment', [SubscriptionController::class, 'cronPayment'])->name('cron-payment');
+
+// faq sin token
+Route::get('faqs', [FaqController::class, 'index']);
 
 // Auth
 Route::controller(AuthController::class)->group(function () {
@@ -135,6 +139,13 @@ Route::group(['middleware' => ['token']], function ($router) {
     // Regions
     Route::controller(RegionController::class)->group(function () {
         Route::get('regions', 'get_regions');
+    });
+
+    // faq
+    Route::controller(FaqController::class)->group(function () {
+        Route::post('faqs', 'store');
+        Route::put('faqs/{id}', 'update');
+        Route::delete('faqs/{id}', 'destroy');
     });
 });
 
