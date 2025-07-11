@@ -126,6 +126,7 @@ class UserCompanyController extends Controller
                 'mail' => $request->mail,
                 'id_user_company_rol' => $request->id_user_company_rol,
                 'invitation_date' => Carbon::now(),
+                'invited_by' => $id_user,
                 'status_id' => 1,
             ]);
 

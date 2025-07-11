@@ -43,3 +43,7 @@ CREATE TABLE company_invitations (
     FOREIGN KEY (id_user_company_rol) REFERENCES users_company_roles(id)
 );
 
+// agregar invited_by
+ALTER TABLE company_invitations
+ADD COLUMN invited_by BIGINT UNSIGNED NULL,
+ADD FOREIGN KEY (invited_by) REFERENCES users(id);
