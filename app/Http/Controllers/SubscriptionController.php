@@ -354,7 +354,7 @@ class SubscriptionController extends Controller
                     'id_user' => $userId,
                     'type' => $data['type'],
                     'data' => json_encode($subscriptionData),
-                    'preapproval_id' => $this->preapprovalId,
+                    'preapproval_id' => $subscriptionData['point_of_interaction']['transaction_data']['subscription_id'] ?? $subscriptionData['metadata']['preapproval_id'],
                     'error_message' => null,
                 ]);
 
