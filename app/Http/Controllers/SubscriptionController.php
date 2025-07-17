@@ -277,6 +277,20 @@ class SubscriptionController extends Controller
                             UserPlan::save_history($userId, 2, $subscriptionData, $subscriptionData['next_payment_date'], $this->preapprovalId);
 
                             Log::info('Historial guardado correctamente');
+
+                            if ($subscriptionData['auto_recurring']['free_trial'] ?? false) {
+                                Log::info('Mes gratis aplicado correctamente');
+                                PaymentHistory::create([
+                                    'id_user' => $userId,
+                                    'type' => 'free_trial',
+                                    'data' => json_encode($subscriptionData),
+                                    'preapproval_id' => $subscriptionData['point_of_interaction']['transaction_data']['subscription_id']
+                                        ?? $subscriptionData['metadata']['preapproval_id'],
+                                    'error_message' => "Primer mes gratuito aplicado",
+                                ]);
+                            } else {
+                                Log::info('Mes gratis no aplicado');
+                            }
                         }
                     } else {
                         Log::error("Usuario no encontrado: $userId");
@@ -350,15 +364,12 @@ class SubscriptionController extends Controller
                     return response()->json(['status' => 'payment updated']);
                 }
 
-                $isFreeTrialPayment = isset($subscriptionData['transaction_amount']) && floatval($subscriptionData['transaction_amount']) == 0;
-
                 PaymentHistory::create([
                     'id_user' => $userId,
-                    'type' => $isFreeTrialPayment ? 'free_trial' : $data['type'],
-                    'data' => json_encode(array_merge($subscriptionData, ['free_trial_applied' => $isFreeTrialPayment])),
-                    'preapproval_id' => $subscriptionData['point_of_interaction']['transaction_data']['subscription_id']
-                        ?? $subscriptionData['metadata']['preapproval_id'],
-                    'error_message' => $isFreeTrialPayment ? 'Primer mes gratuito aplicado' : null,
+                    'type' => $data['type'],
+                    'data' => json_encode($subscriptionData),
+                    'preapproval_id' => $subscriptionData['metadata']['preapproval_id'],
+                    'error_message' => null,
                 ]);
 
                 $user = User::find($userId);
