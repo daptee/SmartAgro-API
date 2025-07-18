@@ -20,28 +20,30 @@ class BusinessIndicators implements WithMultipleSheets
     {
         return [
             0 => $this->createSheetProcessor(PitIndicator::class, ['id_plan', 'date', 'icon']),
-            1 => $this->createSheetProcessor(LivestockInputOutputRatio::class, ['id_plan', 'date', 'month', 'region']),
-            2 => $this->createSheetProcessor(AgriculturalInputOutputRelationship::class, ['id_plan', 'date', 'month', 'region']),
+            1 => $this->createSheetProcessor(LivestockInputOutputRatio::class, ['id_plan', 'date', 'month', 'region'], true),
+            2 => $this->createSheetProcessor(AgriculturalInputOutputRelationship::class, ['id_plan', 'date', 'month', 'region'], true),
             3 => $this->createSheetProcessor(GrossMarginsTrend::class, ['id_plan', 'date', 'region', 'month']),
             4 => $this->createSheetProcessor(GrossMarginsTrend2::class, ['id_plan', 'date', 'region', 'month']),
-            5 => $this->createSheetProcessor(ProductPrice::class, ['id_plan', 'date']),
+            5 => $this->createSheetProcessor(ProductPrice::class, ['id_plan', 'date', 'segment_id']),
             6 => $this->createSheetProcessor(GrossMargin::class, ['id_plan', 'date', 'region']),
         ];
     }
 
-    private function createSheetProcessor($model, $fixedFields)
+    private function createSheetProcessor($model, $fixedFields, $mergePercentage = false)
     {
-        return new class ($model, $fixedFields, $this) implements ToCollection {
+        return new class ($model, $fixedFields, $this, $mergePercentage) implements ToCollection {
             private $model;
             private $fixedFields;
             private $importer;
             private $headers = [];
+            private $mergePercentage;
 
-            public function __construct($model, $fixedFields, $importer)
+            public function __construct($model, $fixedFields, $importer, $mergePercentage)
             {
                 $this->model = $model;
                 $this->fixedFields = $fixedFields;
                 $this->importer = $importer;
+                $this->mergePercentage = $mergePercentage;
             }
 
             public function collection(Collection $rows)
@@ -58,49 +60,69 @@ class BusinessIndicators implements WithMultipleSheets
                         break;
                     }
 
-                    $this->model::create($this->importer->processDynamicSheet(
+                    $parsed = $this->importer->processDynamicSheet(
                         $row,
                         $this->headers,
-                        $this->fixedFields
-                    ));
+                        $this->fixedFields,
+                        $this->mergePercentage
+                    );
+
+                    $this->model::create($parsed);
                 }
             }
         };
     }
 
-    public function processDynamicSheet($row, $headers, $fixedFields)
+    public function processDynamicSheet($row, $headers, $fixedFields, $mergePercentage = false)
     {
         $rowArray = $row->toArray();
         $result = [];
         $data = [];
 
+        $valueMap = [];
+        $percentageMap = [];
+
         foreach ($headers as $index => $header) {
             $value = $rowArray[$index] ?? null;
-            $normalizedHeader = trim($header); 
+            $normalizedHeader = trim($header);
 
-            if ($normalizedHeader === '') {
-                continue; 
-            }
+            if ($normalizedHeader === '')
+                continue;
 
-            
             $mappedHeader = match ($normalizedHeader) {
                 'Plan' => 'id_plan',
                 'Fecha' => 'date',
                 'Icono' => 'icon',
                 'Mes' => 'month',
                 'Region' => 'region',
+                'Segmento' => 'segment_id',
                 default => $normalizedHeader,
             };
 
             if (in_array($mappedHeader, $fixedFields)) {
                 $result[$mappedHeader] = $value;
+            } elseif ($mergePercentage && str_ends_with($normalizedHeader, '%')) {
+                // Remover el "%" y trim
+                $baseKey = trim(str_replace('%', '', $normalizedHeader));
+                $percentageMap[$baseKey] = is_numeric($value) ? (float) $value : null;
             } else {
-                $data[$normalizedHeader] = $value;
+                $valueMap[$normalizedHeader] = is_numeric($value) ? (float) $value : $value;
+            }
+        }
+
+        // Combinar valores con sus porcentajes
+        foreach ($valueMap as $key => $val) {
+            if ($mergePercentage && isset($percentageMap[$key])) {
+                $data[$key] = [
+                    'value' => $val,
+                    'percentage' => $percentageMap[$key]
+                ];
+            } else {
+                $data[$key] = $val;
             }
         }
 
         $result['data'] = $data;
         return $result;
     }
-
 }
