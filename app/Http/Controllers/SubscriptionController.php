@@ -279,6 +279,8 @@ class SubscriptionController extends Controller
                             Log::info('Historial guardado correctamente');
 
                             if ($subscriptionData['auto_recurring']['free_trial'] ?? false) {
+// Log completo de la suscripción
+Log::info('Datos de suscripción recibidos:', $subscriptionData);
                                 Log::info('Mes gratis aplicado correctamente');
                                 PaymentHistory::create([
                                     'id_user' => $userId,
