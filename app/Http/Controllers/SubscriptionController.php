@@ -286,7 +286,7 @@ Log::info('Datos de suscripción recibidos:', $subscriptionData);
                                     'id_user' => $userId,
                                     'type' => 'free_trial',
                                     'data' => json_encode($subscriptionData),
-                                    'preapproval_id' => $subscriptionData['point_of_interaction']['transaction_data']['subscription_id'],
+                                    'preapproval_id' => $subscriptionData['id'],
 'error_message' => "Primer mes gratuito aplicado",
                                 ]);
                             } else {
