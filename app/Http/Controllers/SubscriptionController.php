@@ -285,7 +285,6 @@ class SubscriptionController extends Controller
                                     'type' => 'free_trial',
                                     'data' => json_encode($subscriptionData),
                                     'preapproval_id' => $subscriptionData['point_of_interaction']['transaction_data']['subscription_id']
-                                        ?? $subscriptionData['metadata']['preapproval_id'],
                                     'error_message' => "Primer mes gratuito aplicado",
                                 ]);
                             } else {
@@ -345,7 +344,7 @@ class SubscriptionController extends Controller
                     Log::info("Actualizando pago para preapproval_id: {$subscriptionData['metadata']['preapproval_id']}");
 
                     // Buscar el último PaymentHistory que coincida
-                    $paymentHistory = PaymentHistory::where('preapproval_id', $subscriptionData['metadata']['preapproval_id'])
+                    $paymentHistory = PaymentHistory::where('preapproval_id', $subscriptionData['point_of_interaction']['transaction_data']['subscription_id'])
                         ->orderBy('created_at', 'desc')
                         ->first();
 
@@ -368,7 +367,7 @@ class SubscriptionController extends Controller
                     'id_user' => $userId,
                     'type' => $data['type'],
                     'data' => json_encode($subscriptionData),
-                    'preapproval_id' => $subscriptionData['metadata']['preapproval_id'],
+                    'preapproval_id' => $subscriptionData['point_of_interaction']['transaction_data']['subscription_id'] ?? $subscriptionData['metadata']['preapproval_id'],
                     'error_message' => null,
                 ]);
 
