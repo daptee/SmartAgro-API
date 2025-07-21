@@ -284,8 +284,8 @@ class SubscriptionController extends Controller
                                     'id_user' => $userId,
                                     'type' => 'free_trial',
                                     'data' => json_encode($subscriptionData),
-                                    'preapproval_id' => $subscriptionData['point_of_interaction']['transaction_data']['subscription_id']
-                                    'error_message' => "Primer mes gratuito aplicado",
+                                    'preapproval_id' => $subscriptionData['point_of_interaction']['transaction_data']['subscription_id'],
+'error_message' => "Primer mes gratuito aplicado",
                                 ]);
                             } else {
                                 Log::info('Mes gratis no aplicado');
