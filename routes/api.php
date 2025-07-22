@@ -101,6 +101,7 @@ Route::group(['middleware' => ['token']], function ($router) {
     Route::controller(CompanyPlanController::class)->group(function () {
         Route::get('company-plans', 'index');
         Route::post('company-plans', 'store');
+        Route::put('company-plans/{id}', 'update');
     });
 
     Route::controller(UserCompanyController::class)->group(function () {

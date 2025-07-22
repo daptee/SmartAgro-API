@@ -6,17 +6,18 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
-class ProductPrice extends Model
+class HarvestPrices extends Model
 {
     use HasFactory;
-
-    protected $table = "products_prices";
+    
+    protected $table = "harvest_prices";
 
     protected $fillable = [
         'id_plan',
         'date',
+        'region',
+        'month',
         'data',
-        'segment_id',
     ];
 
     protected function casts(): array

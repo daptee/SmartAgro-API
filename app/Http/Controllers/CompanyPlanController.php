@@ -7,7 +7,6 @@ use App\Models\CompanyPlanPublicitySetting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Audith;
-use Illuminate\Validation\Rule;
 use Exception;
 
 class CompanyPlanController extends Controller
@@ -27,9 +26,14 @@ class CompanyPlanController extends Controller
             $dateStart = $request->query('date_start');
             $dateEnd = $request->query('date_end');
 
-            $query = CompanyPlan::with(['company.category', 'company.locality', 'company.status', 'company.advertisingSpaces', 'status']);
+            $query = CompanyPlan::with([
+                'company.category',
+                'company.locality',
+                'company.status',
+                'company.advertisingSpaces',
+                'status'
+            ]);
 
-            // Filtros
             if (!is_null($company)) {
                 $query->where('id_company', $company);
             }
@@ -43,7 +47,6 @@ class CompanyPlanController extends Controller
                       ->whereDate('date_end', '<=', $request->date_end);
             }
 
-            // Paginación
             $plans = $query->paginate($perPage, ['*'], 'page', $page);
 
             $data = [
@@ -64,6 +67,7 @@ class CompanyPlanController extends Controller
 
         return response(compact("data"));
     }
+
     public function store(Request $request)
     {
         $message = "Error al registrar plan de empresa";
@@ -80,17 +84,6 @@ class CompanyPlanController extends Controller
                 'data' => 'nullable|array',
                 'status' => 'required|in:1,2', // 1: Activo, 2: Inactivo
             ]);
-
-            // Validar que no haya otro plan activo para la misma empresa
-            $hasActive = CompanyPlan::where('id_company', $request->id_company)
-                ->where('status_id', 1)
-                ->exists();
-
-            if ($hasActive && $request->status == 1) {
-                return response([
-                    'message' => 'La empresa ya tiene un plan activo.',
-                ], 409);
-            }
 
             $data = CompanyPlan::create([
                 'id_company' => $request->id_company,
@@ -115,5 +108,44 @@ class CompanyPlanController extends Controller
         }
 
         return response(compact('data'), 201);
+    }
+
+    public function update(Request $request, $id)
+    {
+        $message = "Error al actualizar plan de empresa";
+        $action = "Actualizar plan de empresa";
+        $data = null;
+        $id_user = Auth::user()->id ?? null;
+
+        try {
+            $request->validate([
+                'date_start' => 'required|date',
+                'date_end' => 'required|date|after_or_equal:date_start',
+                'price' => 'required|numeric|min:0',
+                'data' => 'nullable|array',
+                'status' => 'required|in:1,2', // 1: Activo, 2: Inactivo
+            ]);
+
+            $companyPlan = CompanyPlan::findOrFail($id);
+
+            $companyPlan->update([
+                'date_start' => $request->date_start,
+                'date_end' => $request->date_end,
+                'price' => $request->price,
+                'data' => $request->data,
+                'status_id' => $request->status,
+            ]);
+
+            $companyPlan->load(['company.category', 'company.locality', 'company.status', 'status']);
+
+            $data = $companyPlan;
+
+            Audith::new($id_user, $action, $request->all(), 200, compact('data'));
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
+            return response(['message' => $message, 'error' => $e->getMessage()], 500);
+        }
+
+        return response(compact('data'));
     }
 }
