@@ -143,14 +143,14 @@ class ReportController extends Controller
 
             // Consultas a las nuevas tablas
             $data = [
-                'pit_indicators' => PitIndicator::where($filters)->with('plan')->get(),
-                'livestock_input_output_ratios' => LivestockInputOutputRatio::where($filters)->with('plan')->get(),
-                'agricultural_input_output_relationships' => AgriculturalInputOutputRelationship::where($filters)->with('plan')->get(),
-                'gross_margins_trend' => GrossMarginsTrend::where($filters)->with('plan')->get(),
-                'harvest_prices' => HarvestPrices::where($filters)->with('plan')->get(),
-                'product_prices' => ProductPrice::where($filters)->with('plan')->get(),
-                'gross_margins' => GrossMargin::where($filters)->with('plan')->get(),
-                'main_crops_buying_selling_traffic_light' => MainCropsBuyingSellingTrafficLight::where($filters)->with('plan', 'inputs')->get(),
+                'pit_indicators' => PitIndicator::where($filters)->get(),
+                'livestock_input_output_ratios' => LivestockInputOutputRatio::where($filters)->get(),
+                'agricultural_input_output_relationships' => AgriculturalInputOutputRelationship::where($filters)->get(),
+                'gross_margins_trend' => GrossMarginsTrend::where($filters)->get(),
+                'harvest_prices' => HarvestPrices::where($filters)->get(),
+                'product_prices' => ProductPrice::where($filters)->get(),
+                'gross_margins' => GrossMargin::where($filters)->get(),
+                'main_crops_buying_selling_traffic_light' => MainCropsBuyingSellingTrafficLight::where($filters)->get(),
             ];
 
             // Verificar si todos los arrays están vacíos

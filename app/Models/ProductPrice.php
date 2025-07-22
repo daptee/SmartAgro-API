@@ -30,4 +30,9 @@ class ProductPrice extends Model
     {
         return $this->hasOne(Plan::class, 'id', 'id_plan');
     }
+
+    public function segment(): HasOne
+    {
+        return $this->hasOne(Segment::class, 'id', 'segment_id');
+    }
 }
