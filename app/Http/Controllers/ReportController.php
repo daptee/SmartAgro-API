@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Jobs\SendMassEmail;
 use App\Mail\MassNotification;
 use App\Models\AgriculturalInputOutputRelationship;
+use App\Models\MainCropsBuyingSellingTrafficLight;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\News;
@@ -19,7 +20,7 @@ use App\Models\MainGrainPrice;
 use App\Models\Audith;
 use App\Models\GrossMargin;
 use App\Models\GrossMarginsTrend;
-use App\Models\GrossMarginsTrend2;
+use App\Models\HarvestPrices;
 use App\Models\LivestockInputOutputRatio;
 use App\Models\PitIndicator;
 use App\Models\ProductPrice;
@@ -146,15 +147,40 @@ class ReportController extends Controller
                 'livestock_input_output_ratios' => LivestockInputOutputRatio::where($filters)->with('plan')->get(),
                 'agricultural_input_output_relationships' => AgriculturalInputOutputRelationship::where($filters)->with('plan')->get(),
                 'gross_margins_trend' => GrossMarginsTrend::where($filters)->with('plan')->get(),
-                'gross_margins_trend_2' => GrossMarginsTrend2::where($filters)->with('plan')->get(),
+                'harvest_prices' => HarvestPrices::where($filters)->with('plan')->get(),
                 'product_prices' => ProductPrice::where($filters)->with('plan')->get(),
                 'gross_margins' => GrossMargin::where($filters)->with('plan')->get(),
+                'main_crops_buying_selling_traffic_light' => MainCropsBuyingSellingTrafficLight::where($filters)->with('plan', 'inputs')->get(),
             ];
 
             // Verificar si todos los arrays están vacíos
             $allEmpty = collect($data)->every(function ($items) {
                 return $items->isEmpty();
             });
+
+            $trafficLights = $data['main_crops_buying_selling_traffic_light'];
+
+            $transformed = [];
+
+            foreach ($trafficLights as $item) {
+                $inputName = $item->inputs->name;
+                $variable = $item->variable;
+                $cultivos = $item->data;
+
+                foreach ($cultivos as $cultivo => $valor) {
+                    if (!isset($transformed[$cultivo])) {
+                        $transformed[$cultivo] = [];
+                    }
+                    if (!isset($transformed[$cultivo][$inputName])) {
+                        $transformed[$cultivo][$inputName] = [];
+                    }
+
+                    $transformed[$cultivo][$inputName][$variable] = $valor;
+                }
+            }
+
+            $data['main_crops_buying_selling_traffic_light'] = $transformed;
+
 
             if ($allEmpty) {
                 $response = [
@@ -318,7 +344,7 @@ class ReportController extends Controller
                 'livestock_input_output_ratios' => LivestockInputOutputRatio::class,
                 'agricultural_input_output_relationships' => AgriculturalInputOutputRelationship::class,
                 'gross_margins_trend' => GrossMarginsTrend::class,
-                'gross_margins_trend_2' => GrossMarginsTrend2::class,
+                'harvest_prices' => HarvestPrices::class,
                 'product_prices' => ProductPrice::class,
                 'gross_margins' => GrossMargin::class,
             ];

@@ -2,11 +2,12 @@
 
 namespace App\Imports;
 
+use App\Models\MainCropsBuyingSellingTrafficLight;
 use App\Models\PitIndicator;
 use App\Models\LivestockInputOutputRatio;
 use App\Models\AgriculturalInputOutputRelationship;
 use App\Models\GrossMarginsTrend;
-use App\Models\GrossMarginsTrend2;
+use App\Models\HarvestPrices;
 use App\Models\ProductPrice;
 use App\Models\GrossMargin;
 use Maatwebsite\Excel\Concerns\ToCollection;
@@ -23,9 +24,10 @@ class BusinessIndicators implements WithMultipleSheets
             1 => $this->createSheetProcessor(LivestockInputOutputRatio::class, ['id_plan', 'date', 'month', 'region'], true),
             2 => $this->createSheetProcessor(AgriculturalInputOutputRelationship::class, ['id_plan', 'date', 'month', 'region'], true),
             3 => $this->createSheetProcessor(GrossMarginsTrend::class, ['id_plan', 'date', 'region', 'month']),
-            4 => $this->createSheetProcessor(GrossMarginsTrend2::class, ['id_plan', 'date', 'region', 'month']),
+            4 => $this->createSheetProcessor(HarvestPrices::class, ['id_plan', 'date', 'region', 'month']),
             5 => $this->createSheetProcessor(ProductPrice::class, ['id_plan', 'date', 'segment_id']),
             6 => $this->createSheetProcessor(GrossMargin::class, ['id_plan', 'date', 'region']),
+            7 => $this->createSheetProcessor(MainCropsBuyingSellingTrafficLight::class, ['id_plan', 'date', 'input', 'variable']),
         ];
     }
 
@@ -96,6 +98,8 @@ class BusinessIndicators implements WithMultipleSheets
                 'Mes' => 'month',
                 'Region' => 'region',
                 'Segmento' => 'segment_id',
+                'Insumo' => 'input',
+                'Variable' => 'variable',
                 default => $normalizedHeader,
             };
 
