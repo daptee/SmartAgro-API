@@ -106,8 +106,8 @@ class BusinessIndicators implements WithMultipleSheets
             if (in_array($mappedHeader, $fixedFields)) {
                 $result[$mappedHeader] = $value;
             } elseif ($mergePercentage && str_ends_with($normalizedHeader, '%')) {
-                // Remover el "%" y trim
-                $baseKey = trim(str_replace('%', '', $normalizedHeader));
+                // Caso: "producción %54 ganadera %" → base: "producción %54 ganadera"
+                $baseKey = rtrim($normalizedHeader, ' %');
                 $percentageMap[$baseKey] = is_numeric($value) ? (float) $value : null;
             } else {
                 $valueMap[$normalizedHeader] = is_numeric($value) ? (float) $value : $value;
