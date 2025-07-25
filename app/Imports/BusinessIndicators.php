@@ -110,7 +110,7 @@ class BusinessIndicators implements WithMultipleSheets
                 $baseKey = rtrim($normalizedHeader, ' %');
                 $percentageMap[$baseKey] = is_numeric($value) ? (float) $value : null;
             } else {
-                $valueMap[$normalizedHeader] = is_numeric($value) ? (float) $value : $value;
+                $valueMap[$normalizedHeader] = $value ?? null;
             }
         }
 
