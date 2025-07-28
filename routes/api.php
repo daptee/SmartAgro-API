@@ -17,6 +17,7 @@ use App\Http\Controllers\GeneralImportController;
 use App\Http\Controllers\GetsFunctionsController;
 use App\Http\Controllers\LocalityProvinceController;
 use App\Http\Controllers\RegionController;
+use App\Http\Controllers\SegmentController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ResearchOnDemand;
@@ -193,6 +194,9 @@ Route::controller(GetsFunctionsController::class)->group(function () {
 Route::get('/advertising-status', [AdvertisingStatusController::class, 'index']);
 Route::get('/advertising-space', [AdvertisingSpaceController::class, 'index']);
 Route::get('/advertising-companies', [CompaniesAdvertisingController::class, 'index']);
+
+// Segments
+Route::get('segments', [SegmentController::class, 'index']);
 
 // Dolar API
 Route::get('dolar/oficial', function () {

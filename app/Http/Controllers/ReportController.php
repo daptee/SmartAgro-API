@@ -141,42 +141,53 @@ class ReportController extends Controller
                     ->where('id_plan', '<=', $id_plan);
             };
 
+            function getDataOrNull($modelClass, $filters)
+            {
+                $results = $modelClass::where($filters)->get();
+                return $results->isEmpty() ? null : $results;
+            }
+
             // Consultas a las nuevas tablas
             $data = [
-                'pit_indicators' => PitIndicator::where($filters)->get(),
-                'livestock_input_output_ratios' => LivestockInputOutputRatio::where($filters)->get(),
-                'agricultural_input_output_relationships' => AgriculturalInputOutputRelationship::where($filters)->get(),
-                'gross_margins_trend' => GrossMarginsTrend::where($filters)->get(),
-                'harvest_prices' => HarvestPrices::where($filters)->get(),
-                'product_prices' => ProductPrice::where($filters)->get(),
-                'gross_margins' => GrossMargin::where($filters)->get(),
-                'main_crops_buying_selling_traffic_light' => MainCropsBuyingSellingTrafficLight::where($filters)->get(),
+                'pit_indicators' => getDataOrNull(PitIndicator::class, $filters),
+                'livestock_input_output_ratios' => getDataOrNull(LivestockInputOutputRatio::class, $filters),
+                'agricultural_input_output_relationships' => getDataOrNull(AgriculturalInputOutputRelationship::class, $filters),
+                'gross_margins_trend' => getDataOrNull(GrossMarginsTrend::class, $filters),
+                'harvest_prices' => getDataOrNull(HarvestPrices::class, $filters),
+                'product_prices' => getDataOrNull(ProductPrice::class, $filters),
+                'gross_margins' => getDataOrNull(GrossMargin::class, $filters),
+                'main_crops_buying_selling_traffic_light' => getDataOrNull(MainCropsBuyingSellingTrafficLight::class, $filters),
             ];
+
 
             // Verificar si todos los arrays están vacíos
             $allEmpty = collect($data)->every(function ($items) {
-                return $items->isEmpty();
+                return is_null($items) || $items->isEmpty();
             });
 
             $trafficLights = $data['main_crops_buying_selling_traffic_light'];
 
             $transformed = [];
 
-            foreach ($trafficLights as $item) {
-                $inputName = $item->inputs->name;
-                $variable = $item->variable;
-                $cultivos = $item->data;
+            if ($trafficLights) {
+                foreach ($trafficLights as $item) {
+                    $inputName = $item->inputs->name;
+                    $variable = $item->variable;
+                    $cultivos = $item->data;
 
-                foreach ($cultivos as $cultivo => $valor) {
-                    if (!isset($transformed[$cultivo])) {
-                        $transformed[$cultivo] = [];
-                    }
-                    if (!isset($transformed[$cultivo][$inputName])) {
-                        $transformed[$cultivo][$inputName] = [];
-                    }
+                    foreach ($cultivos as $cultivo => $valor) {
+                        if (!isset($transformed[$cultivo])) {
+                            $transformed[$cultivo] = [];
+                        }
+                        if (!isset($transformed[$cultivo][$inputName])) {
+                            $transformed[$cultivo][$inputName] = [];
+                        }
 
-                    $transformed[$cultivo][$inputName][$variable] = $valor;
+                        $transformed[$cultivo][$inputName][$variable] = $valor;
+                    }
                 }
+            } else {
+                $transformed = null;
             }
 
             $data['main_crops_buying_selling_traffic_light'] = $transformed;
