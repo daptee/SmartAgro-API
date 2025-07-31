@@ -16,6 +16,7 @@ class PriceMainActiveIngredientsProducer extends Model
         'id_plan',
         'date',
         'data',
+        'segment_id'
     ];
 
     protected function casts(): array

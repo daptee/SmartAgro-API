@@ -18,3 +18,7 @@ INSERT INTO segments (name, status_id) VALUES
 ALTER TABLE products_prices
 ADD COLUMN segment_id INT,
 ADD FOREIGN KEY (segment_id) REFERENCES segments(id);
+
+ALTER TABLE prices_main_active_ingredients_producers
+ADD COLUMN segment_id INT NULL,
+ADD FOREIGN KEY (segment_id) REFERENCES segments(id);
