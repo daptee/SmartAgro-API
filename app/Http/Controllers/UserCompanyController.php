@@ -121,6 +121,8 @@ class UserCompanyController extends Controller
                 return response()->json($response, 422);
             }
 
+            Log::info("user_id: $id_user, action: $action, request_data: ", $request->all());
+
             $data = CompanyInvitation::create([
                 'id_company_plan' => $request->id_company_plan,
                 'mail' => $request->mail,

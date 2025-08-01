@@ -15,6 +15,7 @@ class CompanyInvitation extends Model
         'id_company_plan',
         'mail',
         'id_user_company_rol',
+        'invited_by',    
         'invitation_date',
         'status_id'
     ];
