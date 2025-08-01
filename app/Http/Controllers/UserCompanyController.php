@@ -244,6 +244,10 @@ class UserCompanyController extends Controller
                 $activeInvitationsCount->where('id_company_plan', $companyPlan);
             }
             $activeInvitationsCount = $activeInvitationsCount->count();
+
+            // Sumamos 1 por el administrador de la empresa
+            $totalUsersCount = $activeInvitationsCount + 1;
+
             // Procesar cada invitación para verificar si hay un usuario registrado
             $formatted = [];
             foreach ($results->items() as $invitation) {
@@ -271,7 +275,7 @@ class UserCompanyController extends Controller
                     'per_page' => $results->perPage(),
                     'total' => $results->total(),
                     'last_page' => $results->lastPage(),
-                    'active_invitations_count' => $activeInvitationsCount,
+                    'active_invitations_count' => $totalUsersCount,
                 ]
             ];
 
