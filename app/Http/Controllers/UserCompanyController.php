@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Mail\InvitationUserCompanyMailable;
+use App\Models\CompanyPlan;
 use App\Models\StatusInvitation;
 use App\Models\UsersCompany;
 use App\Models\CompanyInvitation;
@@ -222,8 +223,28 @@ class UserCompanyController extends Controller
             $perPage = $request->query('per_page', 10);
             $page = $request->query('page', 1);
 
-            $query = CompanyInvitation::with('rol', 'plan.company.locality', 'plan.company.status', 'plan.company.category', 'plan.status', 'status');
+            if(is_null($companyPlan)) {
+                $response = [
+                    'message' => 'El parámetro company_plan debe ser obligatorio.',
+                    'error_code' => 422
+                ];
+                Audith::new($id_user, $action, $request->all(), 422, $response);
+                return response()->json($response, 422);
+            }
 
+            // verificar si la empresa existe
+            $companyExists = CompanyPlan::where('id', $companyPlan)->exists();
+            if (!$companyExists) {
+                $response = [
+                    'message' => 'La empresa especificada no existe.',
+                    'error_code' => 404
+                ];
+                Audith::new($id_user, $action, $request->all(), 404, $response);
+                return response()->json($response, 404);
+            }
+
+            $query = CompanyInvitation::with('rol', 'plan.company.locality', 'plan.company.status', 'plan.company.category', 'plan.status', 'status');
+            
             // Aplicar filtro si llega el parámetro 'company'
             if (!is_null($companyPlan)) {
                 $query->where('id_company_plan', $companyPlan);
