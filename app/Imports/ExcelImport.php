@@ -162,14 +162,15 @@ class ExcelImport implements WithMultipleSheets
         $jsonData = [
             'activo' => $row[2],
             'nomenclatura resumida' => $row[3],
-            '23/24' => $row[4],
-            '24/25' => $row[5],
+            '23/24' => $row[5],
+            '24/25' => $row[6],
         ];
         
         return [
             'id_plan' => $row[0],
             'date' => $row[1],
             'data' => $jsonData,
+            'segment_id' => $row[4],
         ];
     }
 

@@ -12,10 +12,12 @@ use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\CompanyPlanController;
 use App\Http\Controllers\CompanyPlanPublicityController;
 use App\Http\Controllers\CompanyRolesController;
+use App\Http\Controllers\FaqController;
 use App\Http\Controllers\GeneralImportController;
 use App\Http\Controllers\GetsFunctionsController;
 use App\Http\Controllers\LocalityProvinceController;
 use App\Http\Controllers\RegionController;
+use App\Http\Controllers\SegmentController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ResearchOnDemand;
@@ -32,6 +34,9 @@ Route::get('/backup', [BackupController::class, 'createBackup'])->name('backup')
 
 // update payment
 Route::get('/cron-payment', [SubscriptionController::class, 'cronPayment'])->name('cron-payment');
+
+// faq sin token
+Route::get('faqs', [FaqController::class, 'index']);
 
 // Auth
 Route::controller(AuthController::class)->group(function () {
@@ -97,6 +102,7 @@ Route::group(['middleware' => ['token']], function ($router) {
     Route::controller(CompanyPlanController::class)->group(function () {
         Route::get('company-plans', 'index');
         Route::post('company-plans', 'store');
+        Route::put('company-plans/{id}', 'update');
     });
 
     Route::controller(UserCompanyController::class)->group(function () {
@@ -135,6 +141,13 @@ Route::group(['middleware' => ['token']], function ($router) {
     // Regions
     Route::controller(RegionController::class)->group(function () {
         Route::get('regions', 'get_regions');
+    });
+
+    // faq
+    Route::controller(FaqController::class)->group(function () {
+        Route::post('faqs', 'store');
+        Route::put('faqs/{id}', 'update');
+        Route::delete('faqs/{id}', 'destroy');
     });
 });
 
@@ -181,6 +194,9 @@ Route::controller(GetsFunctionsController::class)->group(function () {
 Route::get('/advertising-status', [AdvertisingStatusController::class, 'index']);
 Route::get('/advertising-space', [AdvertisingSpaceController::class, 'index']);
 Route::get('/advertising-companies', [CompaniesAdvertisingController::class, 'index']);
+
+// Segments
+Route::get('segments', [SegmentController::class, 'index']);
 
 // Dolar API
 Route::get('dolar/oficial', function () {

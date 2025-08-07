@@ -16,6 +16,7 @@ class ProductPrice extends Model
         'id_plan',
         'date',
         'data',
+        'segment_id',
     ];
 
     protected function casts(): array
@@ -28,5 +29,10 @@ class ProductPrice extends Model
     public function plan(): HasOne
     {
         return $this->hasOne(Plan::class, 'id', 'id_plan');
+    }
+
+    public function segment(): HasOne
+    {
+        return $this->hasOne(Segment::class, 'id', 'segment_id');
     }
 }

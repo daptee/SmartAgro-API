@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Mail\InvitationUserCompanyMailable;
+use App\Models\CompanyPlan;
 use App\Models\StatusInvitation;
 use App\Models\UsersCompany;
 use App\Models\CompanyInvitation;
@@ -121,11 +122,14 @@ class UserCompanyController extends Controller
                 return response()->json($response, 422);
             }
 
+            Log::info("user_id: $id_user, action: $action, request_data: ", $request->all());
+
             $data = CompanyInvitation::create([
                 'id_company_plan' => $request->id_company_plan,
                 'mail' => $request->mail,
                 'id_user_company_rol' => $request->id_user_company_rol,
                 'invitation_date' => Carbon::now(),
+                'invited_by' => $id_user,
                 'status_id' => 1,
             ]);
 
@@ -219,8 +223,28 @@ class UserCompanyController extends Controller
             $perPage = $request->query('per_page', 10);
             $page = $request->query('page', 1);
 
-            $query = CompanyInvitation::with('rol', 'plan.company.locality', 'plan.company.status', 'plan.company.category', 'plan.status', 'status');
+            if(is_null($companyPlan)) {
+                $response = [
+                    'message' => 'El parámetro company_plan debe ser obligatorio.',
+                    'error_code' => 422
+                ];
+                Audith::new($id_user, $action, $request->all(), 422, $response);
+                return response()->json($response, 422);
+            }
 
+            // verificar si la empresa existe
+            $companyExists = CompanyPlan::where('id', $companyPlan)->exists();
+            if (!$companyExists) {
+                $response = [
+                    'message' => 'La empresa especificada no existe.',
+                    'error_code' => 404
+                ];
+                Audith::new($id_user, $action, $request->all(), 404, $response);
+                return response()->json($response, 404);
+            }
+
+            $query = CompanyInvitation::with('rol', 'plan.company.locality', 'plan.company.status', 'plan.company.category', 'plan.status', 'status');
+            
             // Aplicar filtro si llega el parámetro 'company'
             if (!is_null($companyPlan)) {
                 $query->where('id_company_plan', $companyPlan);
@@ -241,6 +265,10 @@ class UserCompanyController extends Controller
                 $activeInvitationsCount->where('id_company_plan', $companyPlan);
             }
             $activeInvitationsCount = $activeInvitationsCount->count();
+
+            // Sumamos 1 por el administrador de la empresa
+            $totalUsersCount = $activeInvitationsCount + 1;
+
             // Procesar cada invitación para verificar si hay un usuario registrado
             $formatted = [];
             foreach ($results->items() as $invitation) {
@@ -268,7 +296,7 @@ class UserCompanyController extends Controller
                     'per_page' => $results->perPage(),
                     'total' => $results->total(),
                     'last_page' => $results->lastPage(),
-                    'active_invitations_count' => $activeInvitationsCount,
+                    'active_invitations_count' => $totalUsersCount,
                 ]
             ];
 

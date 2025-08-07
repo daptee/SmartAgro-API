@@ -2,11 +2,12 @@
 
 namespace App\Imports;
 
+use App\Models\MainCropsBuyingSellingTrafficLight;
 use App\Models\PitIndicator;
 use App\Models\LivestockInputOutputRatio;
 use App\Models\AgriculturalInputOutputRelationship;
 use App\Models\GrossMarginsTrend;
-use App\Models\GrossMarginsTrend2;
+use App\Models\HarvestPrices;
 use App\Models\ProductPrice;
 use App\Models\GrossMargin;
 use Maatwebsite\Excel\Concerns\ToCollection;
@@ -19,177 +20,113 @@ class BusinessIndicators implements WithMultipleSheets
     public function sheets(): array
     {
         return [
-            0 => $this->createSheetProcessor(PitIndicator::class, 1, function ($row, $headers) {
-                return $this->processPitIndicatorSheet($row);
-            }),
-            1 => $this->createSheetProcessor(LivestockInputOutputRatio::class, 1, function ($row, $headers) {
-                return $this->processLivestockInputOutputRatioSheet($row);
-            }),
-            2 => $this->createSheetProcessor(AgriculturalInputOutputRelationship::class, 1, function ($row, $headers) {
-                return $this->processAgriculturalInputOutputRelationshipSheet($row, $headers);
-            }),
-            3 => $this->createSheetProcessor(GrossMarginsTrend::class, 1, function ($row, $headers) {
-                return $this->processGrossMarginsTrendSheet($row);
-            }),
-            4 => $this->createSheetProcessor(GrossMarginsTrend2::class, 1, function ($row, $headers) {
-                return $this->processGrossMarginsTrend2Sheet($row);
-            }),
-            5 => $this->createSheetProcessor(ProductPrice::class, 1, function ($row, $headers) {
-                return $this->processProductPricesSheet($row);
-            }),
-            6 => $this->createSheetProcessor(GrossMargin::class, 1, function ($row, $headers) {
-                return $this->processGrossMarginSheet($row);
-            }),
+            0 => $this->createSheetProcessor(PitIndicator::class, ['id_plan', 'date', 'icon']),
+            1 => $this->createSheetProcessor(LivestockInputOutputRatio::class, ['id_plan', 'date', 'month', 'region'], true),
+            2 => $this->createSheetProcessor(AgriculturalInputOutputRelationship::class, ['id_plan', 'date', 'month', 'region'], true),
+            3 => $this->createSheetProcessor(GrossMarginsTrend::class, ['id_plan', 'date', 'region', 'month']),
+            4 => $this->createSheetProcessor(HarvestPrices::class, ['id_plan', 'date', 'region', 'month']),
+            5 => $this->createSheetProcessor(ProductPrice::class, ['id_plan', 'date', 'segment_id']),
+            6 => $this->createSheetProcessor(GrossMargin::class, ['id_plan', 'date', 'region']),
+            7 => $this->createSheetProcessor(MainCropsBuyingSellingTrafficLight::class, ['id_plan', 'date', 'input', 'variable']),
         ];
     }
 
-    private function createSheetProcessor($model, $rowsToSkip, callable $rowProcessor)
+    private function createSheetProcessor($model, $fixedFields, $mergePercentage = false)
     {
-        return new class ($model, $rowsToSkip, $rowProcessor) implements ToCollection {
+        return new class ($model, $fixedFields, $this, $mergePercentage) implements ToCollection {
             private $model;
-            private $rowsToSkip;
-            private $rowProcessor;
+            private $fixedFields;
+            private $importer;
             private $headers = [];
+            private $mergePercentage;
 
-            public function __construct($model, $rowsToSkip, callable $rowProcessor)
+            public function __construct($model, $fixedFields, $importer, $mergePercentage)
             {
                 $this->model = $model;
-                $this->rowsToSkip = $rowsToSkip;
-                $this->rowProcessor = $rowProcessor;
+                $this->fixedFields = $fixedFields;
+                $this->importer = $importer;
+                $this->mergePercentage = $mergePercentage;
             }
 
             public function collection(Collection $rows)
             {
-                // Guardamos los encabezados de la primera fila
-                $this->headers = $rows->shift()->toArray();
-
                 if ($rows->isEmpty()) {
                     Log::error('El archivo está vacío o no contiene datos válidos.');
                     return;
                 }
+
+                $this->headers = $rows->shift()->toArray();
 
                 foreach ($rows as $row) {
                     if ($row->filter()->isEmpty()) {
                         break;
                     }
 
-                    $this->model::create(call_user_func($this->rowProcessor, $row, $this->headers));
+                    $parsed = $this->importer->processDynamicSheet(
+                        $row,
+                        $this->headers,
+                        $this->fixedFields,
+                        $this->mergePercentage
+                    );
+
+                    $this->model::create($parsed);
                 }
             }
         };
     }
 
-    // Procesador para la hoja de indicadores PIT
-    private function processPitIndicatorSheet($row)
+    public function processDynamicSheet($row, $headers, $fixedFields, $mergePercentage = false)
     {
-        return [
-            'id_plan' => $row[0],
-            'date' => $row[1],
-            'icon' => $row[2],
-            'data' => [
-                'title' => $row[3],
-                'value' => $row[4],
-                'unit' => $row[5],
-                'text' => $row[6],
-            ],
-        ];
-    }
-
-    // Procesador para la relación insumo-producto agrícola (con encabezados dinámicos)
-    private function processAgriculturalInputOutputRelationshipSheet($row, $headers)
-    {
+        $rowArray = $row->toArray();
+        $result = [];
         $data = [];
 
-        // Empezamos desde la posición 4 porque los primeros 4 elementos son fijos (id_plan, date, etc.)
-        for ($i = 4; $i < count($row); $i++) {
-            if (isset($headers[$i])) {
-                $data[$headers[$i]] = $row[$i] ?? null;
+        $valueMap = [];
+        $percentageMap = [];
+
+        foreach ($headers as $index => $header) {
+            $value = $rowArray[$index] ?? null;
+            $normalizedHeader = trim($header);
+
+            if ($normalizedHeader === '')
+                continue;
+
+            $mappedHeader = match ($normalizedHeader) {
+                'Plan' => 'id_plan',
+                'Fecha' => 'date',
+                'Icono' => 'icon',
+                'Mes' => 'month',
+                'Region' => 'region',
+                'Segmento' => 'segment_id',
+                'Insumo' => 'input',
+                'Variable' => 'variable',
+                default => $normalizedHeader,
+            };
+
+            if (in_array($mappedHeader, $fixedFields)) {
+                $result[$mappedHeader] = $value;
+            } elseif ($mergePercentage && str_ends_with($normalizedHeader, '%')) {
+                // Caso: "producción %54 ganadera %" → base: "producción %54 ganadera"
+                $baseKey = rtrim($normalizedHeader, ' %');
+                $percentageMap[$baseKey] = is_numeric($value) ? (float) $value : null;
+            } else {
+                $valueMap[$normalizedHeader] = $value ?? null;
             }
         }
 
-        return [
-            'id_plan' => $row[0] ?? null,
-            'date' => $row[1] ?? null,
-            'month' => $row[2] ?? null,
-            'region' => $row[3] ?? null,
-            'data' => $data,
-        ];
-    }
+        // Combinar valores con sus porcentajes
+        foreach ($valueMap as $key => $val) {
+            if ($mergePercentage && isset($percentageMap[$key])) {
+                $data[$key] = [
+                    'value' => $val,
+                    'percentage' => $percentageMap[$key]
+                ];
+            } else {
+                $data[$key] = $val;
+            }
+        }
 
-    private function processLivestockInputOutputRatioSheet($row)
-    {
-        return [
-            'id_plan' => $row[0],
-            'date' => $row[1],
-            'month' => $row[2],
-            'region' => $row[3],
-            'data' => [
-                'Maiz / Novillo (Kg/Kg)' => $row[4],
-                'Relacion Novillo / Ternero (Kg/Kg)' => $row[5],
-            ],
-        ];
-    }
-
-    private function processGrossMarginsTrendSheet($row)
-    {
-        return [
-            'id_plan' => $row[0],
-            'date' => $row[1],
-            'region' => $row[2],
-            'month' => $row[3],
-            'data' => [
-                'Maiz' => $row[4],
-                'Soja' => $row[5],
-                'Girasol' => $row[6],
-                'Trigo' => $row[7],
-            ],
-        ];
-    }
-
-    private function processGrossMarginsTrend2Sheet($row)
-    {
-        return [
-            'id_plan' => $row[0],
-            'date' => $row[1],
-            'region' => $row[2],
-            'month' => $row[3],
-            'data' => [
-                'Maiz' => $row[4],
-                'Soja' => $row[5],
-                'Girasol' => $row[6],
-                'Trigo' => $row[7],
-            ],
-        ];
-    }
-
-    private function processProductPricesSheet($row)
-    {
-        return [
-            'id_plan' => $row[0],
-            'date' => $row[1],
-            'data' => [
-                'Marca comercial' => $row[2],
-                'Activo resumido' => $row[3],
-                '22/23' => $row[4],
-                '23/24' => $row[5],
-                '24/25' => $row[6],
-            ],
-        ];
-    }
-
-    private function processGrossMarginSheet($row)
-    {
-        return [
-            'id_plan' => $row[0],
-            'date' => $row[1],
-            'region' => $row[2],
-            'data' => [
-                'Mes actual' => $row[3],
-                'Maiz' => $row[4],
-                'Soja' => $row[5],
-                'Girasol' => $row[6],
-                'Trigo' => $row[7],
-            ],
-        ];
+        $result['data'] = $data;
+        return $result;
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Audith;
+use App\Models\CompanyInvitation;
 use App\Models\User;
 use App\Models\UserPlan;
 use App\Models\UserProfile;
@@ -81,11 +82,9 @@ class UserController extends Controller
                 Log::info($data['id']);
                 $existingRecord = UserPlan::where('id_user', $data['id'])->latest()->first();
                 if ($existingRecord) {
-                    // Decodificamos el campo 'data' a array
                     $existingRecord->data = json_decode($existingRecord->data, true);
                 }
 
-                // Agrega el registro dentro de "plan"
                 $data['plan']['user_plan'] = $existingRecord ?? 'Sin plan asignado';
                 Log::info($data);
             }
@@ -105,6 +104,26 @@ class UserController extends Controller
 
                 $data['rol'] = $company?->rol;
                 $data['company_plan'] = $company?->plan;
+
+                // 🔍 Buscar la invitación asociada (por email del usuario)
+                $invitation = CompanyInvitation::where('mail', $data['email'])
+                    ->where('id_company_plan', $company?->id_company_plan)
+                    ->latest()
+                    ->first();
+
+                if ($invitation && $invitation->invited_by) {
+                    $invitedByUser = User::find($invitation->invited_by);
+                    if ($invitedByUser) {
+                        $data['invited_by_user'] = [
+                            'id' => $invitedByUser->id,
+                            'name' => $invitedByUser->name,
+                            'last_name' => $invitedByUser->last_name,
+                            'email' => $invitedByUser->email,
+                        ];
+                    }
+                } else {
+                    $data['invited_by_user'] = null; // No se encontró invitación o no hay usuario asociado
+                }
             }
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
@@ -115,10 +134,8 @@ class UserController extends Controller
             return response($response, 500);
         }
 
-        // Devolvemos los datos modificados correctamente
         return response(compact("data"));
     }
-
 
     /**
      * Update the specified resource in storage.
