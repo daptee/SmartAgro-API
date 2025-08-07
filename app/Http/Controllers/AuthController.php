@@ -314,7 +314,7 @@ class AuthController extends Controller
         return $this->respondWithToken($token, $company);
     }
 
-    public function auth_login_company_plan(LoginRequest $request)
+    public function auth_login_admin(LoginRequest $request)
     {
         $credentials = $request->only('email', 'password');
         $action = "Login administrador empresa";
@@ -347,27 +347,23 @@ class AuthController extends Controller
                 return response()->json($response, 401);
             }
 
-            // Verificar que es plan empresa
-            if ($user->id_plan != 3) {
-                $response = ['message' => 'El usuario no pertenece a una empresa.'];
+            // Verificar si el usuario tiene el rol de administrador
+
+            $isAdmin = $user->roles()->where('name', 'admin')->exists();
+
+            if (!$isAdmin) {
+                $response = ['message' => 'Usuario no autorizado para acceder.'];
                 Audith::new($user->id, $action, $credentials, 403, $response);
                 return response()->json($response, 403);
             }
 
-            // Verificar que tiene rol 1 (admin empresa)
-            $company = UsersCompany::where('id_user', $user->id)
-                ->with('plan.company')
-                ->first();
-
-            if (!$company || $company->id_user_company_rol != 1) {
-                $response = ['message' => 'Acceso denegado. El usuario no es administrador de empresa.'];
-                Audith::new($user->id, $action, $credentials, 403, $response);
-                return response()->json($response, 403);
+            if ($user->id_plan == 3) {
+                $company = UsersCompany::where('id_user', $user->id)
+                    ->with('plan.company')
+                    ->first();
             }
 
-            // Registro exitoso en logs
             Audith::new($user->id, $action, $credentials, 200, $this->respondWithToken($token, $company));
-
             return $this->respondWithToken($token, $company);
 
         } catch (Exception $e) {

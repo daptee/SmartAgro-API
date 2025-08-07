@@ -90,6 +90,11 @@ class User extends Authenticatable implements JWTSubject
         return $this->hasOne(UserStatus::class, 'id', 'id_status');
     }
 
+    public function roles()
+    {
+        return $this->belongsToMany(Role::class, 'user_roles', 'id_user', 'id_role');
+    }
+
     public function getJWTIdentifier()
     {
         return $this->getKey();
@@ -115,6 +120,7 @@ class User extends Authenticatable implements JWTSubject
             'locality_name' => $this->locality_name,
             'province_name' => $this->province_name,
             'country' => $this->country,
+            'roles' => $this->roles,
         ];
 
         // Solo si el plan es 3, buscar los datos de la empresa
