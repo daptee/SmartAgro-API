@@ -87,21 +87,21 @@ class ExcelImport implements WithMultipleSheets
     private function processMajorCropSheet($row)
     {
         $jsonData = [
-            'avance cosecha' => ['% Cosechado 23/24' => $row[4]],
+            'avance cosecha' => ['% Cosechado 24/25' => $row[4]],
             'area sembrada (ha)' => [
-                '%  Sembrado 24/25' => $row[3],
-                '23/24' => $row[5],
-                '24/25' => $row[6],
+                '%  Sembrado 25/26' => $row[3],
+                '24/25' => $row[5],
+                '25/26' => $row[6],
                 'var (%)' => $row[7]
             ],
             'rinde (qq/ha)' => [
-                '23/24' => $row[8],
-                '24/25' => $row[9],
+                '24/25' => $row[8],
+                '25/26' => $row[9],
                 'var (%)' => $row[10]
             ],
             'produccion (Ton)' => [
-                '23/24' => $row[11],
-                '24/25 (proyección)' => $row[12],
+                '24/25' => $row[11],
+                '25/26 (proyección)' => $row[12],
                 'var (%)' => $row[13]
             ]
         ];
@@ -162,8 +162,8 @@ class ExcelImport implements WithMultipleSheets
         $jsonData = [
             'activo' => $row[2],
             'nomenclatura resumida' => $row[3],
-            '23/24' => $row[5],
-            '24/25' => $row[6],
+            '24/25' => $row[5],
+            '25/26' => $row[6],
         ];
         
         return [
@@ -178,8 +178,8 @@ class ExcelImport implements WithMultipleSheets
     {
         $jsonData = [
             'USD/Kg o Lt' => $row[2],
-            '23/24' => $row[3],
-            '24/25' => $row[4],
+            '24/25' => $row[3],
+            '25/26' => $row[4],
         ];
         
         return [
@@ -193,10 +193,10 @@ class ExcelImport implements WithMultipleSheets
     {
         $jsonData = [
             'REGISTRO DE LLUVIAS X PROVINCIA' => $row[2],
-            'PROM 23/24' => $row[3],
-            'ACUM 23/24' => $row[4],
-            'PROM 24/25' => $row[5],
-            'ACUM 24/25' => $row[6],
+            'PROM 24/25' => $row[3],
+            'ACUM 24/25' => $row[4],
+            'PROM 25/26' => $row[5],
+            'ACUM 25/26' => $row[6],
             'Var. Acum 24 Vs 23' => $row[7],
         ];
         

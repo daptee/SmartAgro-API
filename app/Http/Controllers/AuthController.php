@@ -134,14 +134,14 @@ class AuthController extends Controller
                         $data_invitation = $this->accept_invitation($id_invitation, $request);
 
                         Log::info($data_invitation);
-    
+
                         $company = $data_invitation['user_company']['plan']['company'] ?? null;
-    
+
                         if ($company) {
                             $new_user->update(['id_plan' => 3]);
-    
+
                             $data['company'] = $company;
-    
+
                             UserPlan::save_history($new_user->id, 3, ['reason' => 'Aceptó la invitación al plan de empresa', 'company' => $company], null, null);
                             Mail::to($new_user->email)->send(new WelcomeUserMailable($new_user));
                             Audith::new($new_user->id, "Envio de mail de bienvenida de empresa exitoso.", $request->all(), 200, null);
@@ -157,7 +157,7 @@ class AuthController extends Controller
                     Log::debug(["message" => "Error al enviar mail de bienvenida.", "error" => $e->getMessage(), "line" => $e->getLine()]);
                     // Retornamos que no se pudo enviar el mail o no hace falta solo queda en el log?
                 }
-            }            
+            }
         } else {
             $response = ['message' => 'Error en validacion de recaptcha.'];
             Audith::new(null, $action, $request->all(), $status, $response);
@@ -166,7 +166,7 @@ class AuthController extends Controller
 
         return response(compact("message", "data"));
     }
-    
+
     public function resend_welcome_email(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -312,6 +312,70 @@ class AuthController extends Controller
         Log::info($company);
 
         return $this->respondWithToken($token, $company);
+    }
+
+    public function auth_login_company_plan(LoginRequest $request)
+    {
+        $credentials = $request->only('email', 'password');
+        $action = "Login administrador empresa";
+
+        try {
+            $user = User::where('email', $credentials['email'])->first();
+
+            if (!$user) {
+                $response = ['message' => 'Usuario y/o clave no válidos.'];
+                Audith::new(null, $action, $credentials, 400, $response);
+                return response()->json($response, 400);
+            }
+
+            if (is_null($user->email_confirmation)) {
+                $response = ['message' => 'La cuenta no está verificada. Por favor, verifica tu correo electrónico.'];
+                Audith::new($user->id, $action, $credentials, 400, $response);
+                return response()->json($response, 400);
+            }
+
+            if ($user->id_status == 2) {
+                $response = ['message' => 'Usuario y/o clave no válidos.'];
+                Audith::new($user->id, $action, $credentials, 400, $response);
+                return response()->json($response, 400);
+            }
+
+            // Intentar autenticación
+            if (!$token = auth()->attempt($credentials)) {
+                $response = ['message' => 'Usuario y/o clave no válidos.'];
+                Audith::new(null, $action, $credentials, 401, $response);
+                return response()->json($response, 401);
+            }
+
+            // Verificar que es plan empresa
+            if ($user->id_plan != 3) {
+                $response = ['message' => 'El usuario no pertenece a una empresa.'];
+                Audith::new($user->id, $action, $credentials, 403, $response);
+                return response()->json($response, 403);
+            }
+
+            // Verificar que tiene rol 1 (admin empresa)
+            $company = UsersCompany::where('id_user', $user->id)
+                ->with('plan.company')
+                ->first();
+
+            if (!$company || $company->id_user_company_rol != 1) {
+                $response = ['message' => 'Acceso denegado. El usuario no es administrador de empresa.'];
+                Audith::new($user->id, $action, $credentials, 403, $response);
+                return response()->json($response, 403);
+            }
+
+            // Registro exitoso en logs
+            Audith::new($user->id, $action, $credentials, 200, $this->respondWithToken($token, $company));
+
+            return $this->respondWithToken($token, $company);
+
+        } catch (Exception $e) {
+            $response = ["message" => "Error al intentar autenticar al administrador.", "error" => $e->getMessage(), "line" => $e->getLine()];
+            Audith::new(null, $action, $credentials, 500, $response);
+            Log::debug($response);
+            return response()->json($response, 500);
+        }
     }
 
 
@@ -492,7 +556,7 @@ class AuthController extends Controller
                 Audith::new($id_user, $action, $request->all(), 422, $response);
                 return response()->json($response, 422);
             }
-            
+
             $invitation->update([
                 'status_id' => 2,
             ]);
@@ -520,7 +584,8 @@ class AuthController extends Controller
         return $data;
     }
 
-    public function valid_invitation($invitation_token, $user_email){
+    public function valid_invitation($invitation_token, $user_email)
+    {
 
         $id_invitation = Crypt::decrypt($invitation_token);
         $invitation = CompanyInvitation::find($id_invitation);

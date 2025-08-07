@@ -94,7 +94,7 @@ class User extends Authenticatable implements JWTSubject
     {
         return $this->getKey();
     }
- 
+
     /**
      * Return a key value array, containing any custom claims to be added to the JWT.
      *
@@ -102,7 +102,7 @@ class User extends Authenticatable implements JWTSubject
      */
     public function getJWTCustomClaims()
     {
-        return [
+        $claims = [
             'id' => $this->id,
             'name' => $this->name,
             'last_name' => $this->last_name,
@@ -110,13 +110,26 @@ class User extends Authenticatable implements JWTSubject
             'locality' => $this->locality,
             'profile' => $this->profile,
             'plan' => $this->plan,
-            'status' => $this->status, 
+            'status' => $this->status,
             'profile_picture' => $this->profile_picture,
             'locality_name' => $this->locality_name,
             'province_name' => $this->province_name,
-            'country' => $this->country
-            // 'user_type' => $this->user_type,
-            // 'email_confirmation' => $this->email_confirmation
+            'country' => $this->country,
         ];
+
+        // Solo si el plan es 3, buscar los datos de la empresa
+        if ($this->id_plan == 3) {
+            $company = UsersCompany::where('id_user', $this->id)
+                ->with('plan.company')
+                ->first();
+
+            if ($company && $company->plan && $company->plan->company) {// ← convierte el modelo a array
+
+                $claims['company_plan'] = $company;
+            }
+        }
+
+        return $claims;
     }
+
 }
