@@ -42,6 +42,7 @@ Route::get('faqs', [FaqController::class, 'index']);
 Route::controller(AuthController::class)->group(function () {
     Route::post('auth/register', 'auth_register');
     Route::post('auth/login', 'auth_login');
+    Route::post('auth/login-admin', 'auth_login_admin');
     Route::post('auth/password-recovery', 'auth_password_recovery');
     Route::post('auth/password-recovery-token', 'auth_password_recovery_token');
     Route::post('auth/account-confirmation', 'auth_account_confirmation');
