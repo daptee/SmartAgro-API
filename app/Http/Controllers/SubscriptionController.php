@@ -279,15 +279,15 @@ class SubscriptionController extends Controller
                             Log::info('Historial guardado correctamente');
 
                             if ($subscriptionData['auto_recurring']['free_trial'] ?? false) {
-// Log completo de la suscripción
-Log::info('Datos de suscripción recibidos:', $subscriptionData);
+                                // Log completo de la suscripción
+                                Log::info('Datos de suscripción recibidos:', $subscriptionData);
                                 Log::info('Mes gratis aplicado correctamente');
                                 PaymentHistory::create([
                                     'id_user' => $userId,
                                     'type' => 'free_trial',
                                     'data' => json_encode($subscriptionData),
                                     'preapproval_id' => $subscriptionData['id'],
-'error_message' => "Primer mes gratuito aplicado",
+                                    'error_message' => "Primer mes gratuito aplicado",
                                 ]);
                             } else {
                                 Log::info('Mes gratis no aplicado');

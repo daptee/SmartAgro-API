@@ -100,6 +100,16 @@ class User extends Authenticatable implements JWTSubject
         return $this->getKey();
     }
 
+    public function referredUsers()
+    {
+        return $this->hasMany(User::class, 'referred_by');
+    }
+
+    public function referrer()
+    {
+        return $this->belongsTo(User::class, 'referred_by');
+    }
+
     /**
      * Return a key value array, containing any custom claims to be added to the JWT.
      *
