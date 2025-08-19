@@ -16,6 +16,7 @@ use App\Http\Controllers\FaqController;
 use App\Http\Controllers\GeneralImportController;
 use App\Http\Controllers\GetsFunctionsController;
 use App\Http\Controllers\LocalityProvinceController;
+use App\Http\Controllers\ReferredController;
 use App\Http\Controllers\RegionController;
 use App\Http\Controllers\SegmentController;
 use App\Http\Controllers\SubscriptionController;
@@ -149,6 +150,14 @@ Route::group(['middleware' => ['token']], function ($router) {
         Route::post('faqs', 'store');
         Route::put('faqs/{id}', 'update');
         Route::delete('faqs/{id}', 'destroy');
+    });
+
+    // Referred
+    Route::controller(ReferredController::class)->group(function () {
+        Route::get('referred/{id}', 'index');
+        Route::post('referred/{id}', 'store');
+        Route::put('referred/{id}', 'update');
+        Route::post('referred/add-code/{user_id}', 'addReferralCode');
     });
 });
 

@@ -56,7 +56,8 @@ class AuthController extends Controller
             'email' => 'required|string|email|max:255|unique:users,email',
             'password' => 'required|string|min:8',
             'id_user_profile' => 'required|numeric',
-            'g-recaptcha-response' => 'required'
+            'g-recaptcha-response' => 'required',
+            'referral_code' => 'nullable|string|max:20',
         ]);
 
         $action = "Registro de usuario";
@@ -76,6 +77,13 @@ class AuthController extends Controller
         // aveces no viene el id_invitation
         $id_invitation = $data['id_invitation'] ?? null;
         // $new_user = null;
+        $referredBy = null;
+        if ($request->filled('referral_code')) {
+            $referredBy = User::where('referral_code', $request->referral_code)->first()?->id;
+            $request->merge(['referred_by' => $referredBy]);
+        }
+        //ponemos en null referral_code
+        $request->merge(['referral_code' => null]);
 
         // Configura los parámetros para enviar en la URL
         $params = [
