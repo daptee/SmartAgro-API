@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\Admin;
 use App\Http\Middleware\CompanyApiKeyMiddleware;
 use App\Http\Middleware\Token;
 use Illuminate\Auth\AuthenticationException;
@@ -13,11 +14,15 @@ return Application::configure(basePath: dirname(__DIR__))
         api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
+        then: function () {
+            require base_path('routes/admin.php');
+        }
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
             'token' => Token::class,
             'company_api_key' => CompanyApiKeyMiddleware::class,
+            'admin' => Admin::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
