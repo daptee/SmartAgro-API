@@ -16,13 +16,15 @@ class UserPlan extends Model
         'id_user',
         'id_plan',
         'data',
-        'preapproval_id'
+        'preapproval_id',
+        'next_payment_date',
     ];
 
     protected $table = "users_plans";
 
     public static function save_history($id_user, $id_plan, $data, $next_payment_date, $preapproval_id)
     {
+        Log::debug(["message" => "Guardando historial de planes de usuario", "id_user" => $id_user, "id_plan" => $id_plan, "data" => $data, "next_payment_date" => $next_payment_date, "preapproval_id" => $preapproval_id]);
         try {
             DB::beginTransaction();
                 $user_plan = new UserPlan();

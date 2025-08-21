@@ -43,7 +43,6 @@ Route::get('faqs', [FaqController::class, 'index']);
 Route::controller(AuthController::class)->group(function () {
     Route::post('auth/register', 'auth_register');
     Route::post('auth/login', 'auth_login');
-    Route::post('auth/login-admin', 'auth_login_admin');
     Route::post('auth/password-recovery', 'auth_password_recovery');
     Route::post('auth/password-recovery-token', 'auth_password_recovery_token');
     Route::post('auth/account-confirmation', 'auth_account_confirmation');
@@ -87,24 +86,10 @@ Route::group(['middleware' => ['token']], function ($router) {
         Route::put('company-category/{id}', 'update');
     });
 
-    Route::controller(CompanyController::class)->group(function () {
-        Route::get('company', 'index');
-        Route::get('company/{id}', 'show');
-        Route::post('company', 'store');
-        Route::post('company/{id}', 'update');
-        Route::post('company/logo/{id}', 'update_logo');
-    });
-
     Route::controller(CompanyRolesController::class)->group(function () {
         Route::get('company-roles', 'index');
         Route::post('company-roles', 'store');
         Route::put('company-roles/{id}', 'update');
-    });
-
-    Route::controller(CompanyPlanController::class)->group(function () {
-        Route::get('company-plans', 'index');
-        Route::post('company-plans', 'store');
-        Route::put('company-plans/{id}', 'update');
     });
 
     Route::controller(UserCompanyController::class)->group(function () {
@@ -119,21 +104,6 @@ Route::group(['middleware' => ['token']], function ($router) {
         Route::delete('user-company/unassociate/{userId}/{companyId}', 'unassociate_user');
     });
 
-    Route::controller(AdvertisingSpaceController::class)->group(function () {
-        Route::post('advertising-space', 'store');
-        Route::put('advertising-space/{id}', 'update');
-    });
-
-    Route::controller(CompaniesAdvertisingController::class)->group(function () {
-        Route::post('advertising-companies', 'store');
-        Route::post('advertising-companies/{id}', 'update');
-    });
-
-    Route::controller(AdvertisingReportController::class)->group(function () {
-        Route::post('advertising-reports', 'store');
-        Route::put('advertising-reports/{id}', 'update');
-    });
-
     Route::controller(CompanyPlanPublicityController::class)->group(function () {
         Route::get('company-plan-publicities/{id}', 'index');
         Route::post('company-plan-publicities', 'upsertAll');
@@ -143,13 +113,6 @@ Route::group(['middleware' => ['token']], function ($router) {
     // Regions
     Route::controller(RegionController::class)->group(function () {
         Route::get('regions', 'get_regions');
-    });
-
-    // faq
-    Route::controller(FaqController::class)->group(function () {
-        Route::post('faqs', 'store');
-        Route::put('faqs/{id}', 'update');
-        Route::delete('faqs/{id}', 'destroy');
     });
 
     // Referred
