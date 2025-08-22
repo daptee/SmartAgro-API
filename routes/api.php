@@ -79,6 +79,15 @@ Route::group(['middleware' => ['token']], function ($router) {
         Route::get('subscription/history', 'subscription_history');
         Route::get('subscription/payment/history', 'subscription_plan');
     });
+    
+    // Company
+    Route::controller(CompanyController::class)->group(function () {
+        Route::get('company', 'index');
+        Route::get('company/{id}', 'show');
+        Route::post('company', 'store');
+        Route::post('company/{id}', 'update');
+        Route::post('company/logo/{id}', 'update_logo');
+    });
 
     Route::controller(CompanyCategoryController::class)->group(function () {
         Route::get('company-category', 'index');
