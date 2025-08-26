@@ -123,6 +123,8 @@ Route::group(['middleware' => ['token']], function ($router) {
     Route::controller(AdvertisingReportController::class)->group(function () {
         Route::post('advertising-reports', 'store');
         Route::put('advertising-reports/{id}', 'update');
+        Route::post('advertising-reports/clicks/{id_company_advertising}', 'reportsClicks');
+        Route::post('advertising-reports/impressions/{id_company_advertising}', 'reportsImpressions');
     });
 
     // Regions
