@@ -94,10 +94,10 @@ class CompanyPlanPublicitiesReportController extends Controller
         try {
             // Validar que la publicidad exista
 
-            $advertising = CompanyPlanPublicity::findOrFail($id_company_plan_publicity);
+            $advertising = CompanyPlanPublicity::find($id_company_plan_publicity);
 
             if (!$advertising) {
-                throw new Exception("La publicidad con ID $id_company_plan_publicity no existe.");
+                throw new Exception("La publicidad con ID $id_company_plan_publicity para plan empresa no existe.");
             }
 
             // Buscar el último reporte o crear uno nuevo si no existe
@@ -134,10 +134,10 @@ class CompanyPlanPublicitiesReportController extends Controller
 
         try {
             // Validar que la publicidad exista
-            $advertising = CompanyPlanPublicity::findOrFail($id_company_plan_publicity);
+            $advertising = CompanyPlanPublicity::find($id_company_plan_publicity);
 
             if (!$advertising) {
-                throw new Exception("La publicidad con ID $id_company_plan_publicity no existe.");
+                throw new Exception("La publicidad con ID $id_company_plan_publicity para plan empresa no existe.");
             }
 
             // Buscar el último reporte o crear uno nuevo si no existe

@@ -94,7 +94,7 @@ class AdvertisingReportController extends Controller
         try {
             // Validar que la publicidad exista
 
-            $advertising = CompanyAdvertising::findOrFail($id_company_advertising);
+            $advertising = CompanyAdvertising::find($id_company_advertising);
 
             if (!$advertising) {
                 throw new Exception("La publicidad con ID $id_company_advertising no existe.");
@@ -134,7 +134,7 @@ class AdvertisingReportController extends Controller
 
         try {
             // Validar que la publicidad exista
-            $advertising = CompanyAdvertising::findOrFail($id_company_advertising);
+            $advertising = CompanyAdvertising::find($id_company_advertising);
 
             if (!$advertising) {
                 throw new Exception("La publicidad con ID $id_company_advertising no existe.");
