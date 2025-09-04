@@ -31,10 +31,72 @@ class UserController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        //
+        $action = "Listado de usuarios";
+        $id_user = Auth::user()->id ?? null;
+
+        try {
+            // Parámetros de búsqueda y filtros
+            $search = $request->input('search');
+            $planId = $request->input('id_plan');
+            $statusId = $request->input('id_status');
+            $perPage = $request->input('per_page');
+
+            // Query base
+            $query = User::with(['status', 'plan'])
+                ->orderBy('id', 'desc');
+
+            // Buscador
+            if (!empty($search)) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'LIKE', "%{$search}%")
+                        ->orWhere('last_name', 'LIKE', "%{$search}%")
+                        ->orWhere('email', 'LIKE', "%{$search}%");
+                });
+            }
+
+            // Filtros
+            if (!empty($planId)) {
+                $query->where('id_plan', $planId);
+            }
+            if (!empty($statusId)) {
+                $query->where('id_status', $statusId);
+            }
+
+            // Paginado o listado completo
+            if ($perPage) {
+                $paginator = $query->paginate((int) $perPage);
+                $data = $paginator->items();
+                $meta = [
+                    "total" => $paginator->total(),
+                    "per_page" => $paginator->perPage(),
+                    "current_page" => $paginator->currentPage(),
+                    "last_page" => $paginator->lastPage(),
+                ];
+            } else {
+                $data = $query->get();
+                $meta = null;
+            }
+
+            // Auditoría
+            Audith::new($id_user, $action, null, 200, compact("action", "data", "meta"));
+
+            $message = $action;
+            return response()->json(compact("message", "data", "meta"), 200);
+
+        } catch (Exception $e) {
+            $response = [
+                "message" => "Error al obtener registros",
+                "error" => $e->getMessage(),
+                "line" => $e->getLine()
+            ];
+            Audith::new($id_user, $action, null, 500, $response);
+            Log::debug($response);
+            return response()->json($response, 500);
+        }
     }
+
 
     /**
      * Show the form for creating a new resource.
@@ -57,7 +119,59 @@ class UserController extends Controller
      */
     public function show(string $id)
     {
-        //
+        $action = "Detalle de usuario";
+        $data = null;
+        $id_user = Auth::user()->id ?? null;
+
+        try {
+            $data = $this->model::getAllDataUser($id);
+
+            if ($data['id_plan'] == 3) {
+                $company = UsersCompany::where('id_user', $data['id'])
+                    ->with([
+                        'rol',
+                        'plan.company.locality',
+                        'plan.company.status',
+                        'plan.company.category',
+                        'plan' => function ($query) {
+                            $query->where('status_id', 1);
+                        }
+                    ])
+                    ->first();
+
+                $data['rol'] = $company?->rol;
+                $data['company_plan'] = $company?->plan;
+
+                // 🔍 Buscar la invitación asociada (por email del usuario)
+                $invitation = CompanyInvitation::where('mail', $data['email'])
+                    ->where('id_company_plan', $company?->id_company_plan)
+                    ->latest()
+                    ->first();
+
+                if ($invitation && $invitation->invited_by) {
+                    $invitedByUser = User::find($invitation->invited_by);
+                    if ($invitedByUser) {
+                        $data['invited_by_user'] = [
+                            'id' => $invitedByUser->id,
+                            'name' => $invitedByUser->name,
+                            'last_name' => $invitedByUser->last_name,
+                            'email' => $invitedByUser->email,
+                        ];
+                    }
+                } else {
+                    $data['invited_by_user'] = null; // No se encontró invitación o no hay usuario asociado
+                }
+            }
+
+            Audith::new($id_user, $action, ["user_id" => $id], 200, compact("data"));
+        } catch (Exception $e) {
+            $response = ["message" => $action, "error" => $e->getMessage(), "line" => $e->getLine()];
+            Log::debug($response);
+            Audith::new($id_user, $action, ["user_id" => $id], 500, $response);
+            return response($response, 500);
+        }
+
+        return response(compact("data"));
     }
 
     /**

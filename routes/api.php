@@ -10,6 +10,7 @@ use App\Http\Controllers\CompaniesAdvertisingController;
 use App\Http\Controllers\CompanyCategoryController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\CompanyPlanController;
+use App\Http\Controllers\CompanyPlanPublicitiesReportController;
 use App\Http\Controllers\CompanyPlanPublicityController;
 use App\Http\Controllers\CompanyRolesController;
 use App\Http\Controllers\FaqController;
@@ -79,7 +80,7 @@ Route::group(['middleware' => ['token']], function ($router) {
         Route::get('subscription/history', 'subscription_history');
         Route::get('subscription/payment/history', 'subscription_plan');
     });
-    
+
     // Company
     Route::controller(CompanyController::class)->group(function () {
         Route::get('company', 'index');
@@ -117,6 +118,18 @@ Route::group(['middleware' => ['token']], function ($router) {
         Route::get('company-plan-publicities/{id}', 'index');
         Route::post('company-plan-publicities', 'upsertAll');
         Route::post('company-plan-publicities/settings/{id}', 'toggleGlobalAds');
+    });
+
+    // Advertising Reports
+    Route::controller(AdvertisingReportController::class)->group(function () {
+        Route::post('advertising-reports/clicks/{id_company_advertising}', 'reportsClicks');
+        Route::post('advertising-reports/impressions/{id_company_advertising}', 'reportsImpressions');
+    });
+
+    // Company plan publicities Reports
+    Route::controller(CompanyPlanPublicitiesReportController::class)->group(function () {
+        Route::post('company-plan-publicities-reports/clicks/{id_company_plan_publicity}', 'reportsClicks');
+        Route::post('company-plan-publicities-reports/impressions/{id_company_plan_publicity}', 'reportsImpressions');
     });
 
     // Regions
@@ -176,6 +189,10 @@ Route::controller(GetsFunctionsController::class)->group(function () {
 Route::get('/advertising-status', [AdvertisingStatusController::class, 'index']);
 Route::get('/advertising-space', [AdvertisingSpaceController::class, 'index']);
 Route::get('/advertising-companies', [CompaniesAdvertisingController::class, 'index']);
+Route::get('/advertising-reports', [AdvertisingReportController::class, 'index']);
+
+// Company Plan Publicity Report
+Route::get('/company-plan-publicities-reports', [CompanyPlanPublicitiesReportController::class, 'index']);
 
 // Segments
 Route::get('segments', [SegmentController::class, 'index']);
@@ -208,7 +225,7 @@ Route::get('dolar/blue', function () {
     }
 });
 
-Route::get('/clear-cache', function() {
+Route::get('/clear-cache', function () {
     Artisan::call('cache:clear');
     Artisan::call('config:cache');
     Artisan::call('route:cache');

@@ -6,7 +6,10 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CompaniesAdvertisingController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\CompanyPlanController;
+use App\Http\Controllers\CompanyPlanPublicitiesReportController;
 use App\Http\Controllers\FaqController;
+use App\Http\Controllers\SubscriptionController;
+use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
 // Middleware for admin users
@@ -16,6 +19,17 @@ Route::post('admin/auth', [AuthController::class, 'auth_login_admin']);
 Route::prefix('admin')
     ->middleware(['admin'])
     ->group(function () {
+        // Users
+        Route::controller(UserController::class)->group(function () {
+            Route::get('users', 'index');
+            Route::get('users/{id}', 'show');
+        });
+
+        // susbscriptions
+        Route::controller(SubscriptionController::class)->group(function () {
+            Route::get('subscription/payment/history/{id}', 'subscription_plan_by_id');
+        });
+
         // Company
         Route::controller(CompanyController::class)->group(function () {
             Route::get('company', 'index');
@@ -30,6 +44,12 @@ Route::prefix('admin')
             Route::get('company-plans', 'index');
             Route::post('company-plans', 'store');
             Route::put('company-plans/{id}', 'update');
+        });
+
+        // Company Plan Publicities Reports 
+        Route::controller(CompanyPlanPublicitiesReportController::class)->group(function () {
+            Route::post('company-plan-publicities-reports', 'store');
+            Route::put('company-plan-publicities-reports/{id}', 'update');
         });
 
         // Advertising
@@ -69,3 +89,6 @@ Route::get('admin/advertising-space', [AdvertisingSpaceController::class, 'index
 
 // Advertising Reports - Public route
 Route::get('admin/advertising-reports', [AdvertisingReportController::class, 'index']);
+
+// Company Plan Publicities Reports
+Route::get('admin/company-plan-publicities-reports', [CompanyPlanPublicitiesReportController::class, 'index']);

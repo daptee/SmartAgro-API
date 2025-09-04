@@ -7,6 +7,7 @@ use App\Mail\NewPayment;
 use App\Mail\NotificationLowPlan;
 use App\Mail\NotificationWelcomePlan;
 use App\Mail\WelcomePlan;
+use App\Models\Audith;
 use App\Models\PaymentHistory;
 use App\Models\Plan;
 use App\Models\User;
@@ -496,6 +497,85 @@ class SubscriptionController extends Controller
             'meta' => $metaData,
         ]);
     }
+
+    public function subscription_plan_by_id(Request $request, $id)
+    {
+        $userId = Auth::id();
+        $action = "subscription_plan_by_id";
+
+        try {
+            $perPage = $request->query('per_page');
+
+            // Query base: historial de pagos
+            $query = PaymentHistory::where('id_user', $id)
+                ->orderBy('created_at', 'desc');
+
+            // Paginado o listado completo
+            if ($perPage !== null) {
+                $paymentHistory = $query->paginate((int) $perPage);
+
+                $metaData = [
+                    'page' => $paymentHistory->currentPage(),
+                    'per_page' => $paymentHistory->perPage(),
+                    'total' => $paymentHistory->total(),
+                    'last_page' => $paymentHistory->lastPage(),
+                ];
+
+                $collection = $paymentHistory->getCollection();
+            } else {
+                $collection = $query->get();
+                $metaData = [
+                    'total' => $collection->count(),
+                    'per_page' => 'Todos',
+                    'page' => 1,
+                    'last_page' => 1,
+                ];
+            }
+
+            // Transformación de datos
+            $collection->transform(function ($payment) {
+                // Convertir 'data' a array si viene como string
+                $payment->data = is_string($payment->data) ? json_decode($payment->data, true) : $payment->data;
+
+                // Último UserPlan asociado al preapproval_id
+                $latestUserPlan = UserPlan::where('preapproval_id', $payment->preapproval_id)
+                    ->orderBy('id', 'desc')
+                    ->first();
+
+                $payment->user_plan = $latestUserPlan
+                    ? ['id' => $latestUserPlan->id]
+                    : null;
+
+                return $payment;
+            });
+
+            $data = $collection;
+
+            // Auditoría exitosa
+            Audith::new($userId, $action, $id, 200, compact("action", "data", "metaData"));
+
+            return response()->json([
+                "message" => $action,
+                "data" => $data,
+                "meta" => $metaData
+            ], 200);
+
+        } catch (Exception $e) {
+            $response = [
+                "message" => "Error al obtener registros",
+                "error" => $e->getMessage(),
+                "line" => $e->getLine(),
+            ];
+
+            // Auditoría con error
+            Audith::new($userId, $action, $id, 500, $response);
+
+            Log::error($response);
+
+            return response()->json($response, 500);
+        }
+    }
+
 
     public function cronPayment(Request $request)
     {
