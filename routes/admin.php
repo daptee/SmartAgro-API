@@ -6,6 +6,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CompaniesAdvertisingController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\CompanyPlanController;
+use App\Http\Controllers\CompanyPlanPublicitiesReportController;
 use App\Http\Controllers\FaqController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\UserController;
@@ -45,6 +46,12 @@ Route::prefix('admin')
             Route::put('company-plans/{id}', 'update');
         });
 
+        // Company Plan Publicities Reports 
+        Route::controller(CompanyPlanPublicitiesReportController::class)->group(function () {
+            Route::post('company-plan-publicities-reports', 'store');
+            Route::put('company-plan-publicities-reports/{id}', 'update');
+        });
+
         // Advertising
         Route::controller(AdvertisingSpaceController::class)->group(function () {
             Route::post('advertising-space', 'store');
@@ -82,3 +89,6 @@ Route::get('admin/advertising-space', [AdvertisingSpaceController::class, 'index
 
 // Advertising Reports - Public route
 Route::get('admin/advertising-reports', [AdvertisingReportController::class, 'index']);
+
+// Company Plan Publicities Reports
+Route::get('admin/company-plan-publicities-reports', [CompanyPlanPublicitiesReportController::class, 'index']);
