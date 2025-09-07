@@ -22,7 +22,12 @@ Route::prefix('admin')
         // Users
         Route::controller(UserController::class)->group(function () {
             Route::get('users', 'index');
+            Route::get('users/status', 'get_user_status');
+            Route::get('users/send-welcome-email/{id}', 'send_welcome_email');
             Route::get('users/{id}', 'show');
+            Route::post('users/create', 'create');
+            Route::delete('users/delete-by-id/{id}', 'destroy_by_id');
+            Route::post('users/change-status/{id}', 'change_status');
         });
 
         // susbscriptions

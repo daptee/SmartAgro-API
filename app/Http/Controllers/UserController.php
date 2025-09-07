@@ -2,17 +2,20 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\WelcomeUserMailable;
 use App\Models\Audith;
 use App\Models\CompanyInvitation;
 use App\Models\User;
 use App\Models\UserPlan;
 use App\Models\UserProfile;
 use App\Models\UsersCompany;
+use App\Models\UserStatus;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Str;
@@ -40,11 +43,15 @@ class UserController extends Controller
             // Parámetros de búsqueda y filtros
             $search = $request->input('search');
             $planId = $request->input('id_plan');
+            $profileId = $request->input('id_user_profile');
+            $countryId = $request->input('id_country');
+            $provinceId = $request->input('id_province');
+            $localityId = $request->input('id_locality');
             $statusId = $request->input('id_status');
             $perPage = $request->input('per_page');
 
             // Query base
-            $query = User::with(['status', 'plan'])
+            $query = User::with(['status', 'plan', 'locality'])
                 ->orderBy('id', 'desc');
 
             // Buscador
@@ -62,6 +69,20 @@ class UserController extends Controller
             }
             if (!empty($statusId)) {
                 $query->where('id_status', $statusId);
+            }
+            if (!empty($profileId)) {
+                $query->where('id_user_profile', $profileId);
+            }
+            if (!empty($countryId)) {
+                $query->where('id_country', $countryId);
+            }
+            if (!empty($localityId)) {
+                $query->where('id_locality', $localityId);
+            }
+            if (!empty($provinceId)) {
+                $query->whereHas('locality', function ($q) use ($provinceId) {
+                    $q->where('province_id', $provinceId);
+                });
             }
 
             // Paginado o listado completo
@@ -101,10 +122,74 @@ class UserController extends Controller
     /**
      * Show the form for creating a new resource.
      */
-    public function create()
+    public function create(Request $request)
     {
-        //
+        $id_user = Auth::user()->id ?? null;
+        $action = "Creación de usuario";
+
+        // Validaciones
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:255',
+            'last_name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users',
+            'phone' => 'nullable|string|max:20',
+            'id_locality' => 'nullable|integer|exists:localities,id',
+            'id_country' => 'nullable|integer|exists:countries,id',
+            'id_user_profile' => 'required|integer|exists:users_profiles,id',
+            'id_status' => 'required|integer|exists:users_status,id',
+            'id_plan' => 'required|integer|exists:plans,id',
+            'profile_picture' => 'nullable|string',
+            'password' => 'nullable|string|min:8',
+        ]);
+
+        if ($validator->fails()) {
+            $response = [
+                'message' => 'Alguna de las validaciones falló',
+                'errors' => $validator->errors(),
+            ];
+            Audith::new($id_user, $action, $request->all(), 422, $response);
+            return response()->json($response, 422);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // Si no envían contraseña, generar una por defecto
+            $password = $request->input('password')
+                ? $request->input('password')
+                : Str::random(10); // puedes poner una fija si prefieres
+
+            $user = User::create([
+                'name' => $request->input('name'),
+                'last_name' => $request->input('last_name'),
+                'email' => $request->input('email'),
+                'phone' => $request->input('phone'),
+                'password' => $password,
+                'id_locality' => $request->input('id_locality'),
+                'id_country' => $request->input('id_country'),
+                'id_user_profile' => $request->input('id_user_profile'),
+                'id_status' => $request->input('id_status'),
+                'profile_picture' => $request->input('profile_picture'),
+                'id_plan' => $request->input('id_plan'),
+            ]);
+
+            $data = User::getAllDataUser($user->id);
+
+            DB::commit();
+
+            $message = "Usuario creado con éxito";
+            Mail::to($user->email)->send(new WelcomeUserMailable($user));
+            Audith::new($id_user, $action, $request->all(), 201, compact("message", "data"));
+            return response(compact("message", "data"), 201);
+        } catch (Exception $e) {
+            DB::rollBack();
+            $response = ["message" => "Error al crear usuario", "error" => $e->getMessage(), "line" => $e->getLine()];
+            Log::debug($response);
+            Audith::new($id_user, $action, $request->all(), 500, $response);
+            return response($response, 500);
+        }
     }
+
 
     /**
      * Store a newly created resource in storage.
@@ -337,6 +422,38 @@ class UserController extends Controller
         return response()->json(compact("message"));
     }
 
+    public function destroy_by_id(string $id)
+    {
+        $action = "Eliminación de usuario";
+        $id_user = $id;
+        $message = "Usuario eliminado con éxito";
+
+        try {
+            DB::beginTransaction();
+
+            $user = User::find($id_user);
+            if (!$user) {
+                $response = ['message' => 'Usuario no encontrado'];
+                Audith::new($id_user, $action, ['deleted_user_id' => $id_user], 500, $response);
+                return response()->json($response, 404);
+            }
+
+            $user->delete();
+
+            Audith::new($id_user, $action, ['deleted_user_id' => $id_user], 200, compact("message"));
+
+            DB::commit();
+        } catch (Exception $e) {
+            DB::rollBack();
+            $response = ["message" => "Error al eliminar el usuario", "error" => $e->getMessage(), "line" => $e->getLine()];
+            Audith::new($id_user, $action, ['deleted_user_id' => $id_user], 500, $response);
+            Log::debug($response);
+            return response()->json($response, 500);
+        }
+
+        return response()->json(compact("message"));
+    }
+
     public function users_profiles()
     {
         $action = "Listado de perfiles de usuario";
@@ -354,6 +471,24 @@ class UserController extends Controller
 
         $message = $action;
         return response(compact("message", "data"));
+    }
+
+    public function get_user_status(Request $request)
+    {
+        $message = "Error al obtener estados de usuarios";
+        $action = "Listado de estados de usuarios";
+        $data = null;
+        $id_user = Auth::user()->id ?? null;
+        try {
+            $data = UserStatus::all();
+            Audith::new($id_user, $action, $request->all(), 200, compact("data"));
+        } catch (Exception $e) {
+            Log::debug(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()]);
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+        }
+
+        return response(compact("data"));
     }
 
     public function change_status(Request $request, $id)
@@ -528,5 +663,37 @@ class UserController extends Controller
         }
 
         return $path;
+    }
+
+    public function send_welcome_email(Request $request, $id)
+    {
+        $action = "Envio de mail de bienvenida";
+        $id_user = Auth::user()->id ?? null;
+
+        try {
+            $user = User::findOrFail($id);
+
+            Mail::to($user->email)->send(new WelcomeUserMailable($user));
+
+            Audith::new($id_user, $action, ["user_id" => $id], 200, [
+                "message" => "Envio de mail exitoso"
+            ]);
+
+            return response()->json([
+                "message" => "Correo enviado correctamente a {$user->email}"
+            ], 200);
+
+        } catch (Exception $e) {
+            $response = [
+                "message" => "Error al enviar correo",
+                "error" => $e->getMessage(),
+                "line" => $e->getLine()
+            ];
+
+            Audith::new($id_user, $action, ["user_id" => $id], 500, $response);
+            Log::error($response);
+
+            return response()->json($response, 500);
+        }
     }
 }
