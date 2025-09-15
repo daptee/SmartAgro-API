@@ -144,6 +144,7 @@ class UserController extends Controller
             'id_status' => 'required|integer|exists:users_status,id',
             'id_plan' => 'required|integer|exists:plans,id',
             'id_company_plan' => 'nullable|exists:companies,id',
+            'id_user_company_rol' => 'required|exists:users_company_roles,id',
             'referral_code' => 'nullable|string|exists:users,referral_code',
             'profile_picture' => 'nullable|string',
             'password' => 'nullable|string|min:8',
@@ -183,20 +184,22 @@ class UserController extends Controller
             $data = User::getAllDataUser($user->id);
 
             if ($request->id_company_plan) {
-                $data = CompanyInvitation::create([
-                    'id_company_plan' => $request->id_company_plan,
-                    'mail' => $request->email,
-                    'id_user_company_rol' => 1,
-                    'invitation_date' => Carbon::now(),
-                    'invited_by' => $id_user,
-                    'status_id' => 2,
-                ]);
+                if ($request->id_user_company_rol != 1) {
+                    $data = CompanyInvitation::create([
+                        'id_company_plan' => $request->id_company_plan,
+                        'mail' => $request->email,
+                        'id_user_company_rol' => $request->id_user_company_rol ?? 2,
+                        'invitation_date' => Carbon::now(),
+                        'invited_by' => $id_user,
+                        'status_id' => 2,
+                    ]);
+                }
 
                 // Crear relación users_companies
                 $userCompany = UsersCompany::create([
                     'id_user' => $user->id,
                     'id_company_plan' => $request->id_company_plan,
-                    'id_user_company_rol' => 1,
+                    'id_user_company_rol' => $request->id_user_company_rol ?? 2
                 ]);
             }
             ;
@@ -335,6 +338,7 @@ class UserController extends Controller
             'id_status' => 'required|integer|exists:users_status,id',
             'id_plan' => 'required|integer|exists:plans,id',
             'id_company_plan' => 'nullable|exists:companies,id',
+            'id_user_company_rol' => 'nullable|exists:users_company_roles,id',
             'referral_code' => 'nullable|string|exists:users,referral_code',
             'profile_picture' => 'nullable|string',
             'password' => 'nullable|string|min:8',
@@ -372,14 +376,16 @@ class UserController extends Controller
 
             if ($request->id_company_plan) {
                 if ($oldCompanyId && $oldCompanyId != $request->id_company_plan) {
-                    $data = CompanyInvitation::create([
-                        'id_company_plan' => $request->id_company_plan,
-                        'mail' => $request->email,
-                        'id_user_company_rol' => 1,
-                        'invitation_date' => Carbon::now(),
-                        'invited_by' => $id_user,
-                        'status_id' => 2,
-                    ]);
+                    if ($request->id_user_company_rol != 1) {
+                        $data = CompanyInvitation::create([
+                            'id_company_plan' => $request->id_company_plan,
+                            'mail' => $request->email,
+                            'id_user_company_rol' => $request->id_user_company_rol ?? 2,
+                            'invitation_date' => Carbon::now(),
+                            'invited_by' => $id_user,
+                            'status_id' => 2,
+                        ]);
+                    }
                 }
 
                 // Actualizar relación
@@ -389,7 +395,7 @@ class UserController extends Controller
                     ],
                     [
                         'id_company_plan' => $request->id_company_plan,
-                        'id_user_company_rol' => 1,
+                        'id_user_company_rol' => $request->id_user_company_rol ?? 2,
                     ]
                 );
             }
