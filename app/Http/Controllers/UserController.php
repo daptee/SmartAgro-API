@@ -12,6 +12,7 @@ use App\Models\UsersCompany;
 use App\Models\UserStatus;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -47,6 +48,7 @@ class UserController extends Controller
             $countryId = $request->input('id_country');
             $provinceId = $request->input('id_province');
             $localityId = $request->input('id_locality');
+            $userProfileId = $request->input('id_user_profile');
             $statusId = $request->input('id_status');
             $perPage = $request->input('per_page');
 
@@ -83,6 +85,9 @@ class UserController extends Controller
                 $query->whereHas('locality', function ($q) use ($provinceId) {
                     $q->where('province_id', $provinceId);
                 });
+            }
+            if (!empty($userProfileId)) {
+                $query->where('id_user_profile', $userProfileId);
             }
 
             // Paginado o listado completo
@@ -138,6 +143,8 @@ class UserController extends Controller
             'id_user_profile' => 'required|integer|exists:users_profiles,id',
             'id_status' => 'required|integer|exists:users_status,id',
             'id_plan' => 'required|integer|exists:plans,id',
+            'id_company_plan' => 'nullable|exists:companies,id',
+            'referral_code' => 'nullable|string|exists:users,referral_code',
             'profile_picture' => 'nullable|string',
             'password' => 'nullable|string|min:8',
         ]);
@@ -174,6 +181,43 @@ class UserController extends Controller
             ]);
 
             $data = User::getAllDataUser($user->id);
+
+            if ($request->id_company_plan) {
+                $data = CompanyInvitation::create([
+                    'id_company_plan' => $request->id_company_plan,
+                    'mail' => $request->email,
+                    'id_user_company_rol' => 1,
+                    'invitation_date' => Carbon::now(),
+                    'invited_by' => $id_user,
+                    'status_id' => 2,
+                ]);
+
+                // Crear relación users_companies
+                $userCompany = UsersCompany::create([
+                    'id_user' => $user->id,
+                    'id_company_plan' => $request->id_company_plan,
+                    'id_user_company_rol' => 1,
+                ]);
+            }
+            ;
+
+            if ($request->referral_code) {
+                $influencer = User::where('referral_code', $request->referral_code)->first();
+
+                // Evitar autorreferencia
+                if ($influencer->id === $user->id) {
+                    return response(['message' => 'Un usuario no puede referirse a sí mismo'], 400);
+                }
+
+                // verificar si el influencer esta activo
+                if ($influencer->id_status == 2) {
+                    return response(['message' => 'El usuario referido no está activo'], 400);
+                }
+
+                // Guardar relación
+                $user->referred_by = $influencer->id;
+                $user->save();
+            }
 
             DB::commit();
 
@@ -262,9 +306,123 @@ class UserController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(string $id)
+    public function edit(Request $request, string $id)
     {
-        //
+        $id_user = Auth::user()->id ?? null;
+        $action = "Edición de usuario";
+
+        // Buscar el usuario
+        $user = User::find($id);
+        if (!$user) {
+            return response()->json(['message' => 'Usuario no encontrado'], 404);
+        }
+
+        // Validaciones
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:255',
+            'last_name' => 'required|string|max:255',
+            'email' => [
+                'required',
+                'string',
+                'email',
+                'max:255',
+                Rule::unique('users')->ignore($user->id), // permite mantener su mismo email
+            ],
+            'phone' => 'nullable|string|max:20',
+            'id_locality' => 'nullable|integer|exists:localities,id',
+            'id_country' => 'nullable|integer|exists:countries,id',
+            'id_user_profile' => 'required|integer|exists:users_profiles,id',
+            'id_status' => 'required|integer|exists:users_status,id',
+            'id_plan' => 'required|integer|exists:plans,id',
+            'id_company_plan' => 'nullable|exists:companies,id',
+            'referral_code' => 'nullable|string|exists:users,referral_code',
+            'profile_picture' => 'nullable|string',
+            'password' => 'nullable|string|min:8',
+        ]);
+
+        if ($validator->fails()) {
+            $response = [
+                'message' => 'Alguna de las validaciones falló',
+                'errors' => $validator->errors(),
+            ];
+            Audith::new($id_user, $action, $request->all(), 422, $response);
+            return response()->json($response, 422);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // Actualizar usuario
+            $user->update([
+                'name' => $request->input('name'),
+                'last_name' => $request->input('last_name'),
+                'email' => $request->input('email'),
+                'phone' => $request->input('phone'),
+                'password' => $request->input('password') ?? $user->password,
+                'id_locality' => $request->input('id_locality'),
+                'id_country' => $request->input('id_country'),
+                'id_user_profile' => $request->input('id_user_profile'),
+                'id_status' => $request->input('id_status'),
+                'profile_picture' => $request->input('profile_picture'),
+                'id_plan' => $request->input('id_plan'),
+            ]);
+
+            // Guardamos el company actual (si existe)
+            $oldCompanyId = UsersCompany::where('id_user', $user->id)->value('id_company_plan');
+
+            if ($request->id_company_plan) {
+                if ($oldCompanyId && $oldCompanyId != $request->id_company_plan) {
+                    $data = CompanyInvitation::create([
+                        'id_company_plan' => $request->id_company_plan,
+                        'mail' => $request->email,
+                        'id_user_company_rol' => 1,
+                        'invitation_date' => Carbon::now(),
+                        'invited_by' => $id_user,
+                        'status_id' => 2,
+                    ]);
+                }
+
+                // Actualizar relación
+                UsersCompany::updateOrCreate(
+                    [
+                        'id_user' => $user->id,
+                    ],
+                    [
+                        'id_company_plan' => $request->id_company_plan,
+                        'id_user_company_rol' => 1,
+                    ]
+                );
+            }
+
+            // Actualizar referido si corresponde
+            if ($request->referral_code) {
+                $influencer = User::where('referral_code', $request->referral_code)->first();
+
+                if ($influencer && $influencer->id !== $user->id) {
+                    if ($influencer->id_status != 2) {
+                        $user->referred_by = $influencer->id;
+                        $user->save();
+                    } else {
+                        return response(['message' => 'El usuario referido no está activo'], 400);
+                    }
+                } else {
+                    return response(['message' => 'Un usuario no puede referirse a sí mismo'], 400);
+                }
+            }
+
+            DB::commit();
+
+            $data = User::getAllDataUser($user->id);
+            $message = "Usuario actualizado con éxito";
+            Audith::new($id_user, $action, $request->all(), 200, compact("message", "data"));
+            return response(compact("message", "data"), 200);
+        } catch (Exception $e) {
+            DB::rollBack();
+            $response = ["message" => "Error al actualizar usuario", "error" => $e->getMessage(), "line" => $e->getLine()];
+            Log::debug($response);
+            Audith::new($id_user, $action, $request->all(), 500, $response);
+            return response($response, 500);
+        }
     }
 
     public function get_user_profile(Request $request)
@@ -590,13 +748,14 @@ class UserController extends Controller
         return response(compact("message", "data"));
     }
 
-    public function profile_picture(Request $request)
+    public function profile_picture_admin(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'profile_picture' => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:2048'
+            'profile_picture' => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+            'id_user' => 'required|integer|exists:users,id',
         ]);
 
-        $action = "Actualización de imagen de perfil";
+        $action = "Actualización de imagen de perfil desde el administrador";
         $status = 422;
         $id_user = Auth::user()->id ?? null;
 
@@ -620,9 +779,58 @@ class UserController extends Controller
                     Audith::new($id_user, $action, $request->all(), $status, $response);
                     return response($response, 400);
                 }
-            } else {
-                $user = Auth::user();
             }
+
+            if ($user->profile_picture) {
+                $file_path = public_path($user->profile_picture);
+
+                if (file_exists($file_path))
+                    unlink($file_path);
+            }
+
+            $path = $this->save_image_public_folder($request->profile_picture, "users/profiles/", null);
+
+            $user->profile_picture = $path;
+            $user->save();
+
+            $data = $this->model::getAllDataUser($user->id);
+            Audith::new($id_user, $action, $request->all(), 200, compact("message", "data"));
+            DB::commit();
+        } catch (Exception $e) {
+            DB::rollBack();
+            $response = ["message" => "Error al actualizar imagen de perfil", "error" => $e->getMessage(), "line" => $e->getLine()];
+            Log::debug($response);
+            Audith::new($id_user, $action, $request->all(), 500, $response);
+            return response($response, 500);
+        }
+
+        return response(compact("message", "data"));
+    }
+
+    public function profile_picture(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'profile_picture' => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:2048'
+        ]);
+
+        $action = "Actualización de imagen de perfil";
+        $status = 422;
+        $id_user = Auth::user()->id ?? null;
+
+        if ($validator->fails()) {
+            $response = [
+                'message' => 'Alguna de las validaciones falló',
+                'errors' => $validator->errors(),
+            ];
+            Audith::new($id_user, $action, $request->all(), $status, $response);
+            return response()->json($response, $status);
+        }
+
+        $message = "Actualización de imagen de perfil exitosa.";
+        $data = null;
+        try {
+            DB::beginTransaction();
+            $user = Auth::user();
 
             if ($user->profile_picture) {
                 $file_path = public_path($user->profile_picture);

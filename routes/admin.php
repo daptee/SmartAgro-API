@@ -26,6 +26,8 @@ Route::prefix('admin')
             Route::get('users/send-welcome-email/{id}', 'send_welcome_email');
             Route::get('users/{id}', 'show');
             Route::post('users/create', 'create');
+            Route::post('users/edit/profile_picture', 'profile_picture_admin');
+            Route::put('users/edit/{id}', 'edit');
             Route::delete('users/delete-by-id/{id}', 'destroy_by_id');
             Route::post('users/change-status/{id}', 'change_status');
         });
