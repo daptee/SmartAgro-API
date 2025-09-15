@@ -300,6 +300,40 @@ class CompanyController extends Controller
         return response(compact("data"));
     }
 
+    public function companiesWithActivePlans(Request $request)
+    {
+        $message = "Error al obtener compañías con planes activos";
+        $action = "Listado de compañías con planes activos";
+        $data = null;
+        $id_user = Auth::user()->id ?? null;
+
+        try {
+            $companies = Company::whereHas('plan', function ($q) {
+                $q->where('status_id', 1); // Solo planes activos
+            })
+                ->with([
+                    'plan' => function ($q) {
+                        $q->where('status_id', 1)
+                            ->with(['status']); // Incluye datos del status si quieres
+                    },
+                    'category',
+                    'locality',
+                    'status'
+                ])
+                ->get();
+
+            $data = $companies;
+
+            Audith::new($id_user, $action, $request->all(), 200, compact("data"));
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage()], 500);
+        }
+
+        return response(compact("data"));
+    }
+
+
     public function news(Request $request)
     {
         $message = "Error al obtener las noticias";

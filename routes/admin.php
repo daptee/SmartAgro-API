@@ -40,6 +40,7 @@ Route::prefix('admin')
         // Company
         Route::controller(CompanyController::class)->group(function () {
             Route::get('company', 'index');
+            Route::get('company/with-active-plans', 'companiesWithActivePlans');
             Route::get('company/{id}', 'show');
             Route::post('company', 'store');
             Route::post('company/{id}', 'update');
