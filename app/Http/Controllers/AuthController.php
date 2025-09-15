@@ -369,6 +369,9 @@ class AuthController extends Controller
                 $company = UsersCompany::where('id_user', $user->id)
                     ->with('plan.company')
                     ->first();
+
+                // Si no existe, devolver null explícitamente
+                $company = $company ?? null;
             }
 
             Audith::new($user->id, $action, $credentials, 200, $this->respondWithToken($token, $company));
