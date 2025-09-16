@@ -358,6 +358,7 @@ class ReportController extends Controller
                 'harvest_prices' => HarvestPrices::class,
                 'product_prices' => ProductPrice::class,
                 'gross_margins' => GrossMargin::class,
+                'main_crops_buying_selling_traffic_light' => MainCropsBuyingSellingTrafficLight::class,
             ];
 
             $deletedCounts = [];

@@ -22,7 +22,14 @@ Route::prefix('admin')
         // Users
         Route::controller(UserController::class)->group(function () {
             Route::get('users', 'index');
+            Route::get('users/status', 'get_user_status');
+            Route::get('users/send-welcome-email/{id}', 'send_welcome_email');
             Route::get('users/{id}', 'show');
+            Route::post('users/create', 'create');
+            Route::post('users/edit/profile_picture', 'profile_picture_admin');
+            Route::put('users/edit/{id}', 'edit');
+            Route::delete('users/delete-by-id/{id}', 'destroy_by_id');
+            Route::post('users/change-status/{id}', 'change_status');
         });
 
         // susbscriptions
@@ -33,6 +40,7 @@ Route::prefix('admin')
         // Company
         Route::controller(CompanyController::class)->group(function () {
             Route::get('company', 'index');
+            Route::get('company/with-active-plans', 'companiesWithActivePlans');
             Route::get('company/{id}', 'show');
             Route::post('company', 'store');
             Route::post('company/{id}', 'update');

@@ -365,6 +365,8 @@ class AuthController extends Controller
                 return response()->json($response, 403);
             }
 
+            $company = null;
+
             if ($user->id_plan == 3) {
                 $company = UsersCompany::where('id_user', $user->id)
                     ->with('plan.company')
