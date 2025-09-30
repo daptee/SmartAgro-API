@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AdvertisingReportController;
 use App\Http\Controllers\AdvertisingSpaceController;
+use App\Http\Controllers\AudithController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CompaniesAdvertisingController;
 use App\Http\Controllers\CompanyController;
@@ -83,6 +84,11 @@ Route::prefix('admin')
             Route::post('faqs', 'store');
             Route::put('faqs/{id}', 'update');
             Route::delete('faqs/{id}', 'destroy');
+        });
+
+        // audits
+        Route::controller(AudithController::class)->group(function () {
+            Route::get('audiths', 'index');
         });
     }
 );

@@ -41,7 +41,7 @@ class Company extends Model
 
     public function plan()
     {
-        return $this->hasOne(CompanyPlan::class, 'id_company');
+        return $this->hasMany(CompanyPlan::class, 'id_company');
     }
 
     public function advertisingSpaces()
