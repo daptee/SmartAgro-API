@@ -146,6 +146,7 @@ class UserController extends Controller
             'id_company_plan' => 'nullable|exists:companies,id',
             'id_user_company_rol' => 'required|exists:users_company_roles,id',
             'referral_code' => 'nullable|string|exists:users,referral_code',
+            'referred_by' => 'nullable|exists:users,id',
             'profile_picture' => 'nullable|string',
             'password' => 'nullable|string|min:8',
         ]);
@@ -212,13 +213,20 @@ class UserController extends Controller
                     return response(['message' => 'Un usuario no puede referirse a sí mismo'], 400);
                 }
 
-                // verificar si el influencer esta activo
-                if ($influencer->id_status == 2) {
-                    return response(['message' => 'El usuario referido no está activo'], 400);
+                // Guardar relación
+                $user->referred_by = $influencer->id;
+                $user->save();
+            }
+
+            if ($request->referred_by) {
+                $referrer = User::find($request->referred_by);
+                // Evitar autorreferencia
+                if ($referrer->id === $user->id) {
+                    return response(['message' => 'Un usuario no puede ser referido por sí mismo'], 400);
                 }
 
                 // Guardar relación
-                $user->referred_by = $influencer->id;
+                $user->referred_by = $referrer->id;
                 $user->save();
             }
 
@@ -340,6 +348,7 @@ class UserController extends Controller
             'id_company_plan' => 'nullable|exists:companies,id',
             'id_user_company_rol' => 'nullable|exists:users_company_roles,id',
             'referral_code' => 'nullable|string|exists:users,referral_code',
+            'referred_by' => 'nullable|exists:users,id',
             'profile_picture' => 'nullable|string',
             'password' => 'nullable|string|min:8',
         ]);
@@ -405,14 +414,20 @@ class UserController extends Controller
                 $influencer = User::where('referral_code', $request->referral_code)->first();
 
                 if ($influencer && $influencer->id !== $user->id) {
-                    if ($influencer->id_status != 2) {
-                        $user->referred_by = $influencer->id;
-                        $user->save();
-                    } else {
-                        return response(['message' => 'El usuario referido no está activo'], 400);
-                    }
+                    $user->referred_by = $influencer->id;
+                    $user->save();
                 } else {
                     return response(['message' => 'Un usuario no puede referirse a sí mismo'], 400);
+                }
+            }
+
+            if ($request->referred_by) {
+                $referrer = User::find($request->referred_by);
+                if ($referrer && $referrer->id !== $user->id) {
+                    $user->referred_by = $referrer->id;
+                    $user->save();
+                } else {
+                    return response(['message' => 'Un usuario no puede ser referido por sí mismo'], 400);
                 }
             }
 

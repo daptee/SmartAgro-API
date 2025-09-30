@@ -22,9 +22,11 @@ class Audith extends Model
         'response',
     ];
 
-    public function user(): HasOne
+    public function user()
     {
-        return $this->hasOne(User::class, 'id_user');
+        return $this->belongsTo(User::class, 'id_user', 'id');
+        // 'id_user' -> columna en audith
+        // 'id' -> columna PK en users
     }
 
     protected function casts(): array
