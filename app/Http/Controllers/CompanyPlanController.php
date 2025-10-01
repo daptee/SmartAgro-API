@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\CompanyPlan;
 use App\Models\CompanyPlanPublicitySetting;
+use App\Models\StatusCompanyPlan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Audith;
@@ -147,5 +148,24 @@ class CompanyPlanController extends Controller
         }
 
         return response(compact('data'));
+    }
+
+    public function companyPlanStatus(Request $request)
+    {
+        $message = "Error al obtener los estados de los planes de empresa";
+        $action = "Listado de estados de los planes de empresa";
+        $data = null;
+        $id_user = Auth::user()->id ?? null;
+        try {
+            $data = StatusCompanyPlan::get();
+
+            Audith::new($id_user, $action, $request->all(), 200, compact("data"));
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+        }
+
+        return response(compact("data"));
+
     }
 }

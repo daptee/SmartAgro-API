@@ -30,6 +30,6 @@ class CompanyPlan extends Model
 
     public function status()
     {
-        return $this->belongsTo(Status::class, 'status_id');
+        return $this->belongsTo(StatusCompanyPlan::class, 'status_id');
     }
 }

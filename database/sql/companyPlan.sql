@@ -47,3 +47,24 @@ CREATE TABLE company_invitations (
 ALTER TABLE company_invitations
 ADD COLUMN invited_by BIGINT UNSIGNED NULL,
 ADD FOREIGN KEY (invited_by) REFERENCES users(id);
+
+CREATE TABLE status_company_plan (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(50) NOT NULL UNIQUE,
+    descripcion VARCHAR(255)
+);
+
+INSERT INTO status_company_plan (nombre, descripcion) VALUES
+('Activo', 'Plan en ejecución'),
+('Inactivo', 'Plan deshabilitado'),
+('Pausado', 'Plan pausado temporalmente'),
+('Finalizado', 'Plan que llegó a su fecha de finalización');
+
+-- 1. Primero eliminamos la FK existente
+ALTER TABLE company_plans
+DROP FOREIGN KEY company_plans_ibfk_1; -- <- reemplazá "company_plans_ibfk_1" por el nombre real de la FK si es distinto
+
+-- 2. Luego agregamos la nueva FK apuntando a plan_empresa_status
+ALTER TABLE company_plans
+ADD CONSTRAINT fk_status_company_plan
+FOREIGN KEY (status_id) REFERENCES status_company_plan(id);
