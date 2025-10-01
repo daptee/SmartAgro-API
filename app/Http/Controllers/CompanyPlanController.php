@@ -5,13 +5,43 @@ namespace App\Http\Controllers;
 use App\Models\CompanyPlan;
 use App\Models\CompanyPlanPublicitySetting;
 use App\Models\StatusCompanyPlan;
+use App\Services\PlanFinalizationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Audith;
 use Exception;
+use Illuminate\Support\Facades\Log;
 
 class CompanyPlanController extends Controller
 {
+    protected $service;
+    public function __construct(PlanFinalizationService $service)
+    {
+        $this->service = $service;
+    }
+
+    public function finalizeExpired()
+    {
+        $message = "Error al finalizar planes y publicidades expiradas";
+        $action = "Finalizar planes y publicidades expiradas";
+        $data = null;
+        $id_user = Auth::user()->id ?? null;
+
+        try {
+            $result = $this->service->finalizeExpired();
+
+            Log::info($result);
+
+            $data = $result;
+
+            Audith::new($id_user, $action, [], 200, compact("data"));
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, [], 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+        }
+
+        return response(compact("data"));
+    }
     public function index(Request $request)
     {
         $message = "Error al obtener los planes de empresa";

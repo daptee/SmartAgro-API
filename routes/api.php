@@ -37,6 +37,9 @@ Route::get('/backup', [BackupController::class, 'createBackup'])->name('backup')
 // update payment
 Route::get('/cron-payment', [SubscriptionController::class, 'cronPayment'])->name('cron-payment');
 
+// finalize expired plans and advertisings
+Route::get('/finalize-expired', [CompanyPlanController::class, 'finalizeExpired'])->name('finalize-expired');
+
 // faq sin token
 Route::get('faqs', [FaqController::class, 'index']);
 
