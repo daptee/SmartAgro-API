@@ -14,6 +14,7 @@ use App\Models\News;
 use App\Models\PriceMainActiveIngredientsProducer;
 use App\Models\ProducerSegmentPrice;
 use App\Models\RainfallRecordProvince;
+use App\Models\Status;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -42,6 +43,10 @@ class CompanyController extends Controller
                 'range_number_of_employees' => 'nullable|string|max:255',
                 'website' => 'nullable|url|max:255',
                 'status' => 'nullable|integer|in:1,2',
+                // Nuevos campos opcionales
+                'generate_api_key' => 'nullable|boolean',
+                'api_permissions' => 'nullable|array',
+                'api_permissions.*' => 'array',
             ]);
 
             $data = Company::create([
@@ -56,6 +61,18 @@ class CompanyController extends Controller
                 'website' => $request->website,
                 'status_id' => $request->status ?? 1,
             ]);
+
+            // Si el request indica generar nueva APIKEY
+            if ($request->boolean('generate_api_key')) {
+                $data->api_key = bin2hex(random_bytes(32));
+            }
+
+            // Si se envían permisos
+            if ($request->has('api_permissions')) {
+                $data->api_permissions = $request->api_permissions;
+            }
+
+            $data->save();
 
             $data->load([
                 'locality.province',
@@ -221,31 +238,31 @@ class CompanyController extends Controller
         try {
             $perPage = $request->query('per_page', 10);
             $page = $request->query('page', 1);
-            $province = $request->query('province');
-            $localy = $request->query('localy');
-            $category = $request->query('category');
-            $status = $request->query('status');
+            $province = $request->query('province'); // ahora ID
+            $localy = $request->query('localy');     // ahora ID
+            $category = $request->query('category'); // ahora ID
+            $status = $request->query('status');     // ya era ID
             $search = $request->query('search');
 
             // Iniciar consulta con relaciones
             $query = Company::with(['category', 'locality.province', 'status']);
 
-            // Filtros
+            // Filtros por ID en lugar de texto
             if (!is_null($province)) {
                 $query->whereHas('locality.province', function ($q) use ($province) {
-                    $q->where('name', $province);
+                    $q->where('id', $province);
                 });
             }
 
             if (!is_null($localy)) {
                 $query->whereHas('locality', function ($q) use ($localy) {
-                    $q->where('name', $localy);
+                    $q->where('id', $localy);
                 });
             }
 
             if (!is_null($category)) {
                 $query->whereHas('category', function ($q) use ($category) {
-                    $q->where('name', $category);
+                    $q->where('id', $category);
                 });
             }
 
@@ -255,6 +272,7 @@ class CompanyController extends Controller
                 });
             }
 
+            // Buscador
             if (!is_null($search)) {
                 $query->where('company_name', 'like', '%' . $search . '%');
             }
@@ -272,6 +290,24 @@ class CompanyController extends Controller
                     'last_page' => $companies->lastPage(),
                 ]
             ];
+
+            Audith::new($id_user, $action, $request->all(), 200, compact("data"));
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+        }
+
+        return response(compact("data"));
+    }
+
+    public function companyStatus(Request $request)
+    {
+        $message = "Error al obtener los estados de las empresas";
+        $action = "Listado de estados de empresas";
+        $data = null;
+        $id_user = Auth::user()->id ?? null;
+        try {
+            $data = Status::get();
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
         } catch (Exception $e) {
@@ -333,6 +369,40 @@ class CompanyController extends Controller
         return response(compact("data"));
     }
 
+    private array $models = [
+        News::class => 'Noticias',
+        Insight::class => 'Perspectivas',
+        MagLeaseIndex::class => 'Índice de arrendamiento magnético',
+        MagSteerIndex::class => 'Índice de novillo magnético',
+        MajorCrop::class => 'Perspectivas de los principales cultivos',
+        MainGrainPrice::class => 'Precios de los principales granos',
+        PriceMainActiveIngredientsProducer::class => 'Precios de los principales ingredientes activos para productores',
+        ProducerSegmentPrice::class => 'Precios por segmento para productores',
+        RainfallRecordProvince::class => 'Registros de precipitaciones por provincia',
+    ];
+
+    public function allPermissions()
+    {
+        try {
+            $permissions = collect($this->models)->map(function ($label, $modelClass) {
+                return [
+                    'name' => (new $modelClass)->getTable(), // nombre real de la tabla
+                    'label' => $label,
+                    'options' => ['enabled', 'months_back_limit', 'max_results'],
+                ];
+            })->values();
+
+            return response()->json([
+                'data' => $permissions,
+                'message' => 'Listado de permisos disponibles para API Keys',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Error al obtener permisos',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
 
     public function news(Request $request)
     {
@@ -913,74 +983,75 @@ class CompanyController extends Controller
     }
 
     public function main_grain_prices(Request $request)
-{
-    $message = "Error al obtener los precios de los principales granos";
-    $action = "Precios de los principales granos";
-    $data = null;
-    $id_user = Auth::user()->id ?? null;
+    {
+        $message = "Error al obtener los precios de los principales granos";
+        $action = "Precios de los principales granos";
+        $data = null;
+        $id_user = Auth::user()->id ?? null;
 
-    try {
-        $company = $request->get('_company');
-        $dateFrom = $request->query('date_from');
-        $dateTo = $request->query('date_to');
+        try {
+            $company = $request->get('_company');
+            $dateFrom = $request->query('date_from');
+            $dateTo = $request->query('date_to');
 
-        $permissions = $company->api_permissions ?? [];
-        if (!isset($permissions['main grain prices']['enabled']) || !$permissions['main grain prices']['enabled']) {
-            Audith::new($id_user, $action, $request->all(), 403, "No tiene permisos para acceder a los precios de los principales granos");
-            return response(["message" => "No tiene permisos para acceder a los precios de los principales granos"], 403);
-        }
-
-        $monthsLimit = $permissions['main grain prices']['months_back_limit'] ?? null;
-        $maxResults = $permissions['main grain prices']['max_results'] ?? null;
-
-        if ($monthsLimit !== null) {
-            // ✅ Límite de meses permitido (ej: 3 → últimos 3 meses incluyendo el actual)
-            $startAllowed = now()->startOfMonth()->subMonths($monthsLimit - 1);
-            $endAllowed = now()->endOfMonth();
-
-            $parsedFrom = $dateFrom ? Carbon::parse($dateFrom) : null;
-            $parsedTo = $dateTo ? Carbon::parse($dateTo) : null;
-
-            // Ajustar fechas dentro del rango permitido
-            $dateFrom = $parsedFrom ? $parsedFrom->toDateString() : null;
-            $dateTo = $parsedTo ? $parsedTo->toDateString() : null;
-
-            if ($dateFrom && $dateFrom < $startAllowed->toDateString()) {
-                $dateFrom = $startAllowed->toDateString();
-            }
-            if ($dateTo && $dateTo > $endAllowed->toDateString()) {
-                $dateTo = $endAllowed->toDateString();
+            $permissions = $company->api_permissions ?? [];
+            if (!isset($permissions['main grain prices']['enabled']) || !$permissions['main grain prices']['enabled']) {
+                Audith::new($id_user, $action, $request->all(), 403, "No tiene permisos para acceder a los precios de los principales granos");
+                return response(["message" => "No tiene permisos para acceder a los precios de los principales granos"], 403);
             }
 
-            // Si no mandan fechas → usar todo el rango permitido
-            if (!$dateFrom) $dateFrom = $startAllowed->toDateString();
-            if (!$dateTo) $dateTo = $endAllowed->toDateString();
+            $monthsLimit = $permissions['main grain prices']['months_back_limit'] ?? null;
+            $maxResults = $permissions['main grain prices']['max_results'] ?? null;
+
+            // Límite de meses permitido
+            if ($monthsLimit !== null) {
+                // ⚠️ corregido: NO se resta 1, así se incluyen los N meses completos
+                $startAllowed = now()->startOfMonth()->subMonths($monthsLimit);
+                $endAllowed = now()->endOfMonth();
+
+                $parsedFrom = $dateFrom ? Carbon::parse($dateFrom) : null;
+                $parsedTo = $dateTo ? Carbon::parse($dateTo) : null;
+
+                // Si ambas fechas están completamente fuera del rango, no mostrar nada
+                if (
+                    ($parsedFrom && $parsedFrom->gt($endAllowed)) ||
+                    ($parsedTo && $parsedTo->lt($startAllowed))
+                ) {
+                    return response()->json([
+                        "data" => [],
+                        "message" => "Las fechas solicitadas están fuera del límite permitido de meses."
+                    ], 200);
+                }
+
+                // Ajustar fechas
+                $dateFrom = $parsedFrom ? max($parsedFrom, $startAllowed)->toDateString() : $startAllowed->toDateString();
+                $dateTo = $parsedTo ? min($parsedTo, $endAllowed)->toDateString() : $endAllowed->toDateString();
+            }
+
+            CompanyApiUsages::create([
+                'id_company' => $company->id,
+                'request_name' => $action,
+                'params' => $request->all(),
+            ]);
+
+            $data = MainGrainPrice::query()
+                ->when($dateFrom, function ($query) use ($dateFrom) {
+                    return $query->where('date', '>=', $dateFrom);
+                })
+                ->when($dateTo, function ($query) use ($dateTo) {
+                    return $query->where('date', '<=', $dateTo);
+                })
+                ->when($maxResults, fn($q) => $q->limit($maxResults))
+                ->orderBy('date', 'desc')
+                ->get();
+
+            Audith::new($id_user, $action, $request->all(), 200, compact("data"));
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
         }
 
-        CompanyApiUsages::create([
-            'id_company' => $company->id,
-            'request_name' => $action,
-            'params' => $request->all(),
-        ]);
-
-        $data = MainGrainPrice::query()
-            ->when($dateFrom, function ($query) use ($dateFrom) {
-                return $query->where('date', '>=', $dateFrom);
-            })
-            ->when($dateTo, function ($query) use ($dateTo) {
-                return $query->where('date', '<=', $dateTo);
-            })
-            ->when($maxResults, fn($q) => $q->limit($maxResults))
-            ->orderBy('date', 'desc')
-            ->get();
-
-        Audith::new($id_user, $action, $request->all(), 200, compact("data"));
-    } catch (Exception $e) {
-        Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
-        return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+        return response(compact("data"));
     }
-
-    return response(compact("data"));
-}
 }
 

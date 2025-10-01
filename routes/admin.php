@@ -42,6 +42,8 @@ Route::prefix('admin')
         Route::controller(CompanyController::class)->group(function () {
             Route::get('company', 'index');
             Route::get('company/with-active-plans', 'companiesWithActivePlans');
+            Route::get('company/status', 'companyStatus');
+            Route::get('company/all-permissions', 'allPermissions');
             Route::get('company/{id}', 'show');
             Route::post('company', 'store');
             Route::post('company/{id}', 'update');
@@ -51,6 +53,7 @@ Route::prefix('admin')
         // Company Plans
         Route::controller(CompanyPlanController::class)->group(function () {
             Route::get('company-plans', 'index');
+            Route::get('company-plans/status', 'companyPlanStatus');
             Route::post('company-plans', 'store');
             Route::put('company-plans/{id}', 'update');
         });
