@@ -144,7 +144,7 @@ class UserController extends Controller
             'id_status' => 'required|integer|exists:users_status,id',
             'id_plan' => 'required|integer|exists:plans,id',
             'id_company_plan' => 'nullable|exists:companies,id',
-            'id_user_company_rol' => 'required|exists:users_company_roles,id',
+            'id_user_company_rol' => 'nullable|exists:users_company_roles,id',
             'referral_code' => 'nullable|string|exists:users,referral_code',
             'referred_by' => 'nullable|exists:users,id',
             'profile_picture' => 'nullable|string',
