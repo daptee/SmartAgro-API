@@ -10,6 +10,7 @@ use App\Http\Controllers\CompanyPlanController;
 use App\Http\Controllers\CompanyPlanPublicitiesReportController;
 use App\Http\Controllers\FaqController;
 use App\Http\Controllers\SubscriptionController;
+use App\Http\Controllers\UserCompanyController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -54,8 +55,13 @@ Route::prefix('admin')
         Route::controller(CompanyPlanController::class)->group(function () {
             Route::get('company-plans', 'index');
             Route::get('company-plans/status', 'companyPlanStatus');
+            Route::post('company-plans/status/{id}', 'updateCompanyPlanStatus');
             Route::post('company-plans', 'store');
             Route::put('company-plans/{id}', 'update');
+        });
+
+        Route::controller(UserCompanyController::class)->group(function () {
+            Route::post('user-company/add-user', 'add_user_company_plan');
         });
 
         // Company Plan Publicities Reports 

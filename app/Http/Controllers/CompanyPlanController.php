@@ -196,6 +196,36 @@ class CompanyPlanController extends Controller
         }
 
         return response(compact("data"));
+    }
 
+    public function updateCompanyPlanStatus(Request $request, $id)
+    {
+        $message = "Error al actualizar estado de plan de empresa";
+        $action = "Actualizar estado del plan de empresa";
+        $data = null;
+        $id_user = Auth::user()->id ?? null;
+
+        try {
+            $request->validate([
+                'status' => 'required|in:1,2', // 1: Activo, 2: Inactivo
+            ]);
+
+            $companyPlan = CompanyPlan::findOrFail($id);
+
+            $companyPlan->update([
+                'status_id' => $request->status,
+            ]);
+
+            $companyPlan->load(['company.category', 'company.locality', 'company.status', 'status']);
+
+            $data = $companyPlan;
+
+            Audith::new($id_user, $action, $request->all(), 200, compact('data'));
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
+            return response(['message' => $message, 'error' => $e->getMessage()], 500);
+        }
+
+        return response(compact('data'));
     }
 }

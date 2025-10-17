@@ -54,7 +54,7 @@ class UserController extends Controller
 
             // Query base
             $query = User::with(['status', 'plan', 'locality'])
-                ->orderBy('id', 'desc');
+                ->orderBy('name', 'asc');
 
             // Buscador
             if (!empty($search)) {
@@ -88,7 +88,7 @@ class UserController extends Controller
             }
             if (!empty($userProfileId)) {
                 $query->where('id_user_profile', $userProfileId);
-            }
+            };
 
             // Paginado o listado completo
             if ($perPage) {

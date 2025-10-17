@@ -234,20 +234,22 @@ class CompanyController extends Controller
         $message = "Error al obtener las empresas";
         $action = "Listado de empresas";
         $data = null;
+        $meta = null;
         $id_user = Auth::user()->id ?? null;
+
         try {
-            $perPage = $request->query('per_page', 10);
+            $perPage = $request->query('per_page'); // ahora sin valor por defecto
             $page = $request->query('page', 1);
-            $province = $request->query('province'); // ahora ID
-            $localy = $request->query('localy');     // ahora ID
-            $category = $request->query('category'); // ahora ID
-            $status = $request->query('status');     // ya era ID
+            $province = $request->query('province');
+            $localy = $request->query('localy');
+            $category = $request->query('category');
+            $status = $request->query('status');
             $search = $request->query('search');
 
             // Iniciar consulta con relaciones
             $query = Company::with(['category', 'locality.province', 'status']);
 
-            // Filtros por ID en lugar de texto
+            // Filtros
             if (!is_null($province)) {
                 $query->whereHas('locality.province', function ($q) use ($province) {
                     $q->where('id', $province);
@@ -277,27 +279,32 @@ class CompanyController extends Controller
                 $query->where('company_name', 'like', '%' . $search . '%');
             }
 
-            // Paginación
-            $companies = $query->paginate($perPage, ['*'], 'page', $page);
+            // Orden por defecto (alfabético)
+            $query->orderBy('company_name', 'asc');
 
-            // Formato de respuesta
-            $data = [
-                'result' => $companies->items(),
-                'meta_data' => [
-                    'page' => $companies->currentPage(),
-                    'per_page' => $companies->perPage(),
-                    'total' => $companies->total(),
-                    'last_page' => $companies->lastPage(),
-                ]
-            ];
+            // Si no se pasa per_page => devolver todo
+            if (is_null($perPage)) {
+                $companies = $query->get();
+                $data =  $companies;
+            } else {
+                $companies = $query->paginate($perPage, ['*'], 'page', $page);
+                $data = $companies->items();
+                $meta = [
+                        'page' => $companies->currentPage(),
+                        'per_page' => $companies->perPage(),
+                        'total' => $companies->total(),
+                        'last_page' => $companies->lastPage(),
+                ];
+            }
 
-            Audith::new($id_user, $action, $request->all(), 200, compact("data"));
+            Audith::new($id_user, $action, $request->all(), 200, compact("action", "data", "meta"));
+            
         } catch (Exception $e) {
             Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
             return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
         }
 
-        return response(compact("data"));
+        return response(compact("data", "meta"));
     }
 
     public function companyStatus(Request $request)
