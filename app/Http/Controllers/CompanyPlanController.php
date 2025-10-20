@@ -113,7 +113,7 @@ class CompanyPlanController extends Controller
                 'date_end' => 'required|date|after_or_equal:date_start',
                 'price' => 'required|numeric|min:0',
                 'data' => 'nullable|array',
-                'status' => 'required|in:1,2', // 1: Activo, 2: Inactivo
+                'status' => 'required|exists:status_company_plan,id', // 1: Activo, 2: Inactivo
             ]);
 
             $data = CompanyPlan::create([
@@ -154,7 +154,7 @@ class CompanyPlanController extends Controller
                 'date_end' => 'required|date|after_or_equal:date_start',
                 'price' => 'required|numeric|min:0',
                 'data' => 'nullable|array',
-                'status' => 'required|in:1,2', // 1: Activo, 2: Inactivo
+                'status' => 'required|exists:status_company_plan,id', // 1: Activo, 2: Inactivo
             ]);
 
             $companyPlan = CompanyPlan::findOrFail($id);
@@ -207,7 +207,7 @@ class CompanyPlanController extends Controller
 
         try {
             $request->validate([
-                'status' => 'required|in:1,2', // 1: Activo, 2: Inactivo
+                'status' => 'required|exists:status_company_plan,id', // 1: Activo, 2: Inactivo
             ]);
 
             $companyPlan = CompanyPlan::findOrFail($id);
