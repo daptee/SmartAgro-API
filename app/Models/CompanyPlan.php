@@ -32,4 +32,9 @@ class CompanyPlan extends Model
     {
         return $this->belongsTo(StatusCompanyPlan::class, 'status_id');
     }
+
+    public function users()
+    {
+        return $this->hasMany(UsersCompany::class, 'id_company_plan');
+    }
 }

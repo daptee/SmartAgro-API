@@ -54,6 +54,7 @@ Route::prefix('admin')
         // Company Plans
         Route::controller(CompanyPlanController::class)->group(function () {
             Route::get('company-plans', 'index');
+            Route::get('company-plans/{id}', 'show');
             Route::get('company-plans/status', 'companyPlanStatus');
             Route::post('company-plans/status/{id}', 'updateCompanyPlanStatus');
             Route::post('company-plans', 'store');

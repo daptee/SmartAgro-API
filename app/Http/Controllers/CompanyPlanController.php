@@ -54,15 +54,21 @@ class CompanyPlanController extends Controller
             $page = $request->query('page', 1);
             $company = $request->query('company');
             $status = $request->query('status');
-            $dateStart = $request->query('date_start');
-            $dateEnd = $request->query('date_end');
+            $dateStart = $request->query('date_start_from');
+            $dateStart = $request->query('date_start_to');
+            $dateEnd = $request->query('date_end_from');
+            $dateEnd = $request->query('date_end_to');
 
             $query = CompanyPlan::with([
                 'company.category',
                 'company.locality',
                 'company.status',
                 'company.advertisingSpaces',
-                'status'
+                'status',
+                'users' => function ($query) {
+                    $query->where('id_user_company_rol', 1)
+                        ->with('user', 'rol');
+                },
             ]);
 
             if (!is_null($company)) {
@@ -73,10 +79,30 @@ class CompanyPlanController extends Controller
                 $query->where('status_id', $status);
             }
 
-            if ($request->filled('date_start') && $request->filled('date_end')) {
-                $query->whereDate('date_start', '>=', $request->date_start)
-                      ->whereDate('date_end', '<=', $request->date_end);
+            // 🔹 Filtro por rango de fecha de inicio
+            if ($request->filled('date_start_from') || $request->filled('date_start_to')) {
+                $query->where(function ($q) use ($request) {
+                    if ($request->filled('date_start_from')) {
+                        $q->whereDate('date_start', '>=', $request->date_start_from);
+                    }
+                    if ($request->filled('date_start_to')) {
+                        $q->whereDate('date_start', '<=', $request->date_start_to);
+                    }
+                });
             }
+
+            // 🔹 Filtro por rango de fecha de finalización
+            if ($request->filled('date_end_from') || $request->filled('date_end_to')) {
+                $query->where(function ($q) use ($request) {
+                    if ($request->filled('date_end_from')) {
+                        $q->whereDate('date_end', '>=', $request->date_end_from);
+                    }
+                    if ($request->filled('date_end_to')) {
+                        $q->whereDate('date_end', '<=', $request->date_end_to);
+                    }
+                });
+            }
+
 
             $plans = $query->paginate($perPage, ['*'], 'page', $page);
 
@@ -98,6 +124,46 @@ class CompanyPlanController extends Controller
 
         return response(compact("data"));
     }
+
+    public function show($id)
+    {
+        $message = "Error al obtener el plan de empresa";
+        $action = "Detalle de plan de empresa";
+        $data = null;
+        $id_user = Auth::user()->id ?? null;
+
+        try {
+            $plan = CompanyPlan::with([
+                'company.category',
+                'company.locality',
+                'company.status',
+                'company.advertisingSpaces',
+                'status',
+                'users.user',
+                'users.rol'
+            ])->find($id);
+
+            if (!$plan) {
+                return response([
+                    "message" => "No se encontró el plan con ID $id"
+                ], 404);
+            }
+
+            $data = $plan;
+
+            Audith::new($id_user, $action, compact('id'), 200, compact("data"));
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, compact('id'), 500, $e->getMessage());
+            return response([
+                "message" => $message,
+                "error" => $e->getMessage(),
+                "line" => $e->getLine()
+            ], 500);
+        }
+
+        return response(compact("data"));
+    }
+
 
     public function store(Request $request)
     {
