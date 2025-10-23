@@ -82,18 +82,17 @@ class UserCompanyController extends Controller
         return response(compact('data'));
     }
 
-    public function add_user_company_plan(Request $request)
+    public function add_main_admin_company_plan(Request $request)
     {
-        $message = "Error al enviar la invitación";
-        $action = "Enviar invitación a empresa";
+        $message = "Error al agregar un administrador principal";
+        $action = "Administrador principal agregado correctamente.";
         $data = null;
         $id_user = Auth::user()->id ?? null;
 
         try {
             $request->validate([
                 'mail' => 'required|email',
-                'id_company_plan' => 'required|exists:companies,id',
-                'id_user_company_rol' => 'required|exists:users_company_roles,id'
+                'id_company_plan' => 'required|exists:companies,id'
             ]);
 
             $user = User::where('email', $request->mail)->first();
@@ -107,17 +106,21 @@ class UserCompanyController extends Controller
                 return response()->json($response, 422);
             }
 
-            if ((int) $request->id_user_company_rol === 1) { // suponiendo que rol 1 = admin
-                $currentAdmin = UsersCompany::where('id_company_plan', $request->id_company_plan)
-                    ->where('id_user_company_rol', 1)
-                    ->first();
+            $currentAdmins = UsersCompany::where('id_company_plan', $request->id_company_plan)
+                ->where('id_user_company_rol', 1)
+                ->get();
 
-                if ($currentAdmin) {
-                    $oldUser = $currentAdmin->user;
+            foreach ($currentAdmins as $currentAdmin) {
+                $oldUser = $currentAdmin->user;
 
-                    // Desasociar
+                // Verificamos si el admin actual tiene una invitación asociada
+                $hasInvitation = CompanyInvitation::where('id_company_plan', $request->id_company_plan)
+                    ->whereRaw('LOWER(TRIM(mail)) = ?', [strtolower(trim($oldUser->email))])
+                    ->exists();
+
+                // Solo eliminamos si NO tiene invitación
+                if (!$hasInvitation) {
                     $currentAdmin->delete();
-
 
                     $oldUser->update([
                         'id_plan' => 1,
@@ -127,8 +130,8 @@ class UserCompanyController extends Controller
 
             $data = UsersCompany::create([
                 'id_user' => $user->id,
-                'id_company_plan' => $request->id_company_plan, //id 1 admin
-                'id_user_company_rol' => $request->id_user_company_rol,
+                'id_company_plan' => $request->id_company_plan,
+                'id_user_company_rol' => 1,
             ]);
 
             $user->update([

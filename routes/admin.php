@@ -62,7 +62,7 @@ Route::prefix('admin')
         });
 
         Route::controller(UserCompanyController::class)->group(function () {
-            Route::post('user-company/add-user', 'add_user_company_plan');
+            Route::post('user-company/add-main-admin', 'add_main_admin_company_plan');
         });
 
         // Company Plan Publicities Reports 
