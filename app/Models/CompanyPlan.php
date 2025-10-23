@@ -37,4 +37,9 @@ class CompanyPlan extends Model
     {
         return $this->hasMany(UsersCompany::class, 'id_company_plan');
     }
+
+    public function invitation()
+    {
+        return $this->hasMany(CompanyInvitation::class, 'id_company_plan');
+    }
 }

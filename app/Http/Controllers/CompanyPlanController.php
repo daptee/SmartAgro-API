@@ -65,6 +65,7 @@ class CompanyPlanController extends Controller
                 'company.status',
                 'company.advertisingSpaces',
                 'status',
+                'invitation',
                 'users' => function ($query) {
                     $query->where('id_user_company_rol', 1)
                         ->with('user', 'rol');
@@ -105,6 +106,29 @@ class CompanyPlanController extends Controller
 
 
             $plans = $query->paginate($perPage, ['*'], 'page', $page);
+
+            // 🔹 Eliminamos usuarios invitados (los que coinciden con invitaciones)
+            $plans->setCollection(
+                $plans->getCollection()->transform(function ($plan) {
+                    // Mails de invitaciones en minúsculas
+                    $invitedEmails = collect($plan->invitation)
+                        ->pluck('mail')
+                        ->filter()
+                        ->map(fn($m) => strtolower(trim($m)))
+                        ->toArray();
+
+                    // Filtramos los usuarios que NO están invitados
+                    $filteredUsers = collect($plan->users)->filter(function ($userItem) use ($invitedEmails) {
+                        $email = strtolower(trim($userItem->user->email ?? ''));
+                        return !in_array($email, $invitedEmails);
+                    })->values();
+
+                    // ⚡️ Reasignamos la relación correctamente
+                    $plan->setRelation('users', $filteredUsers);
+
+                    return $plan;
+                })
+            );
 
             $data = [
                 'result' => $plans->items(),
