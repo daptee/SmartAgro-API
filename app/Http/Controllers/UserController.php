@@ -423,14 +423,8 @@ class UserController extends Controller
 
             // Actualizar referido si corresponde
             if ($request->referral_code) {
-                $influencer = User::where('referral_code', $request->referral_code)->first();
-
-                if ($influencer && $influencer->id !== $user->id) {
-                    $user->referred_by = $influencer->id;
-                    $user->save();
-                } else {
-                    return response(['message' => 'Un usuario no puede referirse a sí mismo'], 400);
-                }
+                $user->referral_code = $request->referral_code;
+                $user->save();
             }
 
             if ($request->referred_by) {
