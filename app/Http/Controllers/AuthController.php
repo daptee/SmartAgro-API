@@ -121,6 +121,8 @@ class AuthController extends Controller
                     $valid_invitation = null;
                 }
 
+                $data['referral_code'] = null; 
+
                 $new_user = new $this->model($data);
                 $new_user->save();
 
