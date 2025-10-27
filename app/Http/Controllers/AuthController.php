@@ -79,8 +79,11 @@ class AuthController extends Controller
         // $new_user = null;
         $referredBy = null;
         if ($request->filled('referral_code')) {
-            $referredBy = User::where('referral_code', $request->referral_code)->first()?->id;
-            $request->merge(['referred_by' => $referredBy]);
+            $userReferred = User::where('referral_code', $request->referral_code)->first()?->id;
+
+            if ($userReferred) {
+                $referredBy = $userReferred;
+            };
         }
         //ponemos en null referral_code
         $request->merge(['referral_code' => null]);
@@ -120,6 +123,9 @@ class AuthController extends Controller
                 } else {
                     $valid_invitation = null;
                 }
+
+                $data['referral_code'] = null;
+                $data['referred_by'] = $referredBy;
 
                 $new_user = new $this->model($data);
                 $new_user->save();

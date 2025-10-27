@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AdvertisingReportController;
 use App\Http\Controllers\AdvertisingSpaceController;
+use App\Http\Controllers\AudithController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CompaniesAdvertisingController;
 use App\Http\Controllers\CompanyController;
@@ -9,6 +10,7 @@ use App\Http\Controllers\CompanyPlanController;
 use App\Http\Controllers\CompanyPlanPublicitiesReportController;
 use App\Http\Controllers\FaqController;
 use App\Http\Controllers\SubscriptionController;
+use App\Http\Controllers\UserCompanyController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -41,6 +43,8 @@ Route::prefix('admin')
         Route::controller(CompanyController::class)->group(function () {
             Route::get('company', 'index');
             Route::get('company/with-active-plans', 'companiesWithActivePlans');
+            Route::get('company/status', 'companyStatus');
+            Route::get('company/all-permissions', 'allPermissions');
             Route::get('company/{id}', 'show');
             Route::post('company', 'store');
             Route::post('company/{id}', 'update');
@@ -50,8 +54,15 @@ Route::prefix('admin')
         // Company Plans
         Route::controller(CompanyPlanController::class)->group(function () {
             Route::get('company-plans', 'index');
+            Route::get('company-plans/status', 'companyPlanStatus');
+            Route::get('company-plans/{id}', 'show');
+            Route::post('company-plans/status/{id}', 'updateCompanyPlanStatus');
             Route::post('company-plans', 'store');
             Route::put('company-plans/{id}', 'update');
+        });
+
+        Route::controller(UserCompanyController::class)->group(function () {
+            Route::post('user-company/add-main-admin', 'add_main_admin_company_plan');
         });
 
         // Company Plan Publicities Reports 
@@ -83,6 +94,11 @@ Route::prefix('admin')
             Route::post('faqs', 'store');
             Route::put('faqs/{id}', 'update');
             Route::delete('faqs/{id}', 'destroy');
+        });
+
+        // audits
+        Route::controller(AudithController::class)->group(function () {
+            Route::get('audiths', 'index');
         });
     }
 );

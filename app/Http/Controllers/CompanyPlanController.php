@@ -4,13 +4,44 @@ namespace App\Http\Controllers;
 
 use App\Models\CompanyPlan;
 use App\Models\CompanyPlanPublicitySetting;
+use App\Models\StatusCompanyPlan;
+use App\Services\PlanFinalizationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Audith;
 use Exception;
+use Illuminate\Support\Facades\Log;
 
 class CompanyPlanController extends Controller
 {
+    protected $service;
+    public function __construct(PlanFinalizationService $service)
+    {
+        $this->service = $service;
+    }
+
+    public function finalizeExpired()
+    {
+        $message = "Error al finalizar planes y publicidades expiradas";
+        $action = "Finalizar planes y publicidades expiradas";
+        $data = null;
+        $id_user = Auth::user()->id ?? null;
+
+        try {
+            $result = $this->service->finalizeExpired();
+
+            Log::info($result);
+
+            $data = $result;
+
+            Audith::new($id_user, $action, [], 200, compact("data"));
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, [], 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+        }
+
+        return response(compact("data"));
+    }
     public function index(Request $request)
     {
         $message = "Error al obtener los planes de empresa";
@@ -23,15 +54,22 @@ class CompanyPlanController extends Controller
             $page = $request->query('page', 1);
             $company = $request->query('company');
             $status = $request->query('status');
-            $dateStart = $request->query('date_start');
-            $dateEnd = $request->query('date_end');
+            $dateStart = $request->query('date_start_from');
+            $dateStart = $request->query('date_start_to');
+            $dateEnd = $request->query('date_end_from');
+            $dateEnd = $request->query('date_end_to');
 
             $query = CompanyPlan::with([
                 'company.category',
                 'company.locality',
                 'company.status',
                 'company.advertisingSpaces',
-                'status'
+                'status',
+                'invitation',
+                'users' => function ($query) {
+                    $query->where('id_user_company_rol', 1)
+                        ->with('user', 'rol');
+                },
             ]);
 
             if (!is_null($company)) {
@@ -42,12 +80,55 @@ class CompanyPlanController extends Controller
                 $query->where('status_id', $status);
             }
 
-            if ($request->filled('date_start') && $request->filled('date_end')) {
-                $query->whereDate('date_start', '>=', $request->date_start)
-                      ->whereDate('date_end', '<=', $request->date_end);
+            // 🔹 Filtro por rango de fecha de inicio
+            if ($request->filled('date_start_from') || $request->filled('date_start_to')) {
+                $query->where(function ($q) use ($request) {
+                    if ($request->filled('date_start_from')) {
+                        $q->whereDate('date_start', '>=', $request->date_start_from);
+                    }
+                    if ($request->filled('date_start_to')) {
+                        $q->whereDate('date_start', '<=', $request->date_start_to);
+                    }
+                });
             }
 
+            // 🔹 Filtro por rango de fecha de finalización
+            if ($request->filled('date_end_from') || $request->filled('date_end_to')) {
+                $query->where(function ($q) use ($request) {
+                    if ($request->filled('date_end_from')) {
+                        $q->whereDate('date_end', '>=', $request->date_end_from);
+                    }
+                    if ($request->filled('date_end_to')) {
+                        $q->whereDate('date_end', '<=', $request->date_end_to);
+                    }
+                });
+            }
+
+
             $plans = $query->paginate($perPage, ['*'], 'page', $page);
+
+            // 🔹 Eliminamos usuarios invitados (los que coinciden con invitaciones)
+            $plans->setCollection(
+                $plans->getCollection()->transform(function ($plan) {
+                    // Mails de invitaciones en minúsculas
+                    $invitedEmails = collect($plan->invitation)
+                        ->pluck('mail')
+                        ->filter()
+                        ->map(fn($m) => strtolower(trim($m)))
+                        ->toArray();
+
+                    // Filtramos los usuarios que NO están invitados
+                    $filteredUsers = collect($plan->users)->filter(function ($userItem) use ($invitedEmails) {
+                        $email = strtolower(trim($userItem->user->email ?? ''));
+                        return !in_array($email, $invitedEmails);
+                    })->values();
+
+                    // ⚡️ Reasignamos la relación correctamente
+                    $plan->setRelation('users', $filteredUsers);
+
+                    return $plan;
+                })
+            );
 
             $data = [
                 'result' => $plans->items(),
@@ -68,6 +149,46 @@ class CompanyPlanController extends Controller
         return response(compact("data"));
     }
 
+    public function show($id)
+    {
+        $message = "Error al obtener el plan de empresa";
+        $action = "Detalle de plan de empresa";
+        $data = null;
+        $id_user = Auth::user()->id ?? null;
+
+        try {
+            $plan = CompanyPlan::with([
+                'company.category',
+                'company.locality',
+                'company.status',
+                'company.advertisingSpaces',
+                'status',
+                'users.user',
+                'users.rol'
+            ])->find($id);
+
+            if (!$plan) {
+                return response([
+                    "message" => "No se encontró el plan con ID $id"
+                ], 404);
+            }
+
+            $data = $plan;
+
+            Audith::new($id_user, $action, compact('id'), 200, compact("data"));
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, compact('id'), 500, $e->getMessage());
+            return response([
+                "message" => $message,
+                "error" => $e->getMessage(),
+                "line" => $e->getLine()
+            ], 500);
+        }
+
+        return response(compact("data"));
+    }
+
+
     public function store(Request $request)
     {
         $message = "Error al registrar plan de empresa";
@@ -82,7 +203,7 @@ class CompanyPlanController extends Controller
                 'date_end' => 'required|date|after_or_equal:date_start',
                 'price' => 'required|numeric|min:0',
                 'data' => 'nullable|array',
-                'status' => 'required|in:1,2', // 1: Activo, 2: Inactivo
+                'status' => 'required|exists:status_company_plan,id', // 1: Activo, 2: Inactivo
             ]);
 
             $data = CompanyPlan::create([
@@ -123,7 +244,7 @@ class CompanyPlanController extends Controller
                 'date_end' => 'required|date|after_or_equal:date_start',
                 'price' => 'required|numeric|min:0',
                 'data' => 'nullable|array',
-                'status' => 'required|in:1,2', // 1: Activo, 2: Inactivo
+                'status' => 'required|exists:status_company_plan,id', // 1: Activo, 2: Inactivo
             ]);
 
             $companyPlan = CompanyPlan::findOrFail($id);
@@ -133,6 +254,55 @@ class CompanyPlanController extends Controller
                 'date_end' => $request->date_end,
                 'price' => $request->price,
                 'data' => $request->data,
+                'status_id' => $request->status,
+            ]);
+
+            $companyPlan->load(['company.category', 'company.locality', 'company.status', 'status']);
+
+            $data = $companyPlan;
+
+            Audith::new($id_user, $action, $request->all(), 200, compact('data'));
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
+            return response(['message' => $message, 'error' => $e->getMessage()], 500);
+        }
+
+        return response(compact('data'));
+    }
+
+    public function companyPlanStatus(Request $request)
+    {
+        $message = "Error al obtener los estados de los planes de empresa";
+        $action = "Listado de estados de los planes de empresa";
+        $data = null;
+        $id_user = Auth::user()->id ?? null;
+        try {
+            $data = StatusCompanyPlan::get();
+
+            Audith::new($id_user, $action, $request->all(), 200, compact("data"));
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+        }
+
+        return response(compact("data"));
+    }
+
+    public function updateCompanyPlanStatus(Request $request, $id)
+    {
+        $message = "Error al actualizar estado de plan de empresa";
+        $action = "Actualizar estado del plan de empresa";
+        $data = null;
+        $id_user = Auth::user()->id ?? null;
+
+        try {
+            $request->validate([
+                'status' => 'required|exists:status_company_plan,id', // 1: Activo, 2: Inactivo
+            ]);
+
+            $companyPlan = CompanyPlan::findOrFail($id);
+
+            $companyPlan->update([
                 'status_id' => $request->status,
             ]);
 

@@ -82,6 +82,73 @@ class UserCompanyController extends Controller
         return response(compact('data'));
     }
 
+    public function add_main_admin_company_plan(Request $request)
+    {
+        $message = "Error al agregar un administrador principal";
+        $action = "Administrador principal agregado correctamente.";
+        $data = null;
+        $id_user = Auth::user()->id ?? null;
+
+        try {
+            $request->validate([
+                'mail' => 'required|email',
+                'id_company_plan' => 'required|exists:companies,id'
+            ]);
+
+            $user = User::where('email', $request->mail)->first();
+
+            if (!$user) {
+                $response = [
+                    'message' => 'El usuario no existe.',
+                    'error_code' => 404
+                ];
+                Audith::new($id_user, $action, $request->all(), 422, $response);
+                return response()->json($response, 422);
+            }
+
+            $currentAdmins = UsersCompany::where('id_company_plan', $request->id_company_plan)
+                ->where('id_user_company_rol', 1)
+                ->get();
+
+            foreach ($currentAdmins as $currentAdmin) {
+                $oldUser = $currentAdmin->user;
+
+                // Verificamos si el admin actual tiene una invitación asociada
+                $hasInvitation = CompanyInvitation::where('id_company_plan', $request->id_company_plan)
+                    ->whereRaw('LOWER(TRIM(mail)) = ?', [strtolower(trim($oldUser->email))])
+                    ->exists();
+
+                // Solo eliminamos si NO tiene invitación
+                if (!$hasInvitation) {
+                    $currentAdmin->delete();
+
+                    $oldUser->update([
+                        'id_plan' => 1,
+                    ]);
+                }
+            }
+
+            $data = UsersCompany::create([
+                'id_user' => $user->id,
+                'id_company_plan' => $request->id_company_plan,
+                'id_user_company_rol' => 1,
+            ]);
+
+            $user->update([
+                'id_plan' => 3,
+            ]);
+
+            $data->load('user', 'rol', 'plan.company.locality', 'plan.company.status', 'plan.company.category');
+
+            Audith::new($id_user, $action, $request->all(), 201, compact('data'));
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage()], 500);
+        }
+
+        return response(compact('data'), 201);
+    }
+
     public function send_invitation(Request $request)
     {
         $message = "Error al enviar la invitación";
@@ -223,7 +290,7 @@ class UserCompanyController extends Controller
             $perPage = $request->query('per_page', 10);
             $page = $request->query('page', 1);
 
-            if(is_null($companyPlan)) {
+            if (is_null($companyPlan)) {
                 $response = [
                     'message' => 'El parámetro company_plan debe ser obligatorio.',
                     'error_code' => 422
@@ -244,7 +311,7 @@ class UserCompanyController extends Controller
             }
 
             $query = CompanyInvitation::with('rol', 'plan.company.locality', 'plan.company.status', 'plan.company.category', 'plan.status', 'status');
-            
+
             // Aplicar filtro si llega el parámetro 'company'
             if (!is_null($companyPlan)) {
                 $query->where('id_company_plan', $companyPlan);

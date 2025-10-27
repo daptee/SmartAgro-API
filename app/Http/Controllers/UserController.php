@@ -54,7 +54,7 @@ class UserController extends Controller
 
             // Query base
             $query = User::with(['status', 'plan', 'locality'])
-                ->orderBy('id', 'desc');
+                ->orderBy('name', 'asc');
 
             // Buscador
             if (!empty($search)) {
@@ -88,7 +88,7 @@ class UserController extends Controller
             }
             if (!empty($userProfileId)) {
                 $query->where('id_user_profile', $userProfileId);
-            }
+            };
 
             // Paginado o listado completo
             if ($perPage) {
@@ -140,12 +140,15 @@ class UserController extends Controller
             'phone' => 'nullable|string|max:20',
             'id_locality' => 'nullable|integer|exists:localities,id',
             'id_country' => 'nullable|integer|exists:countries,id',
+            'locality_name' => 'nullable|string|max:150',
+            'province_name' => 'nullable|string|max:150',
             'id_user_profile' => 'required|integer|exists:users_profiles,id',
             'id_status' => 'required|integer|exists:users_status,id',
             'id_plan' => 'required|integer|exists:plans,id',
             'id_company_plan' => 'nullable|exists:companies,id',
-            'id_user_company_rol' => 'required|exists:users_company_roles,id',
-            'referral_code' => 'nullable|string|exists:users,referral_code',
+            'id_user_company_rol' => 'nullable|exists:users_company_roles,id',
+            'referral_code' => 'nullable|string|unique:users,referral_code',
+            'referred_by' => 'nullable|exists:users,id',
             'profile_picture' => 'nullable|string',
             'password' => 'nullable|string|min:8',
         ]);
@@ -175,6 +178,8 @@ class UserController extends Controller
                 'password' => $password,
                 'id_locality' => $request->input('id_locality'),
                 'id_country' => $request->input('id_country'),
+                'locality_name' => $request->input('locality_name'),
+                'province_name' => $request->input('province_name'),
                 'id_user_profile' => $request->input('id_user_profile'),
                 'id_status' => $request->input('id_status'),
                 'profile_picture' => $request->input('profile_picture'),
@@ -212,13 +217,20 @@ class UserController extends Controller
                     return response(['message' => 'Un usuario no puede referirse a sí mismo'], 400);
                 }
 
-                // verificar si el influencer esta activo
-                if ($influencer->id_status == 2) {
-                    return response(['message' => 'El usuario referido no está activo'], 400);
+                // Guardar relación
+                $user->referred_by = $influencer->id;
+                $user->save();
+            }
+
+            if ($request->referred_by) {
+                $referrer = User::find($request->referred_by);
+                // Evitar autorreferencia
+                if ($referrer->id === $user->id) {
+                    return response(['message' => 'Un usuario no puede ser referido por sí mismo'], 400);
                 }
 
                 // Guardar relación
-                $user->referred_by = $influencer->id;
+                $user->referred_by = $referrer->id;
                 $user->save();
             }
 
@@ -334,12 +346,19 @@ class UserController extends Controller
             'phone' => 'nullable|string|max:20',
             'id_locality' => 'nullable|integer|exists:localities,id',
             'id_country' => 'nullable|integer|exists:countries,id',
+            'locality_name' => 'nullable|string|max:150',
+            'province_name' => 'nullable|string|max:150',
             'id_user_profile' => 'required|integer|exists:users_profiles,id',
             'id_status' => 'required|integer|exists:users_status,id',
             'id_plan' => 'required|integer|exists:plans,id',
             'id_company_plan' => 'nullable|exists:companies,id',
             'id_user_company_rol' => 'nullable|exists:users_company_roles,id',
-            'referral_code' => 'nullable|string|exists:users,referral_code',
+            'referral_code' => [
+                'nullable',
+                'string',
+                Rule::unique('users', 'referral_code')->ignore($user->id),
+            ],
+            'referred_by' => 'nullable|exists:users,id',
             'profile_picture' => 'nullable|string',
             'password' => 'nullable|string|min:8',
         ]);
@@ -365,6 +384,8 @@ class UserController extends Controller
                 'password' => $request->input('password') ?? $user->password,
                 'id_locality' => $request->input('id_locality'),
                 'id_country' => $request->input('id_country'),
+                'locality_name' => $request->input('locality_name'),
+                'province_name' => $request->input('province_name'),
                 'id_user_profile' => $request->input('id_user_profile'),
                 'id_status' => $request->input('id_status'),
                 'profile_picture' => $request->input('profile_picture'),
@@ -402,17 +423,17 @@ class UserController extends Controller
 
             // Actualizar referido si corresponde
             if ($request->referral_code) {
-                $influencer = User::where('referral_code', $request->referral_code)->first();
+                $user->referral_code = $request->referral_code;
+                $user->save();
+            }
 
-                if ($influencer && $influencer->id !== $user->id) {
-                    if ($influencer->id_status != 2) {
-                        $user->referred_by = $influencer->id;
-                        $user->save();
-                    } else {
-                        return response(['message' => 'El usuario referido no está activo'], 400);
-                    }
+            if ($request->referred_by) {
+                $referrer = User::find($request->referred_by);
+                if ($referrer && $referrer->id !== $user->id) {
+                    $user->referred_by = $referrer->id;
+                    $user->save();
                 } else {
-                    return response(['message' => 'Un usuario no puede referirse a sí mismo'], 400);
+                    return response(['message' => 'Un usuario no puede ser referido por sí mismo'], 400);
                 }
             }
 

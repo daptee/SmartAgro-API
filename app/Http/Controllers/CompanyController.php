@@ -14,6 +14,7 @@ use App\Models\News;
 use App\Models\PriceMainActiveIngredientsProducer;
 use App\Models\ProducerSegmentPrice;
 use App\Models\RainfallRecordProvince;
+use App\Models\Status;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -42,6 +43,10 @@ class CompanyController extends Controller
                 'range_number_of_employees' => 'nullable|string|max:255',
                 'website' => 'nullable|url|max:255',
                 'status' => 'nullable|integer|in:1,2',
+                // Nuevos campos opcionales
+                'generate_api_key' => 'nullable|boolean',
+                'api_permissions' => 'nullable|array',
+                'api_permissions.*' => 'array',
             ]);
 
             $data = Company::create([
@@ -56,6 +61,18 @@ class CompanyController extends Controller
                 'website' => $request->website,
                 'status_id' => $request->status ?? 1,
             ]);
+
+            // Si el request indica generar nueva APIKEY
+            if ($request->boolean('generate_api_key')) {
+                $data->api_key = bin2hex(random_bytes(32));
+            }
+
+            // Si se envían permisos
+            if ($request->has('api_permissions')) {
+                $data->api_permissions = $request->api_permissions;
+            }
+
+            $data->save();
 
             $data->load([
                 'locality.province',
@@ -217,9 +234,11 @@ class CompanyController extends Controller
         $message = "Error al obtener las empresas";
         $action = "Listado de empresas";
         $data = null;
+        $meta = null;
         $id_user = Auth::user()->id ?? null;
+
         try {
-            $perPage = $request->query('per_page', 10);
+            $perPage = $request->query('per_page'); // ahora sin valor por defecto
             $page = $request->query('page', 1);
             $province = $request->query('province');
             $localy = $request->query('localy');
@@ -233,19 +252,19 @@ class CompanyController extends Controller
             // Filtros
             if (!is_null($province)) {
                 $query->whereHas('locality.province', function ($q) use ($province) {
-                    $q->where('name', $province);
+                    $q->where('id', $province);
                 });
             }
 
             if (!is_null($localy)) {
                 $query->whereHas('locality', function ($q) use ($localy) {
-                    $q->where('name', $localy);
+                    $q->where('id', $localy);
                 });
             }
 
             if (!is_null($category)) {
                 $query->whereHas('category', function ($q) use ($category) {
-                    $q->where('name', $category);
+                    $q->where('id', $category);
                 });
             }
 
@@ -255,23 +274,47 @@ class CompanyController extends Controller
                 });
             }
 
+            // Buscador
             if (!is_null($search)) {
                 $query->where('company_name', 'like', '%' . $search . '%');
             }
 
-            // Paginación
-            $companies = $query->paginate($perPage, ['*'], 'page', $page);
+            // Orden por defecto (alfabético)
+            $query->orderBy('company_name', 'asc');
 
-            // Formato de respuesta
-            $data = [
-                'result' => $companies->items(),
-                'meta_data' => [
-                    'page' => $companies->currentPage(),
-                    'per_page' => $companies->perPage(),
-                    'total' => $companies->total(),
-                    'last_page' => $companies->lastPage(),
-                ]
-            ];
+            // Si no se pasa per_page => devolver todo
+            if (is_null($perPage)) {
+                $companies = $query->get();
+                $data =  $companies;
+            } else {
+                $companies = $query->paginate($perPage, ['*'], 'page', $page);
+                $data = $companies->items();
+                $meta = [
+                        'page' => $companies->currentPage(),
+                        'per_page' => $companies->perPage(),
+                        'total' => $companies->total(),
+                        'last_page' => $companies->lastPage(),
+                ];
+            }
+
+            Audith::new($id_user, $action, $request->all(), 200, compact("action", "data", "meta"));
+            
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+        }
+
+        return response(compact("data", "meta"));
+    }
+
+    public function companyStatus(Request $request)
+    {
+        $message = "Error al obtener los estados de las empresas";
+        $action = "Listado de estados de empresas";
+        $data = null;
+        $id_user = Auth::user()->id ?? null;
+        try {
+            $data = Status::get();
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
         } catch (Exception $e) {
@@ -333,6 +376,40 @@ class CompanyController extends Controller
         return response(compact("data"));
     }
 
+    private array $models = [
+        News::class => 'Noticias',
+        Insight::class => 'Perspectivas',
+        MagLeaseIndex::class => 'Índice de arrendamiento magnético',
+        MagSteerIndex::class => 'Índice de novillo magnético',
+        MajorCrop::class => 'Perspectivas de los principales cultivos',
+        MainGrainPrice::class => 'Precios de los principales granos',
+        PriceMainActiveIngredientsProducer::class => 'Precios de los principales ingredientes activos para productores',
+        ProducerSegmentPrice::class => 'Precios por segmento para productores',
+        RainfallRecordProvince::class => 'Registros de precipitaciones por provincia',
+    ];
+
+    public function allPermissions()
+    {
+        try {
+            $permissions = collect($this->models)->map(function ($label, $modelClass) {
+                return [
+                    'name' => (new $modelClass)->getTable(), // nombre real de la tabla
+                    'label' => $label,
+                    'options' => ['enabled', 'months_back_limit', 'max_results'],
+                ];
+            })->values();
+
+            return response()->json([
+                'data' => $permissions,
+                'message' => 'Listado de permisos disponibles para API Keys',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Error al obtener permisos',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
 
     public function news(Request $request)
     {
