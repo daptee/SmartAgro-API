@@ -359,7 +359,6 @@ class UserController extends Controller
                 Rule::unique('users', 'referral_code')->ignore($user->id),
             ],
             'referred_by' => 'nullable|exists:users,id',
-            'profile_picture' => 'nullable|string',
             'password' => 'nullable|string|min:8',
         ]);
 
@@ -388,7 +387,6 @@ class UserController extends Controller
                 'province_name' => $request->input('province_name'),
                 'id_user_profile' => $request->input('id_user_profile'),
                 'id_status' => $request->input('id_status'),
-                'profile_picture' => $request->input('profile_picture'),
                 'id_plan' => $request->input('id_plan'),
             ]);
 
