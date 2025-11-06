@@ -81,6 +81,7 @@ Route::prefix('admin')
         Route::controller(CompaniesAdvertisingController::class)->group(function () {
             Route::post('advertising-companies', 'store');
             Route::post('advertising-companies/{id}', 'update');
+            Route::put('advertising-companies/{id}', 'update_status');
         });
 
         // Advertising Reports

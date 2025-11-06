@@ -215,4 +215,35 @@ class CompaniesAdvertisingController extends Controller
             return response(["message" => $message, "error" => $e->getMessage()], 500);
         }
     }
+
+    public function update_status(Request $request, $id)
+    {
+        $message = "Error al actualizar el estado la publicidad contratada";
+        $action = "Actualización de estado de publicidad contratada";
+        $id_user = Auth::user()->id ?? null;
+
+        try {
+            $validated = $request->validate([
+                'id_advertising_status' => 'required|integer|exists:advertising_status,id',
+            ]);
+
+            $record = CompanyAdvertising::findOrFail($id);
+
+
+            $record->update([
+                'id_advertising_status' => $validated['id_advertising_status'],
+            ]);
+
+            $data = $record;
+
+            $data->load('advertising_space', 'company', 'status');
+
+            Audith::new($id_user, $action, $request->all(), 200, compact('data'));
+
+            return response(compact('data'));
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage()], 500);
+        }
+    }
 }
