@@ -36,14 +36,26 @@ class CompaniesAdvertisingController extends Controller
                 $query->where('id_advertising_status', $request->status);
             }
 
-            if ($request->filled('date_start') && $request->filled('date_end')) {
+            if ($request->filled('date_start_from') || $request->filled('date_start_to')) {
                 $query->where(function ($q) use ($request) {
-                    $q->whereBetween('date_start', [$request->date_start, $request->date_end])
-                        ->orWhereBetween('date_end', [$request->date_start, $request->date_end])
-                        ->orWhere(function ($q2) use ($request) {
-                            $q2->where('date_start', '<', $request->date_start)
-                                ->where('date_end', '>', $request->date_end);
-                        });
+                    if ($request->filled('date_start_from')) {
+                        $q->whereDate('date_start', '>=', $request->date_start_from);
+                    }
+                    if ($request->filled('date_start_to')) {
+                        $q->whereDate('date_start', '<=', $request->date_start_to);
+                    }
+                });
+            }
+
+            // 🔹 Filtro por rango de fecha de finalización
+            if ($request->filled('date_end_from') || $request->filled('date_end_to')) {
+                $query->where(function ($q) use ($request) {
+                    if ($request->filled('date_end_from')) {
+                        $q->whereDate('date_end', '>=', $request->date_end_from);
+                    }
+                    if ($request->filled('date_end_to')) {
+                        $q->whereDate('date_end', '<=', $request->date_end_to);
+                    }
                 });
             }
 
