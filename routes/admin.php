@@ -106,7 +106,7 @@ Route::prefix('admin')
 Route::get('admin/faqs', [FaqController::class, 'index']);
 
 //  Advertising Companies - Public route
-Route::get('admin/advertising-companies', [CompanyPlanController::class, 'index']);
+Route::get('admin/advertising-companies', [CompaniesAdvertisingController::class, 'index']);
 
 // Advertising Space - Public route
 Route::get('admin/advertising-space', [AdvertisingSpaceController::class, 'index']);
