@@ -75,13 +75,14 @@ Route::prefix('admin')
         Route::controller(AdvertisingSpaceController::class)->group(function () {
             Route::post('advertising-space', 'store');
             Route::put('advertising-space/{id}', 'update');
+            Route::put('advertising-space/status/{id}', 'update_status');
         });
 
         // Companies Advertising
         Route::controller(CompaniesAdvertisingController::class)->group(function () {
             Route::post('advertising-companies', 'store');
             Route::post('advertising-companies/{id}', 'update');
-            Route::put('advertising-companies/{id}', 'update_status');
+            Route::put('advertising-companies/status/{id}', 'update_status');
         });
 
         // Advertising Reports
