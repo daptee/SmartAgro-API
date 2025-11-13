@@ -9,6 +9,7 @@ use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\CompanyPlanController;
 use App\Http\Controllers\CompanyPlanPublicitiesReportController;
 use App\Http\Controllers\FaqController;
+use App\Http\Controllers\StatusController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\UserCompanyController;
 use App\Http\Controllers\UserController;
@@ -98,6 +99,11 @@ Route::prefix('admin')
         // audits
         Route::controller(AudithController::class)->group(function () {
             Route::get('audiths', 'index');
+        });
+
+        // status
+        Route::controller(StatusController::class)->group(function () {
+            Route::get('status', 'index');
         });
     }
 );
