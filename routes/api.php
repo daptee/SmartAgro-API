@@ -123,10 +123,11 @@ Route::group(['middleware' => ['token']], function ($router) {
         Route::post('company-plan-publicities/settings/{id}', 'toggleGlobalAds');
     });
 
-    // Advertising Reports
+    // Advertising Interactions (anteriormente Reports)
     Route::controller(AdvertisingReportController::class)->group(function () {
         Route::post('advertising-reports/clicks/{id_company_advertising}', 'reportsClicks');
         Route::post('advertising-reports/impressions/{id_company_advertising}', 'reportsImpressions');
+        Route::get('advertising-reports/interactions/{id_company_advertising}', 'getInteractionHistory');
     });
 
     // Company plan publicities Reports
@@ -192,7 +193,7 @@ Route::controller(GetsFunctionsController::class)->group(function () {
 Route::get('/advertising-status', [AdvertisingStatusController::class, 'index']);
 Route::get('/advertising-space', [AdvertisingSpaceController::class, 'index']);
 Route::get('/advertising-companies', [CompaniesAdvertisingController::class, 'index']);
-Route::get('/advertising-reports', [AdvertisingReportController::class, 'index']);
+Route::get('/advertising-interactions', [AdvertisingReportController::class, 'index']);
 
 // Company Plan Publicity Report
 Route::get('/company-plan-publicities-reports', [CompanyPlanPublicitiesReportController::class, 'index']);
