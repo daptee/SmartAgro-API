@@ -188,7 +188,9 @@ class CompaniesAdvertisingController extends Controller
                 mkdir($imagePath, 0777, true);
             }
 
+            // Manejar actualización de archivo
             if ($request->hasFile('file')) {
+                // Si envía un nuevo archivo, eliminar el anterior y guardar el nuevo
                 if ($record->file && file_exists(public_path($record->file))) {
                     unlink(public_path($record->file));
                 }
@@ -196,13 +198,14 @@ class CompaniesAdvertisingController extends Controller
                 $fileName = time() . '_file_' . $file->getClientOriginalName();
                 $file->move($imagePath, $fileName);
                 $record->file = '/storage/publicities/gifs/' . $fileName;
-            } elseif ($record->file === null) {
+            } elseif ($request->has('file') && $request->input('file') === null) {
+                // Si envía explícitamente null, eliminar la imagen
                 if ($record->file && file_exists(public_path($record->file))) {
                     unlink(public_path($record->file));
                 }
-
                 $record->file = null;
             }
+            // Si no envía el campo 'file', mantener la imagen existente (no hacer nada)
 
             $record->update([
                 'id_advertising_space' => $validated['id_advertising_space'],
