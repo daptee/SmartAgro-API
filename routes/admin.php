@@ -9,6 +9,7 @@ use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\CompanyPlanController;
 use App\Http\Controllers\CompanyPlanPublicitiesReportController;
 use App\Http\Controllers\FaqController;
+use App\Http\Controllers\StatusController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\UserCompanyController;
 use App\Http\Controllers\UserController;
@@ -75,19 +76,18 @@ Route::prefix('admin')
         Route::controller(AdvertisingSpaceController::class)->group(function () {
             Route::post('advertising-space', 'store');
             Route::put('advertising-space/{id}', 'update');
+            Route::put('advertising-space/status/{id}', 'update_status');
         });
 
         // Companies Advertising
         Route::controller(CompaniesAdvertisingController::class)->group(function () {
             Route::post('advertising-companies', 'store');
             Route::post('advertising-companies/{id}', 'update');
+            Route::put('advertising-companies/status/{id}', 'update_status');
         });
 
-        // Advertising Reports
-        Route::controller(AdvertisingReportController::class)->group(function () {
-            Route::post('advertising-reports', 'store');
-            Route::put('advertising-reports/{id}', 'update');
-        });
+        // Advertising Interactions (anteriormente Reports) - Ya no se gestionan manualmente
+        // Las interacciones se registran automáticamente a través de los endpoints públicos
 
         // faq
         Route::controller(FaqController::class)->group(function () {
@@ -100,19 +100,24 @@ Route::prefix('admin')
         Route::controller(AudithController::class)->group(function () {
             Route::get('audiths', 'index');
         });
+
+        // status
+        Route::controller(StatusController::class)->group(function () {
+            Route::get('status', 'index');
+        });
     }
 );
 // Public FAQ route
 Route::get('admin/faqs', [FaqController::class, 'index']);
 
 //  Advertising Companies - Public route
-Route::get('admin/advertising-companies', [CompanyPlanController::class, 'index']);
+Route::get('admin/advertising-companies', [CompaniesAdvertisingController::class, 'index']);
 
 // Advertising Space - Public route
 Route::get('admin/advertising-space', [AdvertisingSpaceController::class, 'index']);
 
-// Advertising Reports - Public route
-Route::get('admin/advertising-reports', [AdvertisingReportController::class, 'index']);
+// Advertising Interactions Statistics - Public route
+Route::get('admin/advertising-interactions', [AdvertisingReportController::class, 'index']);
 
 // Company Plan Publicities Reports
 Route::get('admin/company-plan-publicities-reports', [CompanyPlanPublicitiesReportController::class, 'index']);

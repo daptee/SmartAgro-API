@@ -36,14 +36,26 @@ class CompaniesAdvertisingController extends Controller
                 $query->where('id_advertising_status', $request->status);
             }
 
-            if ($request->filled('date_start') && $request->filled('date_end')) {
+            if ($request->filled('date_start_from') || $request->filled('date_start_to')) {
                 $query->where(function ($q) use ($request) {
-                    $q->whereBetween('date_start', [$request->date_start, $request->date_end])
-                        ->orWhereBetween('date_end', [$request->date_start, $request->date_end])
-                        ->orWhere(function ($q2) use ($request) {
-                            $q2->where('date_start', '<', $request->date_start)
-                                ->where('date_end', '>', $request->date_end);
-                        });
+                    if ($request->filled('date_start_from')) {
+                        $q->whereDate('date_start', '>=', $request->date_start_from);
+                    }
+                    if ($request->filled('date_start_to')) {
+                        $q->whereDate('date_start', '<=', $request->date_start_to);
+                    }
+                });
+            }
+
+            // 🔹 Filtro por rango de fecha de finalización
+            if ($request->filled('date_end_from') || $request->filled('date_end_to')) {
+                $query->where(function ($q) use ($request) {
+                    if ($request->filled('date_end_from')) {
+                        $q->whereDate('date_end', '>=', $request->date_end_from);
+                    }
+                    if ($request->filled('date_end_to')) {
+                        $q->whereDate('date_end', '<=', $request->date_end_to);
+                    }
                 });
             }
 
@@ -176,7 +188,9 @@ class CompaniesAdvertisingController extends Controller
                 mkdir($imagePath, 0777, true);
             }
 
+            // Manejar actualización de archivo
             if ($request->hasFile('file')) {
+                // Si envía un nuevo archivo, eliminar el anterior y guardar el nuevo
                 if ($record->file && file_exists(public_path($record->file))) {
                     unlink(public_path($record->file));
                 }
@@ -184,13 +198,14 @@ class CompaniesAdvertisingController extends Controller
                 $fileName = time() . '_file_' . $file->getClientOriginalName();
                 $file->move($imagePath, $fileName);
                 $record->file = '/storage/publicities/gifs/' . $fileName;
-            } elseif ($record->file === null) {
+            } elseif ($request->has('file') && $request->input('file') === null) {
+                // Si envía explícitamente null, eliminar la imagen
                 if ($record->file && file_exists(public_path($record->file))) {
                     unlink(public_path($record->file));
                 }
-
                 $record->file = null;
             }
+            // Si no envía el campo 'file', mantener la imagen existente (no hacer nada)
 
             $record->update([
                 'id_advertising_space' => $validated['id_advertising_space'],
@@ -201,6 +216,37 @@ class CompaniesAdvertisingController extends Controller
                 'link' => $validated['link'] ?? null,
                 'id_advertising_status' => $validated['id_advertising_status'],
                 'additional_data' => $validated['additional_data'] ?? null,
+            ]);
+
+            $data = $record;
+
+            $data->load('advertising_space', 'company', 'status');
+
+            Audith::new($id_user, $action, $request->all(), 200, compact('data'));
+
+            return response(compact('data'));
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage()], 500);
+        }
+    }
+
+    public function update_status(Request $request, $id)
+    {
+        $message = "Error al actualizar el estado la publicidad contratada";
+        $action = "Actualización de estado de publicidad contratada";
+        $id_user = Auth::user()->id ?? null;
+
+        try {
+            $validated = $request->validate([
+                'id_advertising_status' => 'required|integer|exists:advertising_status,id',
+            ]);
+
+            $record = CompanyAdvertising::findOrFail($id);
+
+
+            $record->update([
+                'id_advertising_status' => $validated['id_advertising_status'],
             ]);
 
             $data = $record;

@@ -8,9 +8,15 @@ class AdvertisingSpace extends Model
 {
     public $timestamps = false;
     protected $table = 'advertising_spaces';
-    protected $fillable = ['name', 'data'];
+    protected $fillable = ['name', 'data', 'status_id'];
     protected $casts = [
         'data' => 'array',
     ];
+
+    public function status()
+    {
+        return $this->belongsTo(Status::class, 'status_id');
+    }
+
 }
 
