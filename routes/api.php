@@ -17,6 +17,7 @@ use App\Http\Controllers\FaqController;
 use App\Http\Controllers\GeneralImportController;
 use App\Http\Controllers\GetsFunctionsController;
 use App\Http\Controllers\LocalityProvinceController;
+use App\Http\Controllers\NewsController;
 use App\Http\Controllers\ReferredController;
 use App\Http\Controllers\RegionController;
 use App\Http\Controllers\SegmentController;

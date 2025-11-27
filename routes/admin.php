@@ -9,6 +9,7 @@ use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\CompanyPlanController;
 use App\Http\Controllers\CompanyPlanPublicitiesReportController;
 use App\Http\Controllers\FaqController;
+use App\Http\Controllers\NewsController;
 use App\Http\Controllers\StatusController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\UserCompanyController;
@@ -104,6 +105,14 @@ Route::prefix('admin')
         // status
         Route::controller(StatusController::class)->group(function () {
             Route::get('status', 'index');
+        });
+
+        Route::controller(NewsController::class)->group(function () {
+            Route::get('news', 'index');
+            Route::post('news', 'store');
+            Route::put('news/{id}', 'update');
+            Route::put('news/{id}/status', 'changeStatus');
+            Route::delete('news/{id}', 'destroy');
         });
     }
 );
