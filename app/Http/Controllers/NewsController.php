@@ -17,8 +17,12 @@ class NewsController extends Controller
         $message = "Error al obtener noticias";
         $action = "Listado de noticias";
         $data = null;
+        $meta = null;
 
         try {
+            $perPage = $request->query('per_page'); // ahora sin valor por defecto
+            $page = $request->query('page', 1);
+
             $query = News::query();
 
             // Filtro por rango de fechas
@@ -49,16 +53,32 @@ class NewsController extends Controller
                 });
             }
 
-            $data = $query->with(['plan', 'status', 'user'])->get();
+            // Orden por defecto (por fecha descendente)
+            $query->orderBy('date', 'desc');
 
-            Audith::new(Auth::user()->id ?? null, $action, $request->all(), 200, compact("data"));
+            // Si no se pasa per_page => devolver todo
+            if (is_null($perPage)) {
+                $news = $query->with(['plan', 'status', 'user'])->get();
+                $data = $news;
+            } else {
+                $news = $query->with(['plan', 'status', 'user'])->paginate($perPage, ['*'], 'page', $page);
+                $data = $news->items();
+                $meta = [
+                    'page' => $news->currentPage(),
+                    'per_page' => $news->perPage(),
+                    'total' => $news->total(),
+                    'last_page' => $news->lastPage(),
+                ];
+            }
+
+            Audith::new(Auth::user()->id ?? null, $action, $request->all(), 200, compact("action", "data", "meta"));
 
         } catch (Exception $e) {
             Audith::new(Auth::user()->id ?? null, $action, $request->all(), 500, $e->getMessage());
             return response(["message" => $message, "error" => $e->getMessage()], 500);
         }
 
-        return response(compact("data"));
+        return response(compact("data", "meta"));
     }
 
     // POST - Crear nueva noticia
@@ -80,7 +100,7 @@ class NewsController extends Controller
             // Si el estado es PUBLICADO (1), todos los campos son obligatorios
             if ($request->status_id == 1) {
                 $rules['new'] = 'required|string';
-                $rules['img'] = 'required|string';
+                $rules['img'] = 'nullable|string';
                 $rules['id_plan'] = 'required|exists:plans,id';
             } else {
                 // Si es BORRADOR (2), estos campos son opcionales
@@ -134,7 +154,7 @@ class NewsController extends Controller
             // Si el estado es PUBLICADO (1), todos los campos son obligatorios
             if ($request->status_id == 1) {
                 $rules['new'] = 'required|string';
-                $rules['img'] = 'required|string';
+                $rules['img'] = 'nullable|string';
                 $rules['id_plan'] = 'required|exists:plans,id';
             } else {
                 // Si es BORRADOR (2), estos campos son opcionales
@@ -145,10 +165,20 @@ class NewsController extends Controller
 
             $request->validate($rules);
 
+            // Validar que si el estado es PUBLICADO, debe tener imagen (en request o en BD)
+            if ($request->status_id == 1) {
+                $hasImage = $request->has('img') && $request->img ? true : ($news->img ? true : false);
+                if (!$hasImage) {
+                    return response([
+                        "message" => "No se puede publicar la noticia sin imagen. Debe agregar una imagen primero."
+                    ], 400);
+                }
+            }
+
             $news->update([
                 'title' => $request->title,
                 'new' => $request->new,
-                'img' => $request->img,
+                'img' => $request->has('img') ? $request->img : $news->img,
                 'date' => $request->date,
                 'id_plan' => $request->id_plan,
                 'status_id' => $request->status_id,
@@ -228,5 +258,118 @@ class NewsController extends Controller
         }
 
         return response(["message" => "Noticia eliminada correctamente"]);
+    }
+
+    // GET GALLERY - Retorna galería de imágenes de noticias
+    public function gallery(Request $request)
+    {
+        $message = "Error al obtener galería de imágenes";
+        $action = "Galería de imágenes de noticias";
+        $data = null;
+
+        try {
+            // Solo noticias con imágenes y publicadas (status_id = 1)
+            $data = News::whereNotNull('img')
+                ->where('img', '!=', '')
+                ->where('status_id', 1)
+                ->orderBy('date', 'desc')
+                ->pluck('img');
+
+            Audith::new(Auth::user()->id ?? null, $action, $request->all(), 200, compact("data"));
+
+        } catch (Exception $e) {
+            Audith::new(Auth::user()->id ?? null, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage()], 500);
+        }
+
+        return response(compact("data"));
+    }
+
+    // POST - Actualizar/agregar imagen de la noticia
+    public function updateImage(Request $request, $id)
+    {
+        $message = "Error al actualizar imagen de la noticia";
+        $action = "Actualizar imagen de la noticia";
+        $data = null;
+        $id_user = Auth::user()->id ?? null;
+
+        try {
+            $news = News::findOrFail($id);
+
+            $request->validate([
+                'img' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+            ]);
+
+            $imagePath = public_path('storage/news/images/');
+
+            // Crear carpeta si no existe
+            if (!file_exists($imagePath)) {
+                mkdir($imagePath, 0777, true);
+            }
+
+            if ($request->hasFile('img')) {
+                // Eliminar imagen anterior
+                if ($news->img && file_exists(public_path($news->img))) {
+                    unlink(public_path($news->img));
+                }
+
+                // Guardar nueva imagen
+                $img = $request->file('img');
+                $imgName = time() . '_news_' . $img->getClientOriginalName();
+                $img->move($imagePath, $imgName);
+                $news->img = '/storage/news/images/' . $imgName;
+            } elseif ($request->img === null) {
+                // Si se manda explícitamente null, eliminar imagen
+                if ($news->img && file_exists(public_path($news->img))) {
+                    unlink(public_path($news->img));
+                }
+                $news->img = null;
+            }
+            // Si se manda string (URL) se mantiene el campo img sin cambios
+
+            $news->save();
+
+            $news->load(['plan', 'status', 'user']);
+
+            $data = $news;
+            Audith::new($id_user, $action, $request->all(), 200, compact("data"));
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+        }
+
+        return response(compact("data"));
+    }
+
+    // DELETE - Eliminar imagen de la noticia
+    public function deleteImage(Request $request, $id)
+    {
+        $message = "Error al eliminar imagen de la noticia";
+        $action = "Eliminar imagen de la noticia";
+        $data = null;
+        $id_user = Auth::user()->id ?? null;
+
+        try {
+            $news = News::findOrFail($id);
+
+            // Eliminar imagen física si existe
+            if ($news->img && file_exists(public_path($news->img))) {
+                unlink(public_path($news->img));
+            }
+
+            // Establecer img como null
+            $news->img = null;
+            $news->save();
+
+            $news->load(['plan', 'status', 'user']);
+
+            $data = $news;
+            Audith::new($id_user, $action, $request->all(), 200, compact("data"));
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+        }
+
+        return response(compact("data"));
     }
 }

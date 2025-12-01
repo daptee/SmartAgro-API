@@ -74,6 +74,7 @@ Route::group(['middleware' => ['token']], function ($router) {
     Route::controller(ReportController::class)->group(function () {
         Route::get('reports', 'reports');
         Route::get('business-indicators', 'business_indicators')->middleware(CheckPlan::class);
+        Route::get('status-report', 'statusReport');
     });
 
     // Subscription
