@@ -28,6 +28,7 @@ Route::prefix('admin')
         Route::controller(UserController::class)->group(function () {
             Route::get('users', 'index');
             Route::get('users/status', 'get_user_status');
+            Route::get('users/with-referrals', 'getUsersWithReferrals');
             Route::get('users/send-welcome-email/{id}', 'send_welcome_email');
             Route::get('users/{id}', 'show');
             Route::post('users/create', 'create');
