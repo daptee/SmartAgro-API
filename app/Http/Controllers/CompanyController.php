@@ -186,19 +186,6 @@ class CompanyController extends Controller
             ]);
 
             if ($request->hasFile('logo')) {
-                $pathToSave = 'storage/company/logo/';
-                $fullPath = public_path($pathToSave);
-
-                // Crear carpeta si no existe
-                if (!is_dir($fullPath)) {
-                    @mkdir($fullPath, 0755, true);
-                }
-
-                // Verificar que el directorio existe y es escribible
-                if (!is_dir($fullPath) || !is_writable($fullPath)) {
-                    throw new \RuntimeException('No se pudo crear o escribir en el directorio para el logo. Verifique los permisos.');
-                }
-
                 // Eliminar imagen anterior
                 if ($company->logo && file_exists(public_path($company->logo))) {
                     @unlink(public_path($company->logo));
@@ -206,9 +193,22 @@ class CompanyController extends Controller
 
                 // Guardar nueva imagen
                 $logo = $request->file('logo');
+                $pathToSave = 'storage/company/logo';
+                $fullPath = public_path($pathToSave);
+
+                // Intentar crear el directorio si no existe
+                if (!is_dir($fullPath)) {
+                    @mkdir($fullPath, 0755, true);
+                }
+
                 $logoName = time() . '_logo_' . $logo->getClientOriginalName();
-                $logo->move($fullPath, $logoName);
-                $company->logo = '/' . $pathToSave . $logoName;
+
+                try {
+                    $logo->move($fullPath, $logoName);
+                    $company->logo = '/' . $pathToSave . '/' . $logoName;
+                } catch (\Exception $e) {
+                    throw new \RuntimeException('Error al guardar el logo: ' . $e->getMessage());
+                }
             } elseif ($request->logo === null) {
                 // Si se manda explícitamente null
                 if ($company->logo && file_exists(public_path($company->logo))) {
