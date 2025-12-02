@@ -191,9 +191,12 @@ class CompanyController extends Controller
 
                 // Crear carpeta si no existe
                 if (!is_dir($fullPath)) {
-                    if (!mkdir($fullPath, 0755, true) && !is_dir($fullPath)) {
-                        throw new \RuntimeException('No se pudo crear el directorio para el logo. Verifique los permisos.');
-                    }
+                    @mkdir($fullPath, 0755, true);
+                }
+
+                // Verificar que el directorio existe y es escribible
+                if (!is_dir($fullPath) || !is_writable($fullPath)) {
+                    throw new \RuntimeException('No se pudo crear o escribir en el directorio para el logo. Verifique los permisos.');
                 }
 
                 // Eliminar imagen anterior
