@@ -18,8 +18,8 @@ class BackupController extends Controller
         $host = config('services.data_base.host');
 
         $storagePath = public_path('storage/backups'); // Usamos storage en lugar de public
-        if (!file_exists($storagePath)) {
-            mkdir($storagePath, 0755, true);
+        if (!is_dir($storagePath)) {
+            @mkdir($storagePath, 0755, true);
         }
 
         $fileName = "backup_" . Carbon::now()->format('Y_m_d_His') . ".sql";

@@ -303,8 +303,8 @@ class NewsController extends Controller
             $imagePath = public_path('storage/news/images/');
 
             // Crear carpeta si no existe
-            if (!file_exists($imagePath)) {
-                mkdir($imagePath, 0777, true);
+            if (!is_dir($imagePath)) {
+                @mkdir($imagePath, 0777, true);
             }
 
             if ($request->hasFile('img')) {

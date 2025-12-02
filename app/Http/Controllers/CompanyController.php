@@ -41,7 +41,7 @@ class CompanyController extends Controller
                 'id_locality' => 'nullable|exists:localities,id',
                 'id_company_category' => 'nullable|exists:company_categories,id',
                 'range_number_of_employees' => 'nullable|string|max:255',
-                'website' => 'nullable|url|max:255',
+                'website' => 'nullable|string|max:255',
                 'status' => 'nullable|integer|in:1,2',
                 // Nuevos campos opcionales
                 'generate_api_key' => 'nullable|boolean',
@@ -120,7 +120,7 @@ class CompanyController extends Controller
                 'id_locality' => 'nullable|exists:localities,id',
                 'id_company_category' => 'nullable|exists:company_categories,id',
                 'range_number_of_employees' => 'nullable|string|max:255',
-                'website' => 'nullable|url|max:255',
+                'website' => 'nullable|string|max:255',
                 'status' => 'nullable|integer|in:1,2',
                 // Nuevos campos opcionales
                 'generate_api_key' => 'nullable|boolean',
@@ -187,8 +187,8 @@ class CompanyController extends Controller
             $imagePath = public_path('storage/company/logo/');
 
             // Crear carpeta si no existe
-            if (!file_exists($imagePath)) {
-                mkdir($imagePath, 0777, true);
+            if (!is_dir($imagePath)) {
+                @mkdir($imagePath, 0777, true);
             }
 
             if ($request->hasFile('logo')) {
