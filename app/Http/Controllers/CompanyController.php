@@ -193,7 +193,7 @@ class CompanyController extends Controller
 
                 // Guardar nueva imagen
                 $logo = $request->file('logo');
-                $pathToSave = 'storage/company/logo';
+                $pathToSave = 'storage/company/logos';
                 $fullPath = public_path($pathToSave);
 
                 // Intentar crear el directorio si no existe
