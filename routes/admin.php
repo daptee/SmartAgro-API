@@ -9,6 +9,8 @@ use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\CompanyPlanController;
 use App\Http\Controllers\CompanyPlanPublicitiesReportController;
 use App\Http\Controllers\FaqController;
+use App\Http\Controllers\NewsController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\StatusController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\UserCompanyController;
@@ -26,6 +28,7 @@ Route::prefix('admin')
         Route::controller(UserController::class)->group(function () {
             Route::get('users', 'index');
             Route::get('users/status', 'get_user_status');
+            Route::get('users/with-referrals', 'getUsersWithReferrals');
             Route::get('users/send-welcome-email/{id}', 'send_welcome_email');
             Route::get('users/{id}', 'show');
             Route::post('users/create', 'create');
@@ -104,6 +107,22 @@ Route::prefix('admin')
         // status
         Route::controller(StatusController::class)->group(function () {
             Route::get('status', 'index');
+        });
+
+        // reports
+        Route::controller(ReportController::class)->group(function () {
+            Route::get('status-report', 'statusReport');
+        });
+
+        Route::controller(NewsController::class)->group(function () {
+            Route::get('news', 'index');
+            Route::get('news/gallery', 'gallery');
+            Route::post('news', 'store');
+            Route::put('news/{id}', 'update');
+            Route::post('news/image/{id}', 'updateImage');
+            Route::delete('news/image/{id}', 'deleteImage');
+            Route::put('news/{id}/status', 'changeStatus');
+            Route::delete('news/{id}', 'destroy');
         });
     }
 );

@@ -50,6 +50,7 @@ class UserController extends Controller
             $localityId = $request->input('id_locality');
             $userProfileId = $request->input('id_user_profile');
             $statusId = $request->input('id_status');
+            $referredBy = $request->input('referred_by'); // Filtro de usuario referidor
             $perPage = $request->input('per_page');
 
             // Query base
@@ -88,7 +89,10 @@ class UserController extends Controller
             }
             if (!empty($userProfileId)) {
                 $query->where('id_user_profile', $userProfileId);
-            };
+            }
+            if (!empty($referredBy)) {
+                $query->where('referred_by', $referredBy);
+            }
 
             // Paginado o listado completo
             if ($perPage) {
@@ -926,6 +930,48 @@ class UserController extends Controller
             Audith::new($id_user, $action, ["user_id" => $id], 500, $response);
             Log::error($response);
 
+            return response()->json($response, 500);
+        }
+    }
+
+    /**
+     * Get users who have referred other users (for filter dropdown)
+     */
+    public function getUsersWithReferrals(Request $request)
+    {
+        $action = "Listado de usuarios con referidos";
+        $id_user = Auth::user()->id ?? null;
+
+        try {
+            // Obtener usuarios que tienen al menos un referido
+            $data = User::whereHas('referredUsers')
+                ->select('id', 'name', 'last_name', 'email')
+                ->orderBy('name', 'asc')
+                ->get()
+                ->map(function ($user) {
+                    return [
+                        'id' => $user->id,
+                        'name' => $user->name . ' ' . $user->last_name,
+                        'email' => $user->email,
+                        'referrals_count' => $user->referredUsers()->count()
+                    ];
+                });
+
+            Audith::new($id_user, $action, null, 200, compact("data"));
+
+            return response()->json([
+                "message" => $action,
+                "data" => $data
+            ], 200);
+
+        } catch (Exception $e) {
+            $response = [
+                "message" => "Error al obtener usuarios con referidos",
+                "error" => $e->getMessage(),
+                "line" => $e->getLine()
+            ];
+            Audith::new($id_user, $action, null, 500, $response);
+            Log::debug(json_encode($response));
             return response()->json($response, 500);
         }
     }

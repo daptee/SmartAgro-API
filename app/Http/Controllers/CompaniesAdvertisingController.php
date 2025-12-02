@@ -112,8 +112,8 @@ class CompaniesAdvertisingController extends Controller
 
             $imagePath = public_path('storage/publicities/gifs/');
 
-            if (!file_exists($imagePath)) {
-                mkdir($imagePath, 0777, true);
+            if (!is_dir($imagePath)) {
+                @mkdir($imagePath, 0777, true);
             }
 
             $filePath = null;
@@ -184,8 +184,8 @@ class CompaniesAdvertisingController extends Controller
             $imagePath = public_path('storage/publicities/gifs/');
 
             // Crear carpeta si no existe
-            if (!file_exists($imagePath)) {
-                mkdir($imagePath, 0777, true);
+            if (!is_dir($imagePath)) {
+                @mkdir($imagePath, 0777, true);
             }
 
             // Manejar actualización de archivo

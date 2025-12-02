@@ -17,6 +17,7 @@ use App\Http\Controllers\FaqController;
 use App\Http\Controllers\GeneralImportController;
 use App\Http\Controllers\GetsFunctionsController;
 use App\Http\Controllers\LocalityProvinceController;
+use App\Http\Controllers\NewsController;
 use App\Http\Controllers\ReferredController;
 use App\Http\Controllers\RegionController;
 use App\Http\Controllers\SegmentController;
@@ -73,6 +74,7 @@ Route::group(['middleware' => ['token']], function ($router) {
     Route::controller(ReportController::class)->group(function () {
         Route::get('reports', 'reports');
         Route::get('business-indicators', 'business_indicators')->middleware(CheckPlan::class);
+        Route::get('status-report', 'statusReport');
     });
 
     // Subscription

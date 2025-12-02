@@ -24,6 +24,7 @@ use App\Models\HarvestPrices;
 use App\Models\LivestockInputOutputRatio;
 use App\Models\PitIndicator;
 use App\Models\ProductPrice;
+use App\Models\StatusReport;
 use App\Models\User;
 use Exception;
 use Illuminate\Support\Facades\DB;
@@ -33,6 +34,24 @@ use Illuminate\Support\Facades\Validator;
 
 class ReportController extends Controller
 {
+    public function statusReport(Request $request)
+    {
+        $message = "Error al obtener los estados de reportes";
+        $action = "Listado de estados de reportes";
+        $data = null;
+        $id_user = Auth::user()->id ?? null;
+        try {
+            $data = StatusReport::get();
+
+            Audith::new($id_user, $action, $request->all(), 200, compact("data"));
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+        }
+
+        return response(compact("data"));
+    }
+
     public function reports(Request $request)
     {
         // Validar parámetros de mes y año

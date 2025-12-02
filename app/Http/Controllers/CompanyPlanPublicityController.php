@@ -65,8 +65,8 @@ class CompanyPlanPublicityController extends Controller
             $results = [];
             $imagePath = public_path('storage/publicities/gifs/');
 
-            if (!file_exists($imagePath)) {
-                mkdir($imagePath, 0777, true);
+            if (!is_dir($imagePath)) {
+                @mkdir($imagePath, 0777, true);
             }
 
             $setting = CompanyPlanPublicitySetting::where('id_company_plan', $validated['id_company_plan'])->first();
