@@ -20,6 +20,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class CompanyController extends Controller
@@ -184,28 +185,31 @@ class CompanyController extends Controller
                 'logo' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
             ]);
 
-            $imagePath = public_path('storage/company/logo/');
-
-            // Crear carpeta si no existe
-            if (!is_dir($imagePath)) {
-                @mkdir($imagePath, 0777, true);
-            }
-
             if ($request->hasFile('logo')) {
+                $pathToSave = 'storage/company/logo/';
+                $fullPath = public_path($pathToSave);
+
+                // Crear carpeta si no existe
+                if (!is_dir($fullPath)) {
+                    if (!mkdir($fullPath, 0755, true) && !is_dir($fullPath)) {
+                        throw new \RuntimeException('No se pudo crear el directorio para el logo. Verifique los permisos.');
+                    }
+                }
+
                 // Eliminar imagen anterior
                 if ($company->logo && file_exists(public_path($company->logo))) {
-                    unlink(public_path($company->logo));
+                    @unlink(public_path($company->logo));
                 }
 
                 // Guardar nueva imagen
                 $logo = $request->file('logo');
                 $logoName = time() . '_logo_' . $logo->getClientOriginalName();
-                $logo->move($imagePath, $logoName);
-                $company->logo = '/storage/company/logo/' . $logoName;
+                $logo->move($fullPath, $logoName);
+                $company->logo = '/' . $pathToSave . $logoName;
             } elseif ($request->logo === null) {
                 // Si se manda explícitamente null
                 if ($company->logo && file_exists(public_path($company->logo))) {
-                    unlink(public_path($company->logo));
+                    @unlink(public_path($company->logo));
                 }
                 $company->logo = null;
             }
