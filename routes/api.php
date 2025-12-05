@@ -93,6 +93,7 @@ Route::group(['middleware' => ['token']], function ($router) {
         Route::post('company', 'store');
         Route::post('company/{id}', 'update');
         Route::post('company/logo/{id}', 'update_logo');
+        Route::get('company/permissions/all', 'allPermissions');
     });
 
     Route::controller(CompanyCategoryController::class)->group(function () {
@@ -156,6 +157,7 @@ Route::group(['middleware' => ['token']], function ($router) {
 
 Route::group(['middleware' => ['company_api_key']], function () {
     Route::controller(CompanyController::class)->group(function () {
+        // Información de mercado
         Route::get('companies/news', 'news');
         Route::get('companies/insights', 'insights');
         Route::get('companies/mag-lease-index', 'mag_lease_index');
@@ -165,6 +167,16 @@ Route::group(['middleware' => ['company_api_key']], function () {
         Route::get('companies/producer-segment-prices', 'producer_segment_prices');
         Route::get('companies/rainfall-records-provinces', 'rainfall_records_provinces');
         Route::get('companies/main-grain-prices', 'main_grain_prices');
+
+        // Indicadores comerciales
+        Route::get('companies/pit-indicators', 'pit_indicators');
+        Route::get('companies/livestock-input-output-ratios', 'livestock_input_output_ratios');
+        Route::get('companies/agricultural-input-output-relationships', 'agricultural_input_output_relationships');
+        Route::get('companies/gross-margins-trend', 'gross_margins_trend');
+        Route::get('companies/harvest-prices', 'harvest_prices');
+        Route::get('companies/product-prices', 'product_prices');
+        Route::get('companies/gross-margins', 'gross_margins');
+        Route::get('companies/main-crops-buying-selling-traffic-light', 'main_crops_buying_selling_traffic_light');
     });
 });
 
