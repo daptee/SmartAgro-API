@@ -47,8 +47,8 @@ class MagSteerIndexController extends Controller
             if ($request->has('search') && $request->search) {
                 $search = $request->search;
                 $query->where(function ($q) use ($search) {
-                    // Buscar en el campo JSON data, específicamente en "I.N.MAG ($)"
-                    $q->where('data->I.N.MAG ($)', 'LIKE', "%{$search}%");
+                    // Buscar en el campo JSON data, específicamente en "INMAG"
+                    $q->where('data->INMAG', 'LIKE', "%{$search}%");
                 });
             }
 
@@ -104,14 +104,14 @@ class MagSteerIndexController extends Controller
                 $request->validate($rules);
 
                 $dataJson = json_decode($request->data, true);
-                if (!isset($dataJson['I.N.MAG ($)']) || empty($dataJson['I.N.MAG ($)'])) {
+                if (!isset($dataJson['INMAG']) || empty($dataJson['INMAG'])) {
                     return response([
-                        "message" => "El campo 'I.N.MAG ($)' (nombre del mes) es obligatorio en el JSON data cuando el estado es PUBLICADO."
+                        "message" => "El campo 'INMAG' (nombre del mes) es obligatorio en el JSON data cuando el estado es PUBLICADO."
                     ], 400);
                 }
 
                 // Validar que no exista un registro con el mismo mes y año
-                $monthName = $dataJson['I.N.MAG ($)'];
+                $monthName = $dataJson['INMAG'];
                 $year = date('Y', strtotime($request->date));
             } else {
                 // Si es BORRADOR (2), data y plan son opcionales
@@ -123,8 +123,8 @@ class MagSteerIndexController extends Controller
                 // Si se proporciona data, validar el mes y año para evitar duplicados
                 if ($request->data) {
                     $dataJson = json_decode($request->data, true);
-                    if (isset($dataJson['I.N.MAG ($)']) && !empty($dataJson['I.N.MAG ($)'])) {
-                        $monthName = $dataJson['I.N.MAG ($)'];
+                    if (isset($dataJson['INMAG']) && !empty($dataJson['INMAG'])) {
+                        $monthName = $dataJson['INMAG'];
                         $year = date('Y', strtotime($request->date));
                     }
                 }
@@ -175,14 +175,14 @@ class MagSteerIndexController extends Controller
                 $request->validate($rules);
 
                 $dataJson = json_decode($request->data, true);
-                if (!isset($dataJson['I.N.MAG ($)']) || empty($dataJson['I.N.MAG ($)'])) {
+                if (!isset($dataJson['INMAG']) || empty($dataJson['INMAG'])) {
                     return response([
-                        "message" => "El campo 'I.N.MAG ($)' (nombre del mes) es obligatorio en el JSON data cuando el estado es PUBLICADO."
+                        "message" => "El campo 'INMAG' (nombre del mes) es obligatorio en el JSON data cuando el estado es PUBLICADO."
                     ], 400);
                 }
 
                 // Validar que no exista otro registro con el mismo mes y año
-                $monthName = $dataJson['I.N.MAG ($)'];
+                $monthName = $dataJson['INMAG'];
                 $year = date('Y', strtotime($request->date));
             } else {
                 // Si es BORRADOR (2), estos campos son opcionales
@@ -194,8 +194,8 @@ class MagSteerIndexController extends Controller
                 // Si se proporciona data, validar el mes y año
                 if ($request->data) {
                     $dataJson = json_decode($request->data, true);
-                    if (isset($dataJson['I.N.MAG ($)']) && !empty($dataJson['I.N.MAG ($)'])) {
-                        $monthName = $dataJson['I.N.MAG ($)'];
+                    if (isset($dataJson['INMAG']) && !empty($dataJson['INMAG'])) {
+                        $monthName = $dataJson['INMAG'];
                         $year = date('Y', strtotime($request->date));
                     }
                 }
@@ -247,9 +247,9 @@ class MagSteerIndexController extends Controller
 
                 // Validar que el JSON tenga el nombre del mes
                 $dataJson = is_string($index->data) ? json_decode($index->data, true) : (array) $index->data;
-                if (!isset($dataJson['I.N.MAG ($)']) || empty($dataJson['I.N.MAG ($)'])) {
+                if (!isset($dataJson['INMAG']) || empty($dataJson['INMAG'])) {
                     return response([
-                        "message" => "No se puede publicar el registro. El campo 'I.N.MAG ($)' (nombre del mes) es obligatorio en el JSON data."
+                        "message" => "No se puede publicar el registro. El campo 'INMAG' (nombre del mes) es obligatorio en el JSON data."
                     ], 400);
                 }
             }
