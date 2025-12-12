@@ -114,11 +114,6 @@ class MagLeaseIndexController extends Controller
                 // Validar que no exista un registro con el mismo mes y año
                 $monthName = $dataJson['I.A.MAG ($)'];
                 $year = date('Y', strtotime($request->date));
-
-                $exists = MagLeaseIndex::where(function($q) use ($monthName) {
-                    $q->where('data->I.A.MAG ($)', $monthName);
-                })
-                ->whereYear('date', $year);
             } else {
                 // Si es BORRADOR (2), data y plan son opcionales
                 $rules['data'] = 'nullable|json';
@@ -132,18 +127,6 @@ class MagLeaseIndexController extends Controller
                     if (isset($dataJson['I.A.MAG ($)']) && !empty($dataJson['I.A.MAG ($)'])) {
                         $monthName = $dataJson['I.A.MAG ($)'];
                         $year = date('Y', strtotime($request->date));
-
-                        $exists = MagLeaseIndex::where(function($q) use ($monthName) {
-                            $q->where('data->I.A.MAG ($)', $monthName);
-                        })
-                        ->whereYear('date', $year)
-                        ->exists();
-
-                        if ($exists) {
-                            return response([
-                                "message" => "Ya existe un registro para el mes '{$monthName}' del año {$year}."
-                            ], 400);
-                        }
                     }
                 }
             }
@@ -202,12 +185,6 @@ class MagLeaseIndexController extends Controller
                 // Validar que no exista otro registro con el mismo mes y año
                 $monthName = $dataJson['I.A.MAG ($)'];
                 $year = date('Y', strtotime($request->date));
-
-                $exists = MagLeaseIndex::where('id', '!=', $id)
-                    ->where(function($q) use ($monthName) {
-                        $q->where('data->I.A.MAG ($)', $monthName);
-                    })
-                    ->whereYear('date', $year);
             } else {
                 // Si es BORRADOR (2), estos campos son opcionales
                 $rules['data'] = 'nullable|json';
@@ -221,19 +198,6 @@ class MagLeaseIndexController extends Controller
                     if (isset($dataJson['I.A.MAG ($)']) && !empty($dataJson['I.A.MAG ($)'])) {
                         $monthName = $dataJson['I.A.MAG ($)'];
                         $year = date('Y', strtotime($request->date));
-
-                        $exists = MagLeaseIndex::where('id', '!=', $id)
-                            ->where(function($q) use ($monthName) {
-                                $q->where('data->I.A.MAG ($)', $monthName);
-                            })
-                            ->whereYear('date', $year)
-                            ->exists();
-
-                        if ($exists) {
-                            return response([
-                                "message" => "Ya existe otro registro para el mes '{$monthName}' del año {$year}."
-                            ], 400);
-                        }
                     }
                 }
             }
