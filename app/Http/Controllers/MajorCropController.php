@@ -110,11 +110,13 @@ class MajorCropController extends Controller
 
             // Si el estado es PUBLICADO (1), el campo data es obligatorio
             if ($request->status_id == 1) {
-                $rules['data'] = 'required|json';
+                $rules['data'] = 'required';
 
                 $request->validate($rules);
 
-                $dataJson = json_decode($request->data, true);
+                // Convertir data a array si viene como string o array
+                $dataJson = is_string($request->data) ? json_decode($request->data, true) : $request->data;
+
                 if (empty($dataJson)) {
                     return response([
                         "message" => "El campo 'data' debe contener información válida cuando el estado es PUBLICADO."
@@ -134,14 +136,27 @@ class MajorCropController extends Controller
                 }
             } else {
                 // Si es BORRADOR (2), data es opcional
-                $rules['data'] = 'nullable|json';
+                $rules['data'] = 'nullable';
                 $request->validate($rules);
+            }
+
+            // Procesar el campo data: si es string, convertir a JSON; si es array, dejar como está
+            $dataToStore = null;
+            if ($request->has('data') && $request->data) {
+                if (is_string($request->data)) {
+                    $dataToStore = json_decode($request->data);
+                } else if (is_array($request->data)) {
+                    $dataToStore = $request->data;
+                }
             }
 
             $data = MajorCrop::create([
                 'month' => $request->month,
                 'year' => $request->year,
-                'data' => $request->data ? json_decode($request->data) : null,
+                'data' => $dataToStore,
+                'date' => $request->date ?? null,
+                'icon' => $request->icon ?? null,
+                'id_plan' => $request->id_plan ?? null,
                 'status_id' => $request->status_id,
                 'id_user' => $id_user,
             ]);
@@ -178,11 +193,13 @@ class MajorCropController extends Controller
 
             // Si el estado es PUBLICADO (1), el campo data es obligatorio
             if ($request->status_id == 1) {
-                $rules['data'] = 'required|json';
+                $rules['data'] = 'required';
 
                 $request->validate($rules);
 
-                $dataJson = json_decode($request->data, true);
+                // Convertir data a array si viene como string o array
+                $dataJson = is_string($request->data) ? json_decode($request->data, true) : $request->data;
+
                 if (empty($dataJson)) {
                     return response([
                         "message" => "El campo 'data' debe contener información válida cuando el estado es PUBLICADO."
@@ -203,14 +220,29 @@ class MajorCropController extends Controller
                 }
             } else {
                 // Si es BORRADOR (2), data es opcional
-                $rules['data'] = 'nullable|json';
+                $rules['data'] = 'nullable';
                 $request->validate($rules);
+            }
+
+            // Procesar el campo data: si es string, convertir a JSON; si es array, dejar como está
+            $dataToStore = $crop->data;
+            if ($request->has('data')) {
+                if (is_string($request->data)) {
+                    $dataToStore = json_decode($request->data);
+                } else if (is_array($request->data)) {
+                    $dataToStore = $request->data;
+                } else if (is_null($request->data)) {
+                    $dataToStore = null;
+                }
             }
 
             $crop->update([
                 'month' => $request->month,
                 'year' => $request->year,
-                'data' => $request->has('data') ? json_decode($request->data) : $crop->data,
+                'data' => $dataToStore,
+                'date' => $request->date ?? $crop->date,
+                'icon' => $request->icon ?? $crop->icon,
+                'id_plan' => $request->id_plan ?? $crop->id_plan,
                 'status_id' => $request->status_id,
                 'id_user' => $id_user,
             ]);
