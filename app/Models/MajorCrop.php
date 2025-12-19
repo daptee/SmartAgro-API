@@ -41,6 +41,11 @@ class MajorCrop extends Model
         return $this->belongsTo(User::class, 'id_user', 'id');
     }
 
+    public function plan(): HasOne
+    {
+        return $this->hasOne(Plan::class, 'id', 'id_plan');
+    }
+
     // Scope to filter published records (status_id = 1)
     public function scopePublished($query)
     {
