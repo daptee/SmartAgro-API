@@ -34,7 +34,9 @@ class User extends Authenticatable implements JWTSubject
         'province_name',
         'referral_code',
         'referred_by',
-        'id_plan'
+        'id_plan',
+        'is_debtor',
+        'grace_period_used'
     ];
 
     /**
@@ -57,6 +59,8 @@ class User extends Authenticatable implements JWTSubject
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_debtor' => 'boolean',
+            'grace_period_used' => 'boolean',
         ];
     }
 
