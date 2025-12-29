@@ -49,3 +49,20 @@ UPDATE mag_steer_index
 SET status_id = 1;
 
 SET SQL_SAFE_UPDATES = 1;
+
+ALTER TABLE major_crops
+ADD COLUMN month INT NULL AFTER data,
+ADD COLUMN year INT NULL AFTER month,
+ADD COLUMN status_id INT AFTER id_plan,
+ADD COLUMN id_user INT NULL AFTER status_id,
+ADD COLUMN updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER id_user,
+ADD COLUMN deleted_at TIMESTAMP NULL AFTER updated_at,
+ADD CONSTRAINT fk_major_crops_status
+    FOREIGN KEY (status_id) REFERENCES statuses_reports(id);
+
+SET SQL_SAFE_UPDATES = 0;
+
+UPDATE major_crops
+SET status_id = 1;
+
+SET SQL_SAFE_UPDATES = 1;

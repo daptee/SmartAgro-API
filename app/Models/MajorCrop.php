@@ -15,6 +15,9 @@ class MajorCrop extends Model
         'month',
         'year',
         'data',
+        'date',
+        'icon',
+        'id_plan',
         'status_id',
         'id_user',
     ];
@@ -36,6 +39,11 @@ class MajorCrop extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'id_user', 'id');
+    }
+
+    public function plan(): BelongsTo
+    {
+        return $this->belongsTo(Plan::class, 'id_plan', 'id');
     }
 
     // Scope to filter published records (status_id = 1)
