@@ -16,6 +16,7 @@ use App\Http\Controllers\CompanyRolesController;
 use App\Http\Controllers\FaqController;
 use App\Http\Controllers\GeneralImportController;
 use App\Http\Controllers\GetsFunctionsController;
+use App\Http\Controllers\IconController;
 use App\Http\Controllers\LocalityProvinceController;
 use App\Http\Controllers\NewsController;
 use App\Http\Controllers\ReferredController;
@@ -150,6 +151,15 @@ Route::group(['middleware' => ['token']], function ($router) {
         Route::post('referred/{id}', 'store');
         Route::put('referred/{id}', 'update');
         Route::post('referred/add-code/{user_id}', 'addReferralCode');
+    });
+
+    // Icons
+    Route::controller(IconController::class)->group(function () {
+        Route::get('icons', 'index');
+        Route::get('icons/{id}', 'show');
+        Route::post('icons', 'store');
+        Route::post('icons/{id}', 'update');
+        Route::delete('icons/{id}', 'destroy');
     });
 });
 

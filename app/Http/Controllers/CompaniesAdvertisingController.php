@@ -92,7 +92,7 @@ class CompaniesAdvertisingController extends Controller
                 'date_start' => 'required|date',
                 'date_end' => 'required|date|after_or_equal:date_start',
                 'price' => 'required|numeric',
-                'link' => 'nullable|url',
+                'link' => 'nullable|string',
                 'id_advertising_status' => 'required|integer|exists:advertising_status,id',
                 'file' => 'nullable|file|mimes:gif|max:10240', // max 10MB
                 'additional_data' => 'nullable|string', // Se espera string JSON
@@ -161,7 +161,7 @@ class CompaniesAdvertisingController extends Controller
                 'date_start' => 'required|date',
                 'date_end' => 'required|date|after_or_equal:date_start',
                 'price' => 'required|numeric',
-                'link' => 'nullable|url',
+                'link' => 'nullable|string',
                 'id_advertising_status' => 'required|integer|exists:advertising_status,id',
                 'file' => 'nullable|file|mimes:gif|max:10240',
                 'additional_data' => 'nullable|string',

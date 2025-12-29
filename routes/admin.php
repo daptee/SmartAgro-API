@@ -9,6 +9,9 @@ use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\CompanyPlanController;
 use App\Http\Controllers\CompanyPlanPublicitiesReportController;
 use App\Http\Controllers\FaqController;
+use App\Http\Controllers\MagLeaseIndexController;
+use App\Http\Controllers\MagSteerIndexController;
+use App\Http\Controllers\MajorCropController;
 use App\Http\Controllers\NewsController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\StatusController;
@@ -123,6 +126,33 @@ Route::prefix('admin')
             Route::delete('news/image/{id}', 'deleteImage');
             Route::put('news/{id}/status', 'changeStatus');
             Route::delete('news/{id}', 'destroy');
+        });
+
+        // MAG Lease Index
+        Route::controller(MagLeaseIndexController::class)->group(function () {
+            Route::get('mag-lease-index', 'index');
+            Route::post('mag-lease-index', 'store');
+            Route::put('mag-lease-index/{id}', 'update');
+            Route::put('mag-lease-index/{id}/status', 'changeStatus');
+            Route::delete('mag-lease-index/{id}', 'destroy');
+        });
+
+        // MAG Steer Index
+        Route::controller(MagSteerIndexController::class)->group(function () {
+            Route::get('mag-steer-index', 'index');
+            Route::post('mag-steer-index', 'store');
+            Route::put('mag-steer-index/{id}', 'update');
+            Route::put('mag-steer-index/{id}/status', 'changeStatus');
+            Route::delete('mag-steer-index/{id}', 'destroy');
+        });
+
+        // Major Crops (Perspectivas de los principales cultivos)
+        Route::controller(MajorCropController::class)->group(function () {
+            Route::get('major-crops', 'index');
+            Route::post('major-crops', 'store');
+            Route::put('major-crops/{id}', 'update');
+            Route::put('major-crops/{id}/status', 'changeStatus');
+            Route::delete('major-crops/{id}', 'destroy');
         });
     }
 );

@@ -429,13 +429,19 @@ class UserController extends Controller
                 $user->save();
             }
 
-            if ($request->referred_by) {
-                $referrer = User::find($request->referred_by);
-                if ($referrer && $referrer->id !== $user->id) {
-                    $user->referred_by = $referrer->id;
+            if ($request->has('referred_by')) {
+                if ($request->referred_by === null) {
+                    // Si se envía null, eliminar el referido
+                    $user->referred_by = null;
                     $user->save();
                 } else {
-                    return response(['message' => 'Un usuario no puede ser referido por sí mismo'], 400);
+                    $referrer = User::find($request->referred_by);
+                    if ($referrer && $referrer->id !== $user->id) {
+                        $user->referred_by = $referrer->id;
+                        $user->save();
+                    } else {
+                        return response(['message' => 'Un usuario no puede ser referido por sí mismo'], 400);
+                    }
                 }
             }
 

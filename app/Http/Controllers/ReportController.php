@@ -86,12 +86,60 @@ class ReportController extends Controller
                     ->where('id_plan', '<=', $id_plan);
             };
 
+            // Filtro especial para mag_lease_index: obtener los últimos 3 registros únicos por mes
+            $mag_lease_data = DB::table('mag_lease_index')
+                ->select('*')
+                ->where('date', '<=', sprintf('%04d-%02d-01', $year, $month))
+                ->where('id_plan', '<=', $id_plan)
+                ->whereNull('deleted_at')
+                ->orderBy('date', 'desc')
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->unique(function ($item) {
+                    // Agrupar por mes-año único
+                    $date = \Carbon\Carbon::parse($item->date);
+                    return $date->format('Y-m');
+                })
+                ->take(3)
+                ->values();
+
+            // Cargar las relaciones manualmente
+            $mag_lease_ids = $mag_lease_data->pluck('id')->toArray();
+            $mag_lease_with_plan = MagLeaseIndex::whereIn('id', $mag_lease_ids)
+                ->with('plan')
+                ->orderBy('date', 'desc')
+                ->get();
+
+            // Filtro especial para mag_steer_index: obtener los últimos 3 registros únicos por mes
+            $mag_steer_data = DB::table('mag_steer_index')
+                ->select('*')
+                ->where('date', '<=', sprintf('%04d-%02d-01', $year, $month))
+                ->where('id_plan', '<=', $id_plan)
+                ->whereNull('deleted_at')
+                ->orderBy('date', 'desc')
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->unique(function ($item) {
+                    // Agrupar por mes-año único
+                    $date = \Carbon\Carbon::parse($item->date);
+                    return $date->format('Y-m');
+                })
+                ->take(3)
+                ->values();
+
+            // Cargar las relaciones manualmente
+            $mag_steer_ids = $mag_steer_data->pluck('id')->toArray();
+            $mag_steer_with_plan = MagSteerIndex::whereIn('id', $mag_steer_ids)
+                ->with('plan')
+                ->orderBy('date', 'desc')
+                ->get();
+
             // Realizar las consultas a todas las tablas
             $data = [
                 'news' => News::where($filters)->with('plan')->get(),
                 'major_crops' => MajorCrop::where($filters)->with('plan')->get(),
-                'mag_lease_index' => MagLeaseIndex::where($filters)->with('plan')->get(),
-                'mag_steer_index' => MagSteerIndex::where($filters)->with('plan')->get(),
+                'mag_lease_index' => $mag_lease_with_plan,
+                'mag_steer_index' => $mag_steer_with_plan,
                 'insights' => Insight::where($filters)->with('plan')->get(),
                 'price_main_active_ingredients_producers' => PriceMainActiveIngredientsProducer::where($filters)->with('plan')->get(),
                 'producer_segment_prices' => ProducerSegmentPrice::where($filters)->with('plan')->get(),
