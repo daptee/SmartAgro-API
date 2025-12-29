@@ -88,13 +88,13 @@ class ReportController extends Controller
 
             // Filtro especial para mag_lease_index: obtener el mes buscado y los 2 meses anteriores
             // Calcular el rango de fechas: 2 meses atrás hasta el mes buscado
-            $searchDate = \Carbon\Carbon::createFromDate($year, $month, 1);
-            $twoMonthsBefore = $searchDate->copy()->subMonths(2);
+            $searchDate = \Carbon\Carbon::createFromDate($year, $month, 1)->endOfMonth();
+            $twoMonthsBefore = \Carbon\Carbon::createFromDate($year, $month, 1)->subMonths(2)->startOfMonth();
 
             $mag_lease_data = DB::table('mag_lease_index')
                 ->select('*')
-                ->where('date', '>=', $twoMonthsBefore->format('Y-m-01'))
-                ->where('date', '<=', $searchDate->format('Y-m-01'))
+                ->where('date', '>=', $twoMonthsBefore->format('Y-m-d'))
+                ->where('date', '<=', $searchDate->format('Y-m-d'))
                 ->where('id_plan', '<=', $id_plan)
                 ->whereNull('deleted_at')
                 ->orderBy('date', 'desc')
@@ -118,8 +118,8 @@ class ReportController extends Controller
             // Filtro especial para mag_steer_index: obtener el mes buscado y los 2 meses anteriores
             $mag_steer_data = DB::table('mag_steer_index')
                 ->select('*')
-                ->where('date', '>=', $twoMonthsBefore->format('Y-m-01'))
-                ->where('date', '<=', $searchDate->format('Y-m-01'))
+                ->where('date', '>=', $twoMonthsBefore->format('Y-m-d'))
+                ->where('date', '<=', $searchDate->format('Y-m-d'))
                 ->where('id_plan', '<=', $id_plan)
                 ->whereNull('deleted_at')
                 ->orderBy('date', 'desc')
