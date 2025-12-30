@@ -2,8 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\ExpiredSubscription;
+use App\Mail\FailedPayment;
 use App\Mail\LowPlan;
 use App\Mail\NewPayment;
+use App\Mail\NotificationExpiredSubscription;
+use App\Mail\NotificationFailedPayment;
 use App\Mail\NotificationLowPlan;
 use App\Mail\NotificationWelcomePlan;
 use App\Mail\WelcomePlan;
@@ -22,6 +26,68 @@ use Illuminate\Support\Facades\Mail;
 
 class SubscriptionController extends Controller
 {
+    /**
+     * Envía un email de forma segura con manejo de errores
+     */
+    private function sendEmailSafely($email, $mailable, $context = '')
+    {
+        if (!$email) {
+            Log::warning("Intento de enviar email sin destinatario. Contexto: $context");
+            return false;
+        }
+
+        try {
+            Mail::to($email)->send($mailable);
+            Log::info("Email enviado exitosamente a $email. Contexto: $context");
+            return true;
+        } catch (Exception $e) {
+            Log::error("Error al enviar email a $email. Contexto: $context", [
+                'error' => $e->getMessage(),
+                'line' => $e->getLine()
+            ]);
+            return false;
+        }
+    }
+
+    /**
+     * Valida la firma del webhook de MercadoPago
+     */
+    private function validateWebhookSignature($data, $xSignature, $xRequestId, $secret)
+    {
+        if (!$xSignature || !$xRequestId) {
+            return false;
+        }
+
+        // Separar la firma en sus partes
+        $parts = explode(',', $xSignature);
+        $ts = null;
+        $hash = null;
+
+        foreach ($parts as $part) {
+            $keyValue = explode('=', $part, 2);
+            if (count($keyValue) === 2) {
+                if (trim($keyValue[0]) === 'ts') {
+                    $ts = trim($keyValue[1]);
+                } elseif (trim($keyValue[0]) === 'v1') {
+                    $hash = trim($keyValue[1]);
+                }
+            }
+        }
+
+        if (!$ts || !$hash) {
+            return false;
+        }
+
+        // Construir el manifest (según documentación de MercadoPago)
+        $manifest = "id:{$xRequestId};request-id:{$xRequestId};ts:{$ts};";
+
+        // Generar la firma esperada
+        $expectedHash = hash_hmac('sha256', $manifest, $secret);
+
+        // Comparar las firmas
+        return hash_equals($expectedHash, $hash);
+    }
+
     public function subscription(Request $request)
     {
         $user_id = Auth::user()->id;
@@ -137,7 +203,7 @@ class SubscriptionController extends Controller
             return response()->json(['message' => 'El pago el pago esta pendiente de aprovacion'], 404);
         }
 
-        if (!$subscriptionData['status'] == "authorized") {
+        if ($subscriptionData['status'] != "authorized") {
             // Si no hay autorizacion
             return response()->json(['message' => 'El pago no fue autorizado'], 404);
         }
@@ -145,10 +211,6 @@ class SubscriptionController extends Controller
         // Comparamos el usuario autenticado con el de la suscripción
         if ($userIdSubscription == $userId) {
             // Buscamos el último registro en UserPlan asociado al usuario
-            $existingRecord = UserPlan::where('id_user', $userId)
-                ->latest('created_at') // Ordenamos por la fecha más reciente
-                ->first();
-
             $existingRecord = UserPlan::where('id_user', $userId)
                 ->latest('created_at') // Ordenamos por la fecha más reciente
                 ->first();
@@ -204,17 +266,23 @@ class SubscriptionController extends Controller
 
             // Cambiar el plan del usuario al plan gratuito (plan 1)
             $user = User::find($userId);
-            if ($user) {
-                $user->update(['id_plan' => 1]);
+            if (!$user) {
+                return response()->json(['error' => 'Usuario no encontrado'], 404);
             }
+
+            $user->update([
+                'id_plan' => 1,
+                'is_debtor' => false  // Ya no es deudor porque canceló la suscripción
+            ]);
 
             $plan = Plan::find(1);
 
             // Guardar registro en UserPlan
             UserPlan::save_history($userId, 1, ['reason' => 'Cancelación de suscripción', 'is_system' => 'true'], now(), $preapprovalId);
 
-            Mail::to($user->email)->send(new LowPlan($user));
-            Mail::to(config('services.research_on_demand.email'))->send(new NotificationLowPlan($user));
+            // Enviar emails de forma segura
+            $this->sendEmailSafely($user->email, new LowPlan($user), 'Cancelación manual de suscripción - usuario');
+            $this->sendEmailSafely(config('services.research_on_demand.email'), new NotificationLowPlan($user), 'Cancelación manual de suscripción - admin');
 
             Log::info("Usuario $userId cambió al plan gratuito tras cancelar la suscripción");
 
@@ -238,6 +306,22 @@ class SubscriptionController extends Controller
         $accessToken = config('app.mercadopago_token');
         $mercadopagoWebhookSecret = config('app.mercadopago_webhook_secret');
 
+        // Validar firma del webhook (seguridad)
+        if ($mercadopagoWebhookSecret) {
+            $xSignature = $request->header('x-signature');
+            $xRequestId = $request->header('x-request-id');
+
+            if (!$this->validateWebhookSignature($data, $xSignature, $xRequestId, $mercadopagoWebhookSecret)) {
+                Log::warning('Webhook rechazado: firma inválida', [
+                    'x-signature' => $xSignature,
+                    'x-request-id' => $xRequestId
+                ]);
+                return response()->json(['error' => 'Invalid signature'], 401);
+            }
+        } else {
+            Log::warning('Webhook sin validación de firma: mercadopago_webhook_secret no configurado');
+        }
+
         // 🔥 Guardamos temporalmente el preapprovalId si es subscription_preapproval
         if (isset($data['type']) && $data['type'] == 'subscription_preapproval') {
             $this->preapprovalId = $data['data']['id'];
@@ -258,8 +342,9 @@ class SubscriptionController extends Controller
 
                             $user->update(['id_plan' => 2]);
 
-                            Mail::to($user->email)->send(new WelcomePlan($user));
-                            Mail::to(config('services.research_on_demand.email'))->send(new NotificationWelcomePlan($user));
+                            // Enviar emails de forma segura
+                            $this->sendEmailSafely($user->email, new WelcomePlan($user), 'Suscripción autorizada - usuario');
+                            $this->sendEmailSafely(config('services.research_on_demand.email'), new NotificationWelcomePlan($user), 'Suscripción autorizada - admin');
                         }
 
                         $latestRecord = UserPlan::where('id_user', $userId)
@@ -303,17 +388,22 @@ class SubscriptionController extends Controller
 
                     $user = User::find($userId);
                     if ($user) {
-                        $user->update(['id_plan' => 1]);
+                        $user->update([
+                            'id_plan' => 1,
+                            'is_debtor' => false  // Ya no es deudor porque se canceló la suscripción
+                        ]);
+
+                        // Guardar registro en UserPlan
+                        UserPlan::save_history($userId, 1, ['reason' => 'Cancelación de suscripción', 'is_system' => 'false'], now(), $this->preapprovalId);
+
+                        // Enviar emails de forma segura
+                        $this->sendEmailSafely($user->email, new LowPlan($user), 'Webhook cancelación - usuario');
+                        $this->sendEmailSafely(config('services.research_on_demand.email'), new NotificationLowPlan($user), 'Webhook cancelación - admin');
+                    } else {
+                        Log::error("Usuario no encontrado al procesar cancelación: $userId");
                     }
 
-                    // Guardar registro en UserPlan
-                    UserPlan::save_history($userId, 1, ['reason' => 'Cancelación de suscripción', 'is_system' => 'false'], now(), $this->preapprovalId);
-
-                    Mail::to($user->email)->send(new LowPlan($user));
-                    Mail::to(config('services.research_on_demand.email'))->send(new NotificationLowPlan($user));
-
-
-                    return response()->json(['message' => 'Pago fallido registrado'], 200);
+                    return response()->json(['message' => 'Suscripción cancelada'], 200);
                 }
 
                 if ($status == "failed") {
@@ -325,6 +415,68 @@ class SubscriptionController extends Controller
                         'error_message' => "Fallo de suscripción",
                     ]);
                     return response()->json(['message' => 'Pago fallido registrado'], 200);
+                }
+
+                if ($status == "paused") {
+                    // Suscripción pausada por MercadoPago después de múltiples intentos fallidos
+                    $user = User::find($userId);
+
+                    if ($user) {
+                        // Verificar si ya usó su período de gracia
+                        if ($user->grace_period_used) {
+                            // Ya usó su período de gracia, bajar a plan gratuito inmediatamente
+                            Log::warning("Suscripción pausada para usuario $userId que ya usó su período de gracia. Bajando a plan gratuito.");
+
+                            $user->update([
+                                'id_plan' => 1,
+                                'is_debtor' => false
+                            ]);
+
+                            UserPlan::save_history($userId, 1, ['reason' => 'Suscripción pausada - período de gracia ya utilizado', 'is_system' => 'false'], now(), $this->preapprovalId);
+
+                            // Enviar emails
+                            $this->sendEmailSafely($user->email, new ExpiredSubscription($user), 'Webhook suscripción pausada sin gracia - usuario');
+                            $this->sendEmailSafely(config('services.research_on_demand.email'), new NotificationExpiredSubscription($user), 'Webhook suscripción pausada sin gracia - admin');
+
+                            PaymentHistory::create([
+                                'id_user' => $userId,
+                                'type' => $status,
+                                'data' => $subscriptionData,
+                                'preapproval_id' => $this->preapprovalId,
+                                'error_message' => "Suscripción pausada - Usuario bajado a plan gratuito (período de gracia ya usado)",
+                            ]);
+
+                            return response()->json(['message' => 'Suscripción pausada y usuario bajado a plan gratuito'], 200);
+                        } else {
+                            // Primera vez pausada, mantener plan (período de gracia)
+                            Log::info("Suscripción pausada para usuario $userId. Otorgando período de gracia (manteniendo Plan Siembra).");
+
+                            // Marcar que usó su período de gracia
+                            $user->update(['grace_period_used' => true]);
+
+                            PaymentHistory::create([
+                                'id_user' => $userId,
+                                'type' => $status,
+                                'data' => $subscriptionData,
+                                'preapproval_id' => $this->preapprovalId,
+                                'error_message' => "Suscripción pausada - Período de gracia otorgado (se intentará cobrar en próximo ciclo)",
+                            ]);
+
+                            return response()->json(['message' => 'Suscripción pausada - período de gracia otorgado'], 200);
+                        }
+                    } else {
+                        Log::error("Usuario no encontrado al procesar suscripción pausada: $userId");
+
+                        PaymentHistory::create([
+                            'id_user' => $userId,
+                            'type' => $status,
+                            'data' => $subscriptionData,
+                            'preapproval_id' => $this->preapprovalId,
+                            'error_message' => "Suscripción pausada - Usuario no encontrado",
+                        ]);
+
+                        return response()->json(['message' => 'Suscripción pausada pero usuario no encontrado'], 200);
+                    }
                 }
             }
         }
@@ -366,18 +518,49 @@ class SubscriptionController extends Controller
                     return response()->json(['status' => 'payment updated']);
                 }
 
-                PaymentHistory::create([
-                    'id_user' => $userId,
-                    'type' => $data['type'],
-                    'data' => json_encode($subscriptionData),
-                    'preapproval_id' => $subscriptionData['point_of_interaction']['transaction_data']['subscription_id'] ?? $subscriptionData['metadata']['preapproval_id'],
-                    'error_message' => null,
-                ]);
+                // Guardar el pago en el historial (evitar duplicados por webhooks simultáneos)
+                $preapprovalIdForHistory = $subscriptionData['point_of_interaction']['transaction_data']['subscription_id'] ?? $subscriptionData['metadata']['preapproval_id'];
+
+                // Verificar si ya existe un registro reciente del mismo pago
+                $existingPayment = PaymentHistory::where('id_user', $userId)
+                    ->where('preapproval_id', $preapprovalIdForHistory)
+                    ->where('type', $status)
+                    ->where('created_at', '>=', now()->subMinutes(5))
+                    ->first();
+
+                if (!$existingPayment) {
+                    PaymentHistory::create([
+                        'id_user' => $userId,
+                        'type' => $status,
+                        'data' => json_encode($subscriptionData),
+                        'preapproval_id' => $preapprovalIdForHistory,
+                        'error_message' => ($status == 'approved' || $status == 'authorized') ? null : ($subscriptionData['status_detail'] ?? 'Pago no exitoso'),
+                    ]);
+                    Log::info("PaymentHistory creado para usuario $userId con status $status");
+                } else {
+                    Log::info("PaymentHistory ya existe (evitando duplicado) para usuario $userId con status $status");
+                }
 
                 $user = User::find($userId);
 
-                if ($user) {
-                    Mail::to($user->email)->send(new NewPayment($user));
+                // Enviar email según el estado del pago
+                if ($status == 'approved' || $status == 'authorized') {
+                    // Pago exitoso - Marcar como NO deudor
+                    if ($user) {
+                        $user->update(['is_debtor' => false]);
+                        $this->sendEmailSafely($user->email, new NewPayment($user), 'Pago exitoso - usuario');
+                    } else {
+                        Log::error("Usuario no encontrado al procesar pago exitoso: $userId");
+                    }
+                } else {
+                    // Pago fallido - Marcar como deudor
+                    if ($user) {
+                        $user->update(['is_debtor' => true]);
+                        $this->sendEmailSafely($user->email, new FailedPayment($user), 'Pago fallido - usuario');
+                        $this->sendEmailSafely(config('services.research_on_demand.email'), new NotificationFailedPayment($user), 'Pago fallido - admin');
+                    } else {
+                        Log::error("Usuario no encontrado al procesar pago fallido: $userId");
+                    }
                 }
             }
         }
@@ -608,6 +791,7 @@ class SubscriptionController extends Controller
                 $frequency = $data['auto_recurring']['frequency'] ?? null;
                 $status = $data['status'] ?? null;
                 $preapprovalId = $plan->preapproval_id;
+                $userId = $plan->id_user;
 
                 if ($frequency && $preapprovalId && $status != "cancelled" && $status) {
                     $newAmount = $frequency == 1 ? $priceMonthly : $priceYearly;
@@ -618,6 +802,14 @@ class SubscriptionController extends Controller
                         ]
                     ];
 
+                    // Si la suscripción está pausada, intentar reactivarla
+                    if ($status == "paused") {
+                        Log::info("Intentando reactivar suscripción pausada: $preapprovalId para usuario: $userId");
+
+                        // Intentar reactivar la suscripción
+                        $payload['status'] = 'authorized';
+                    }
+
                     // PUT request to MercadoPago
                     $response = Http::withToken($accessToken)
                         ->put("https://api.mercadopago.com/preapproval/{$preapprovalId}", $payload);
@@ -627,8 +819,45 @@ class SubscriptionController extends Controller
                         $newData = $response->json();
                         $plan->data = json_encode($newData);
                         $plan->save();
+
+                        // Si era pausada y se reactivó exitosamente
+                        if ($status == "paused" && $newData['status'] == 'authorized') {
+                            Log::info("Suscripción reactivada exitosamente para usuario: $userId");
+
+                            // Marcar como NO deudor porque la suscripción se reactivó
+                            $user = User::find($userId);
+                            if ($user) {
+                                $user->update(['is_debtor' => false]);
+                            }
+
+                            $data['reactivation_success'] = true;
+                        }
                     } else {
-                        // Si falló, podrías loguear o manejar el error
+                        // Si falló la reactivación de una suscripción pausada
+                        if ($status == "paused") {
+                            Log::error("No se pudo reactivar suscripción pausada: $preapprovalId. Cambiando usuario a plan gratuito.");
+
+                            // Cambiar al usuario al plan gratuito
+                            $user = User::find($userId);
+                            if ($user) {
+                                $user->update([
+                                    'id_plan' => 1,
+                                    'is_debtor' => false  // Ya no es deudor porque se le cambió a plan gratuito
+                                ]);
+
+                                // Guardar en historial
+                                UserPlan::save_history($userId, 1, ['reason' => 'Suscripción vencida después de período de gracia', 'is_system' => 'true'], now(), $preapprovalId);
+
+                                // Enviar emails de notificación de forma segura
+                                $this->sendEmailSafely($user->email, new ExpiredSubscription($user), 'Suscripción vencida - usuario');
+                                $this->sendEmailSafely(config('services.research_on_demand.email'), new NotificationExpiredSubscription($user), 'Suscripción vencida - admin');
+
+                                $data['downgraded_to_free'] = true;
+                            } else {
+                                Log::error("Usuario no encontrado al procesar vencimiento: $userId");
+                            }
+                        }
+
                         $data['update_error'] = $response->json();
                     }
                 }
