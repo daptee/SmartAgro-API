@@ -18,3 +18,9 @@ CREATE TABLE user_roles (
     FOREIGN KEY (id_user) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (id_role) REFERENCES roles(id) ON DELETE CASCADE
 );
+
+ALTER TABLE users
+ADD COLUMN is_debtor TINYINT(1) NOT NULL DEFAULT 0;
+
+ALTER TABLE users
+ADD COLUMN grace_period_used TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'Indica si el usuario ya usó su período de gracia (1 vez por usuario)';
