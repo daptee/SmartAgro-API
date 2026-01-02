@@ -87,11 +87,13 @@ class ReportController extends Controller
             };
 
             // Filtro especial para mag_lease_index: obtener el mes buscado y los 2 meses anteriores
-            // Si el mes buscado no tiene datos, traer los últimos 3 meses disponibles
+            // Calcular el rango de fechas: 2 meses atrás hasta el mes buscado
             $searchDate = \Carbon\Carbon::createFromDate($year, $month, 1)->endOfMonth();
+            $twoMonthsBefore = \Carbon\Carbon::createFromDate($year, $month, 1)->subMonths(2)->startOfMonth();
 
             $mag_lease_data = DB::table('mag_lease_index')
                 ->select('*')
+                ->where('date', '>=', $twoMonthsBefore->format('Y-m-d'))
                 ->where('date', '<=', $searchDate->format('Y-m-d'))
                 ->where('id_plan', '<=', $id_plan)
                 ->whereNull('deleted_at')
@@ -106,17 +108,28 @@ class ReportController extends Controller
                 ->take(3)
                 ->values();
 
-            // Cargar las relaciones manualmente
-            $mag_lease_ids = $mag_lease_data->pluck('id')->toArray();
-            $mag_lease_with_plan = MagLeaseIndex::whereIn('id', $mag_lease_ids)
-                ->with('plan')
-                ->orderBy('date', 'desc')
-                ->get();
+            // Verificar si existe el mes buscado en los resultados
+            $searchedMonthExists = $mag_lease_data->contains(function ($item) use ($year, $month) {
+                $date = \Carbon\Carbon::parse($item->date);
+                return $date->year == $year && $date->month == $month;
+            });
+
+            // Si el mes buscado no existe, devolver colección vacía
+            if (!$searchedMonthExists) {
+                $mag_lease_with_plan = collect([]);
+            } else {
+                // Cargar las relaciones manualmente
+                $mag_lease_ids = $mag_lease_data->pluck('id')->toArray();
+                $mag_lease_with_plan = MagLeaseIndex::whereIn('id', $mag_lease_ids)
+                    ->with('plan')
+                    ->orderBy('date', 'desc')
+                    ->get();
+            }
 
             // Filtro especial para mag_steer_index: obtener el mes buscado y los 2 meses anteriores
-            // Si el mes buscado no tiene datos, traer los últimos 3 meses disponibles
             $mag_steer_data = DB::table('mag_steer_index')
                 ->select('*')
+                ->where('date', '>=', $twoMonthsBefore->format('Y-m-d'))
                 ->where('date', '<=', $searchDate->format('Y-m-d'))
                 ->where('id_plan', '<=', $id_plan)
                 ->whereNull('deleted_at')
@@ -131,12 +144,23 @@ class ReportController extends Controller
                 ->take(3)
                 ->values();
 
-            // Cargar las relaciones manualmente
-            $mag_steer_ids = $mag_steer_data->pluck('id')->toArray();
-            $mag_steer_with_plan = MagSteerIndex::whereIn('id', $mag_steer_ids)
-                ->with('plan')
-                ->orderBy('date', 'desc')
-                ->get();
+            // Verificar si existe el mes buscado en los resultados
+            $searchedMonthExistsSteer = $mag_steer_data->contains(function ($item) use ($year, $month) {
+                $date = \Carbon\Carbon::parse($item->date);
+                return $date->year == $year && $date->month == $month;
+            });
+
+            // Si el mes buscado no existe, devolver colección vacía
+            if (!$searchedMonthExistsSteer) {
+                $mag_steer_with_plan = collect([]);
+            } else {
+                // Cargar las relaciones manualmente
+                $mag_steer_ids = $mag_steer_data->pluck('id')->toArray();
+                $mag_steer_with_plan = MagSteerIndex::whereIn('id', $mag_steer_ids)
+                    ->with('plan')
+                    ->orderBy('date', 'desc')
+                    ->get();
+            }
 
             // Realizar las consultas a todas las tablas
             $data = [
