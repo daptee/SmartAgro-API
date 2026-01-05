@@ -13,6 +13,7 @@ use App\Http\Controllers\MagLeaseIndexController;
 use App\Http\Controllers\MagSteerIndexController;
 use App\Http\Controllers\MajorCropController;
 use App\Http\Controllers\NewsController;
+use App\Http\Controllers\InsightController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\StatusController;
 use App\Http\Controllers\SubscriptionController;
@@ -153,6 +154,15 @@ Route::prefix('admin')
             Route::put('major-crops/{id}', 'update');
             Route::put('major-crops/{id}/status', 'changeStatus');
             Route::delete('major-crops/{id}', 'destroy');
+        });
+
+        // Insights
+        Route::controller(InsightController::class)->group(function () {
+            Route::get('insights', 'index');
+            Route::post('insights', 'store');
+            Route::put('insights/{id}', 'update');
+            Route::put('insights/{id}/status', 'changeStatus');
+            Route::delete('insights/{id}', 'destroy');
         });
     }
 );
