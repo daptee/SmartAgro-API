@@ -16,9 +16,43 @@ use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
+use PhpOffice\PhpSpreadsheet\Shared\Date;
 
 class ExcelImport implements WithMultipleSheets
 {
+    /**
+     * Convierte un valor de fecha de Excel a formato de fecha válido
+     *
+     * @param mixed $value
+     * @return string|null
+     */
+    private function convertExcelDate($value)
+    {
+        if (empty($value)) {
+            return null;
+        }
+
+        // Si es un número (serial de Excel), convertirlo a fecha
+        if (is_numeric($value)) {
+            try {
+                $date = Date::excelToDateTimeObject($value);
+                return $date->format('Y-m-d');
+            } catch (\Exception $e) {
+                Log::error("Error al convertir fecha de Excel: {$value}", ['error' => $e->getMessage()]);
+                return null;
+            }
+        }
+
+        // Si ya es una fecha en formato string, intentar parsearla
+        try {
+            $date = new \DateTime($value);
+            return $date->format('Y-m-d');
+        } catch (\Exception $e) {
+            Log::error("Error al parsear fecha: {$value}", ['error' => $e->getMessage()]);
+            return null;
+        }
+    }
+
     public function sheets(): array
     {
         return [
@@ -79,7 +113,7 @@ class ExcelImport implements WithMultipleSheets
             'img' => $row[2],
             'title' => $row[3],
             'new' => $row[4],
-            'date' => $row[1],
+            'date' => $this->convertExcelDate($row[1]),
             'id_plan' => $row[0],
         ];
     }
@@ -107,7 +141,7 @@ class ExcelImport implements WithMultipleSheets
         ];
         return [
             'id_plan' => $row[0],
-            'date' => $row[1],
+            'date' => $this->convertExcelDate($row[1]),
             'icon' => $row[2],
             'data' => $jsonData,
         ];
@@ -124,7 +158,7 @@ class ExcelImport implements WithMultipleSheets
         ];
         return [
             'id_plan' => $row[0],
-            'date' => $row[1],
+            'date' => $this->convertExcelDate($row[1]),
             'data' => $jsonData,
         ];
     }
@@ -140,17 +174,17 @@ class ExcelImport implements WithMultipleSheets
         ];
         return [
             'id_plan' => $row[0],
-            'date' => $row[1],
+            'date' => $this->convertExcelDate($row[1]),
             'data' => $jsonData,
         ];
     }
 
     private function processInsightSheet($row)
     {
-        
+
         return [
             'id_plan' => $row[0],
-            'date' => $row[1],
+            'date' => $this->convertExcelDate($row[1]),
             'icon' => $row[2],
             'title' => $row[3],
             'description' => $row[4],
@@ -165,10 +199,10 @@ class ExcelImport implements WithMultipleSheets
             '24/25' => $row[5],
             '25/26' => $row[6],
         ];
-        
+
         return [
             'id_plan' => $row[0],
-            'date' => $row[1],
+            'date' => $this->convertExcelDate($row[1]),
             'data' => $jsonData,
             'segment_id' => $row[4],
         ];
@@ -181,10 +215,10 @@ class ExcelImport implements WithMultipleSheets
             '24/25' => $row[3],
             '25/26' => $row[4],
         ];
-        
+
         return [
             'id_plan' => $row[0],
-            'date' => $row[1],
+            'date' => $this->convertExcelDate($row[1]),
             'data' => $jsonData,
         ];
     }
@@ -199,10 +233,10 @@ class ExcelImport implements WithMultipleSheets
             'ACUM 25/26' => $row[6],
             'Var. Acum 24 Vs 23' => $row[7],
         ];
-        
+
         return [
             'id_plan' => $row[0],
-            'date' => $row[1],
+            'date' => $this->convertExcelDate($row[1]),
             'data' => $jsonData,
         ];
     }
@@ -217,7 +251,7 @@ class ExcelImport implements WithMultipleSheets
         ];
         return [
             'id_plan' => $row[0],
-            'date' => $row[1],
+            'date' => $this->convertExcelDate($row[1]),
             'data' => $jsonData,
         ];
     }
