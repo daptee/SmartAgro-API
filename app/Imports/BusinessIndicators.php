@@ -14,43 +14,9 @@ use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
-use PhpOffice\PhpSpreadsheet\Shared\Date;
 
 class BusinessIndicators implements WithMultipleSheets
 {
-    /**
-     * Convierte un valor de fecha de Excel a formato de fecha válido
-     *
-     * @param mixed $value
-     * @return string|null
-     */
-    public function convertExcelDate($value)
-    {
-        if (empty($value)) {
-            return null;
-        }
-
-        // Si es un número (serial de Excel), convertirlo a fecha
-        if (is_numeric($value)) {
-            try {
-                $date = Date::excelToDateTimeObject($value);
-                return $date->format('Y-m-d');
-            } catch (\Exception $e) {
-                Log::error("Error al convertir fecha de Excel: {$value}", ['error' => $e->getMessage()]);
-                return null;
-            }
-        }
-
-        // Si ya es una fecha en formato string, intentar parsearla
-        try {
-            $date = new \DateTime($value);
-            return $date->format('Y-m-d');
-        } catch (\Exception $e) {
-            Log::error("Error al parsear fecha: {$value}", ['error' => $e->getMessage()]);
-            return null;
-        }
-    }
-
     public function sheets(): array
     {
         return [
@@ -138,12 +104,7 @@ class BusinessIndicators implements WithMultipleSheets
             };
 
             if (in_array($mappedHeader, $fixedFields)) {
-                // Si es el campo 'date', convertir desde el formato Excel
-                if ($mappedHeader === 'date') {
-                    $result[$mappedHeader] = $this->importer->convertExcelDate($value);
-                } else {
-                    $result[$mappedHeader] = $value;
-                }
+                $result[$mappedHeader] = $value;
             } elseif ($mergePercentage && str_ends_with($normalizedHeader, '%')) {
                 // Caso: "producción %54 ganadera %" → base: "producción %54 ganadera"
                 $baseKey = rtrim($normalizedHeader, ' %');
