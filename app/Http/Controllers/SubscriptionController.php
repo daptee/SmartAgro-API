@@ -170,14 +170,14 @@ class SubscriptionController extends Controller
             return response()->json(['error' => 'Falta el preapproval_id'], 422);
         }
 
-        Log::info("Revisando suscripción con preapproval_id: $preapprovalId");
+        Log::channel('mercadopago')->info("Revisando suscripción con preapproval_id: $preapprovalId");
 
         $accessToken = config('app.mercadopago_token');
 
         // Hacemos la petición a Mercado Pago
         $preapprovalResponse = Http::withToken($accessToken)->get("https://api.mercadopago.com/preapproval/{$preapprovalId}");
 
-        Log::info("Respuesta de Mercado Pago:", $preapprovalResponse->json());
+        Log::channel('mercadopago')->info("Respuesta de Mercado Pago:", $preapprovalResponse->json());
 
         // Validamos que la respuesta sea exitosa
         if (!$preapprovalResponse->successful()) {
@@ -190,8 +190,8 @@ class SubscriptionController extends Controller
         $userIdSubscription = $subscriptionData['external_reference'];
         $userId = Auth::user()->id ?? null;
 
-        Log::info($userIdSubscription);
-        Log::info($userId);
+        Log::channel('mercadopago')->info($userIdSubscription);
+        Log::channel('mercadopago')->info($userId);
 
         if ($subscriptionData['status'] == "failed") {
             // Si algo fallo
@@ -220,7 +220,7 @@ class SubscriptionController extends Controller
                 // Accedemos a los datos directamente como objeto o array (sin json_decode)
                 $existingData = $existingRecord->data; // Asegúrate de que 'data' sea el campo correcto
 
-                Log::info($existingData);
+                Log::channel('mercadopago')->info($existingData);
 
                 // Si $existingData es JSON almacenado como string, lo decodificamos
                 $existingData = is_string($existingData) ? json_decode($existingData, true) : $existingData;
@@ -284,7 +284,7 @@ class SubscriptionController extends Controller
             $this->sendEmailSafely($user->email, new LowPlan($user), 'Cancelación manual de suscripción - usuario');
             $this->sendEmailSafely(config('services.research_on_demand.email'), new NotificationLowPlan($user), 'Cancelación manual de suscripción - admin');
 
-            Log::info("Usuario $userId cambió al plan gratuito tras cancelar la suscripción");
+            Log::channel('mercadopago')->info("Usuario $userId cambió al plan gratuito tras cancelar la suscripción");
 
             return response()->json([
                 'message' => 'Suscripción cancelada y usuario cambiado al plan gratuito',
@@ -301,7 +301,7 @@ class SubscriptionController extends Controller
     {
         $data = $request->all();
 
-        Log::info('Webhook recibido de Mercado Pago:', $data);
+        Log::channel('mercadopago')->info('Webhook recibido de Mercado Pago:', $data);
 
         $accessToken = config('app.mercadopago_token');
         $mercadopagoWebhookSecret = config('app.mercadopago_webhook_secret');
@@ -312,14 +312,14 @@ class SubscriptionController extends Controller
             $xRequestId = $request->header('x-request-id');
 
             if (!$this->validateWebhookSignature($data, $xSignature, $xRequestId, $mercadopagoWebhookSecret)) {
-                Log::warning('Webhook rechazado: firma inválida', [
+                Log::channel('mercadopago')->warning('Webhook rechazado: firma inválida', [
                     'x-signature' => $xSignature,
                     'x-request-id' => $xRequestId
                 ]);
                 return response()->json(['error' => 'Invalid signature'], 401);
             }
         } else {
-            Log::warning('Webhook sin validación de firma: mercadopago_webhook_secret no configurado');
+            Log::channel('mercadopago')->warning('Webhook sin validación de firma: mercadopago_webhook_secret no configurado');
         }
 
         // 🔥 Guardamos temporalmente el preapprovalId si es subscription_preapproval
@@ -357,17 +357,17 @@ class SubscriptionController extends Controller
                                 'data' => $subscriptionData, // asumiendo que 'data' es un campo JSON
                                 'next_payment_date' => $subscriptionData['next_payment_date'],
                             ]);
-                            Log::info('Historial actualizado correctamente');
+                            Log::channel('mercadopago')->info('Historial actualizado correctamente');
                         } else {
 
                             UserPlan::save_history($userId, 2, $subscriptionData, $subscriptionData['next_payment_date'], $this->preapprovalId);
 
-                            Log::info('Historial guardado correctamente');
+                            Log::channel('mercadopago')->info('Historial guardado correctamente');
 
                             if ($subscriptionData['auto_recurring']['free_trial'] ?? false) {
                                 // Log completo de la suscripción
-                                Log::info('Datos de suscripción recibidos:', $subscriptionData);
-                                Log::info('Mes gratis aplicado correctamente');
+                                Log::channel('mercadopago')->info('Datos de suscripción recibidos:', $subscriptionData);
+                                Log::channel('mercadopago')->info('Mes gratis aplicado correctamente');
                                 PaymentHistory::create([
                                     'id_user' => $userId,
                                     'type' => 'free_trial',
@@ -376,11 +376,11 @@ class SubscriptionController extends Controller
                                     'error_message' => "Primer mes gratuito aplicado",
                                 ]);
                             } else {
-                                Log::info('Mes gratis no aplicado');
+                                Log::channel('mercadopago')->info('Mes gratis no aplicado');
                             }
                         }
                     } else {
-                        Log::error("Usuario no encontrado: $userId");
+                        Log::channel('mercadopago')->error("Usuario no encontrado: $userId");
                     }
                 }
 
@@ -400,7 +400,7 @@ class SubscriptionController extends Controller
                         $this->sendEmailSafely($user->email, new LowPlan($user), 'Webhook cancelación - usuario');
                         $this->sendEmailSafely(config('services.research_on_demand.email'), new NotificationLowPlan($user), 'Webhook cancelación - admin');
                     } else {
-                        Log::error("Usuario no encontrado al procesar cancelación: $userId");
+                        Log::channel('mercadopago')->error("Usuario no encontrado al procesar cancelación: $userId");
                     }
 
                     return response()->json(['message' => 'Suscripción cancelada'], 200);
@@ -425,7 +425,7 @@ class SubscriptionController extends Controller
                         // Verificar si ya usó su período de gracia
                         if ($user->grace_period_used) {
                             // Ya usó su período de gracia, bajar a plan gratuito inmediatamente
-                            Log::warning("Suscripción pausada para usuario $userId que ya usó su período de gracia. Bajando a plan gratuito.");
+                            Log::channel('mercadopago')->warning("Suscripción pausada para usuario $userId que ya usó su período de gracia. Bajando a plan gratuito.");
 
                             $user->update([
                                 'id_plan' => 1,
@@ -449,7 +449,7 @@ class SubscriptionController extends Controller
                             return response()->json(['message' => 'Suscripción pausada y usuario bajado a plan gratuito'], 200);
                         } else {
                             // Primera vez pausada, mantener plan (período de gracia)
-                            Log::info("Suscripción pausada para usuario $userId. Otorgando período de gracia (manteniendo Plan Siembra).");
+                            Log::channel('mercadopago')->info("Suscripción pausada para usuario $userId. Otorgando período de gracia (manteniendo Plan Siembra).");
 
                             // Marcar que usó su período de gracia
                             $user->update(['grace_period_used' => true]);
@@ -465,7 +465,7 @@ class SubscriptionController extends Controller
                             return response()->json(['message' => 'Suscripción pausada - período de gracia otorgado'], 200);
                         }
                     } else {
-                        Log::error("Usuario no encontrado al procesar suscripción pausada: $userId");
+                        Log::channel('mercadopago')->error("Usuario no encontrado al procesar suscripción pausada: $userId");
 
                         PaymentHistory::create([
                             'id_user' => $userId,
@@ -485,7 +485,7 @@ class SubscriptionController extends Controller
         if (isset($data['type']) && $data['type'] == 'payment') {
             $this->preapprovalId = $data['data']['id'];
 
-            Log::info('id preapprovalId: ' . $this->preapprovalId);
+            Log::channel('mercadopago')->info('id preapprovalId: ' . $this->preapprovalId);
 
             $preapprovalResponse = Http::withToken($accessToken)->get("https://api.mercadopago.com/v1/payments/{$this->preapprovalId}");
 
@@ -496,7 +496,7 @@ class SubscriptionController extends Controller
 
 
                 if ($data['action'] == 'payment.updated') {
-                    Log::info("Actualizando pago para preapproval_id: {$subscriptionData['metadata']['preapproval_id']}");
+                    Log::channel('mercadopago')->info("Actualizando pago para preapproval_id: {$subscriptionData['metadata']['preapproval_id']}");
 
                     // Buscar el último PaymentHistory que coincida
                     $paymentHistory = PaymentHistory::where('preapproval_id', $subscriptionData['point_of_interaction']['transaction_data']['subscription_id'])
@@ -510,9 +510,9 @@ class SubscriptionController extends Controller
                             'error_message' => null, // Si quieres limpiar el error o actualizarlo
                         ]);
 
-                        Log::info("PaymentHistory actualizado correctamente para id: {$paymentHistory->id}");
+                        Log::channel('mercadopago')->info("PaymentHistory actualizado correctamente para id: {$paymentHistory->id}");
                     } else {
-                        Log::warning("No se encontró PaymentHistory para preapproval_id: {$subscriptionData['metadata']['preapproval_id']}");
+                        Log::channel('mercadopago')->warning("No se encontró PaymentHistory para preapproval_id: {$subscriptionData['metadata']['preapproval_id']}");
                     }
 
                     return response()->json(['status' => 'payment updated']);
@@ -536,9 +536,9 @@ class SubscriptionController extends Controller
                         'preapproval_id' => $preapprovalIdForHistory,
                         'error_message' => ($status == 'approved' || $status == 'authorized') ? null : ($subscriptionData['status_detail'] ?? 'Pago no exitoso'),
                     ]);
-                    Log::info("PaymentHistory creado para usuario $userId con status $status");
+                    Log::channel('mercadopago')->info("PaymentHistory creado para usuario $userId con status $status");
                 } else {
-                    Log::info("PaymentHistory ya existe (evitando duplicado) para usuario $userId con status $status");
+                    Log::channel('mercadopago')->info("PaymentHistory ya existe (evitando duplicado) para usuario $userId con status $status");
                 }
 
                 $user = User::find($userId);
@@ -550,7 +550,7 @@ class SubscriptionController extends Controller
                         $user->update(['is_debtor' => false]);
                         $this->sendEmailSafely($user->email, new NewPayment($user), 'Pago exitoso - usuario');
                     } else {
-                        Log::error("Usuario no encontrado al procesar pago exitoso: $userId");
+                        Log::channel('mercadopago')->error("Usuario no encontrado al procesar pago exitoso: $userId");
                     }
                 } else {
                     // Pago fallido - Marcar como deudor
@@ -559,7 +559,7 @@ class SubscriptionController extends Controller
                         $this->sendEmailSafely($user->email, new FailedPayment($user), 'Pago fallido - usuario');
                         $this->sendEmailSafely(config('services.research_on_demand.email'), new NotificationFailedPayment($user), 'Pago fallido - admin');
                     } else {
-                        Log::error("Usuario no encontrado al procesar pago fallido: $userId");
+                        Log::channel('mercadopago')->error("Usuario no encontrado al procesar pago fallido: $userId");
                     }
                 }
             }
@@ -804,7 +804,7 @@ class SubscriptionController extends Controller
 
                     // Si la suscripción está pausada, intentar reactivarla
                     if ($status == "paused") {
-                        Log::info("Intentando reactivar suscripción pausada: $preapprovalId para usuario: $userId");
+                        Log::channel('mercadopago')->info("Intentando reactivar suscripción pausada: $preapprovalId para usuario: $userId");
 
                         // Intentar reactivar la suscripción
                         $payload['status'] = 'authorized';
@@ -822,7 +822,7 @@ class SubscriptionController extends Controller
 
                         // Si era pausada y se reactivó exitosamente
                         if ($status == "paused" && $newData['status'] == 'authorized') {
-                            Log::info("Suscripción reactivada exitosamente para usuario: $userId");
+                            Log::channel('mercadopago')->info("Suscripción reactivada exitosamente para usuario: $userId");
 
                             // Marcar como NO deudor porque la suscripción se reactivó
                             $user = User::find($userId);
@@ -835,7 +835,7 @@ class SubscriptionController extends Controller
                     } else {
                         // Si falló la reactivación de una suscripción pausada
                         if ($status == "paused") {
-                            Log::error("No se pudo reactivar suscripción pausada: $preapprovalId. Cambiando usuario a plan gratuito.");
+                            Log::channel('mercadopago')->error("No se pudo reactivar suscripción pausada: $preapprovalId. Cambiando usuario a plan gratuito.");
 
                             // Cambiar al usuario al plan gratuito
                             $user = User::find($userId);
@@ -854,7 +854,7 @@ class SubscriptionController extends Controller
 
                                 $data['downgraded_to_free'] = true;
                             } else {
-                                Log::error("Usuario no encontrado al procesar vencimiento: $userId");
+                                Log::channel('mercadopago')->error("Usuario no encontrado al procesar vencimiento: $userId");
                             }
                         }
 
