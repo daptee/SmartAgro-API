@@ -23,6 +23,10 @@ class News extends Model
         'id_user',
     ];
 
+    protected $casts = [
+        'date' => 'date',
+    ];
+
     protected $dates = ['deleted_at'];
 
     public function plan(): BelongsTo
