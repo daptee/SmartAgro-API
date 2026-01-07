@@ -31,4 +31,9 @@ class AgriculturalInputOutputRelationship extends Model
     {
         return $this->hasOne(Plan::class, 'id', 'id_plan');
     }
+
+    public function regionData(): HasOne
+    {
+        return $this->hasOne(Region::class, 'id', 'region');
+    }
 }

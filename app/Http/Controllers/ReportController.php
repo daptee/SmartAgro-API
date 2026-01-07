@@ -169,7 +169,7 @@ class ReportController extends Controller
                 'mag_lease_index' => $mag_lease_with_plan,
                 'mag_steer_index' => $mag_steer_with_plan,
                 'insights' => Insight::where($filters)->with('plan')->get(),
-                'price_main_active_ingredients_producers' => PriceMainActiveIngredientsProducer::where($filters)->with('plan')->get(),
+                'price_main_active_ingredients_producers' => PriceMainActiveIngredientsProducer::where($filters)->with(['plan', 'segment'])->get(),
                 'producer_segment_prices' => ProducerSegmentPrice::where($filters)->with('plan')->get(),
                 'rainfall_records_provinces' => RainfallRecordProvince::where($filters)->with('plan')->get(),
                 'main_grain_prices' => MainGrainPrice::where($filters)->with('plan')->get(),
@@ -236,22 +236,26 @@ class ReportController extends Controller
                     ->where('id_plan', '<=', $id_plan);
             };
 
-            function getDataOrNull($modelClass, $filters)
+            function getDataOrNull($modelClass, $filters, $with = [])
             {
-                $results = $modelClass::where($filters)->get();
+                $query = $modelClass::where($filters);
+                if (!empty($with)) {
+                    $query->with($with);
+                }
+                $results = $query->get();
                 return $results->isEmpty() ? null : $results;
             }
 
             // Consultas a las nuevas tablas
             $data = [
                 'pit_indicators' => getDataOrNull(PitIndicator::class, $filters),
-                'livestock_input_output_ratios' => getDataOrNull(LivestockInputOutputRatio::class, $filters),
-                'agricultural_input_output_relationships' => getDataOrNull(AgriculturalInputOutputRelationship::class, $filters),
+                'livestock_input_output_ratios' => getDataOrNull(LivestockInputOutputRatio::class, $filters, ['regionData']),
+                'agricultural_input_output_relationships' => getDataOrNull(AgriculturalInputOutputRelationship::class, $filters, ['regionData']),
                 'gross_margins_trend' => getDataOrNull(GrossMarginsTrend::class, $filters),
                 'harvest_prices' => getDataOrNull(HarvestPrices::class, $filters),
-                'product_prices' => getDataOrNull(ProductPrice::class, $filters),
+                'product_prices' => getDataOrNull(ProductPrice::class, $filters, ['segment']),
                 'gross_margins' => getDataOrNull(GrossMargin::class, $filters),
-                'main_crops_buying_selling_traffic_light' => getDataOrNull(MainCropsBuyingSellingTrafficLight::class, $filters),
+                'main_crops_buying_selling_traffic_light' => getDataOrNull(MainCropsBuyingSellingTrafficLight::class, $filters, ['inputs']),
             ];
 
 
