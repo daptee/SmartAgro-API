@@ -757,6 +757,106 @@ class SubscriptionController extends Controller
     }
 
 
+    public function syncPaymentHistory(Request $request)
+    {
+        $accessToken = config('app.mercadopago_token');
+
+        Log::channel('mercadopago')->info("Iniciando sincronización de historial de pagos");
+
+        // Obtener todas las suscripciones activas (plan 2)
+        $userPlans = UserPlan::where('id_plan', 2)
+            ->orderBy('id', 'desc')
+            ->get();
+
+        Log::channel('mercadopago')->info("Suscripciones a sincronizar: " . $userPlans->count());
+
+        $results = [];
+        $totalPaymentsAdded = 0;
+
+        foreach ($userPlans as $plan) {
+            $preapprovalId = $plan->preapproval_id;
+            $userId = $plan->id_user;
+
+            Log::channel('mercadopago')->info("Sincronizando pagos para usuario $userId, preapproval: $preapprovalId");
+
+            // Consultar todos los pagos de esta suscripción en MercadoPago
+            $searchResponse = Http::withToken($accessToken)->get("https://api.mercadopago.com/v1/payments/search", [
+                'criteria' => 'desc',
+                'sort' => 'date_created',
+                'external_reference' => $userId,
+                'limit' => 100
+            ]);
+
+            if (!$searchResponse->successful()) {
+                Log::channel('mercadopago')->error("Error al buscar pagos para usuario $userId");
+                continue;
+            }
+
+            $payments = $searchResponse->json()['results'] ?? [];
+            $paymentsAdded = 0;
+
+            foreach ($payments as $payment) {
+                // Verificar que el pago pertenece a esta suscripción
+                $paymentPreapprovalId = $payment['metadata']['preapproval_id'] ??
+                                       $payment['point_of_interaction']['transaction_data']['subscription_id'] ??
+                                       null;
+
+                if ($paymentPreapprovalId !== $preapprovalId) {
+                    continue;
+                }
+
+                // Verificar si el pago ya existe en la BD
+                $existingPayment = PaymentHistory::where('id_user', $userId)
+                    ->where('preapproval_id', $preapprovalId)
+                    ->where('created_at', '>=', now()->subMinutes(5))
+                    ->whereJsonContains('data->id', $payment['id'])
+                    ->first();
+
+                if ($existingPayment) {
+                    continue; // Ya existe
+                }
+
+                // Guardar el pago
+                try {
+                    PaymentHistory::create([
+                        'id_user' => $userId,
+                        'type' => $payment['status'],
+                        'data' => json_encode($payment),
+                        'preapproval_id' => $preapprovalId,
+                        'error_message' => ($payment['status'] == 'approved' || $payment['status'] == 'authorized')
+                            ? null
+                            : ($payment['status_detail'] ?? 'Pago no exitoso'),
+                        'created_at' => $payment['date_created'],
+                        'updated_at' => $payment['date_last_updated'] ?? $payment['date_created']
+                    ]);
+
+                    $paymentsAdded++;
+                    $totalPaymentsAdded++;
+
+                    Log::channel('mercadopago')->info("Pago agregado: {$payment['id']} para usuario $userId");
+                } catch (Exception $e) {
+                    Log::channel('mercadopago')->error("Error al guardar pago {$payment['id']}: " . $e->getMessage());
+                }
+            }
+
+            $results[] = [
+                'user_id' => $userId,
+                'preapproval_id' => $preapprovalId,
+                'payments_found' => count($payments),
+                'payments_added' => $paymentsAdded
+            ];
+        }
+
+        Log::channel('mercadopago')->info("Sincronización completada. Total de pagos agregados: $totalPaymentsAdded");
+
+        return response()->json([
+            'message' => 'Sincronización de historial de pagos completada',
+            'total_subscriptions' => $userPlans->count(),
+            'total_payments_added' => $totalPaymentsAdded,
+            'details' => $results
+        ]);
+    }
+
     public function cronPayment(Request $request)
     {
         $plan = Plan::find(2);

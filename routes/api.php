@@ -39,6 +39,9 @@ Route::get('/backup', [BackupController::class, 'createBackup'])->name('backup')
 // update payment
 Route::get('/cron-payment', [SubscriptionController::class, 'cronPayment'])->name('cron-payment');
 
+// sync payment history
+Route::get('/sync-payment-history', [SubscriptionController::class, 'syncPaymentHistory'])->name('sync-payment-history');
+
 // finalize expired plans and advertisings
 Route::get('/finalize-expired', [CompanyPlanController::class, 'finalizeExpired'])->name('finalize-expired');
 
