@@ -774,25 +774,24 @@ class SubscriptionController extends Controller
         $priceYearly = round($pricesUSD['yearly']['price'] * $dollarRate, 2);
 
         $today = Carbon::today();
+        $oneWeekAgo = Carbon::today()->subDays(7); // 7 días atrás para recuperar casos no procesados
         $tomorrow = Carbon::tomorrow();
-        $gracePeriodLimit = Carbon::today()->subDays(30); // 30 días atrás para recuperar fechas vencidas
 
         $accessToken = config('app.mercadopago_token');
 
         // Buscar suscripciones que:
-        // 1. Tengan fecha de pago próxima (hoy o mañana) - caso normal
-        // 2. Tengan fecha de pago vencida (hasta 30 días atrás) Y sean deudores - caso atrasado
+        // 1. Tengan fecha de pago en la última semana hasta mañana (recuperar todos los días que fallaron)
+        // 2. Fechas más viejas SOLO si es deudor (evitar duplicados)
         $userPlans = UserPlan::where('id_plan', 2)
-            ->where(function($query) use ($today, $tomorrow, $gracePeriodLimit) {
-                // Caso 1: Fechas próximas (flujo normal)
-                $query->where(function($q) use ($today, $tomorrow) {
-                    $q->whereDate('next_payment_date', '>=', $today)
+            ->where(function($query) use ($today, $tomorrow, $oneWeekAgo) {
+                // Caso 1: Fechas desde hace 7 días hasta mañana - procesar siempre
+                $query->where(function($q) use ($oneWeekAgo, $tomorrow) {
+                    $q->whereDate('next_payment_date', '>=', $oneWeekAgo)
                       ->whereDate('next_payment_date', '<=', $tomorrow);
                 })
-                // Caso 2: Fechas vencidas SOLO si es deudor (recuperar atrasos sin duplicar procesamiento)
-                ->orWhere(function($q) use ($today, $gracePeriodLimit) {
-                    $q->whereDate('next_payment_date', '<', $today)
-                      ->whereDate('next_payment_date', '>=', $gracePeriodLimit)
+                // Caso 2: Fechas más antiguas (más de 7 días atrás) SOLO si es deudor
+                ->orWhere(function($q) use ($oneWeekAgo) {
+                    $q->whereDate('next_payment_date', '<', $oneWeekAgo)
                       ->whereHas('user', function($userQuery) {
                           $userQuery->where('is_debtor', true);
                       });
