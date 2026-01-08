@@ -774,31 +774,52 @@ class SubscriptionController extends Controller
         $priceYearly = round($pricesUSD['yearly']['price'] * $dollarRate, 2);
 
         $today = Carbon::today();
-        $oneWeekAgo = Carbon::today()->subDays(7); // 7 días atrás para recuperar casos no procesados
         $tomorrow = Carbon::tomorrow();
+        $oneWeekAgo = Carbon::today()->subDays(7); // 7 días atrás para recuperar casos atrasados de deudores
 
         $accessToken = config('app.mercadopago_token');
 
         // Buscar suscripciones que:
-        // 1. Tengan fecha de pago en la última semana hasta mañana (recuperar todos los días que fallaron)
-        // 2. Fechas más viejas SOLO si es deudor (evitar duplicados)
+        // 1. Tengan fecha de pago próxima (hoy o mañana) - caso normal
+        // 2. Tengan fecha vencida (hasta 7 días atrás) SOLO si es deudor - recuperar atrasos
+        Log::channel('mercadopago')->info("CRON Payment: Buscando suscripciones", [
+            'today' => $today->format('Y-m-d'),
+            'tomorrow' => $tomorrow->format('Y-m-d'),
+            'oneWeekAgo' => $oneWeekAgo->format('Y-m-d')
+        ]);
+
         $userPlans = UserPlan::where('id_plan', 2)
             ->where(function($query) use ($today, $tomorrow, $oneWeekAgo) {
-                // Caso 1: Fechas desde hace 7 días hasta mañana - procesar siempre
-                $query->where(function($q) use ($oneWeekAgo, $tomorrow) {
-                    $q->whereDate('next_payment_date', '>=', $oneWeekAgo)
+                // Caso 1: Fechas próximas (hoy o mañana) - procesar siempre
+                $query->where(function($q) use ($today, $tomorrow) {
+                    $q->whereDate('next_payment_date', '>=', $today)
                       ->whereDate('next_payment_date', '<=', $tomorrow);
                 })
-                // Caso 2: Fechas más antiguas (más de 7 días atrás) SOLO si es deudor
-                ->orWhere(function($q) use ($oneWeekAgo) {
-                    $q->whereDate('next_payment_date', '<', $oneWeekAgo)
+                // Caso 2: Fechas vencidas (última semana) SOLO si es deudor
+                ->orWhere(function($q) use ($today, $oneWeekAgo) {
+                    $q->whereDate('next_payment_date', '<', $today)
+                      ->whereDate('next_payment_date', '>=', $oneWeekAgo)
                       ->whereHas('user', function($userQuery) {
                           $userQuery->where('is_debtor', true);
                       });
                 });
             })
             ->orderBy('id', 'desc')
-            ->get()
+            ->get();
+
+        Log::channel('mercadopago')->info("CRON Payment: Suscripciones encontradas", [
+            'total' => $userPlans->count(),
+            'users' => $userPlans->map(function($plan) {
+                return [
+                    'user_id' => $plan->id_user,
+                    'preapproval_id' => $plan->preapproval_id,
+                    'next_payment_date' => $plan->next_payment_date,
+                    'status' => json_decode($plan->data, true)['status'] ?? 'unknown'
+                ];
+            })->toArray()
+        ]);
+
+        $userPlans = $userPlans
             ->map(function ($plan) use ($priceMonthly, $priceYearly, $accessToken) {
                 $data = json_decode($plan->data, true);
                 $frequency = $data['auto_recurring']['frequency'] ?? null;
