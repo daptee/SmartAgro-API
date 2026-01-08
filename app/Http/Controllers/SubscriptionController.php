@@ -822,10 +822,33 @@ class SubscriptionController extends Controller
         $userPlans = $userPlans
             ->map(function ($plan) use ($priceMonthly, $priceYearly, $accessToken) {
                 $data = json_decode($plan->data, true);
-                $frequency = $data['auto_recurring']['frequency'] ?? null;
-                $status = $data['status'] ?? null;
                 $preapprovalId = $plan->preapproval_id;
                 $userId = $plan->id_user;
+
+                // Obtener el estado ACTUAL de MercadoPago (no confiar en la BD que puede estar desactualizada)
+                Log::channel('mercadopago')->info("Consultando estado actual en MercadoPago para usuario: $userId, preapproval: $preapprovalId");
+
+                $preapprovalResponse = Http::withToken($accessToken)->get("https://api.mercadopago.com/preapproval/{$preapprovalId}");
+
+                if (!$preapprovalResponse->successful()) {
+                    Log::channel('mercadopago')->error("No se pudo consultar MercadoPago para preapproval: $preapprovalId");
+                    $data['error'] = 'No se pudo consultar estado en MercadoPago';
+                    return [
+                        'id' => $plan->id,
+                        'preapproval_id' => $plan->preapproval_id,
+                        'data' => $data,
+                    ];
+                }
+
+                $currentData = $preapprovalResponse->json();
+                $status = $currentData['status'] ?? null;
+                $frequency = $currentData['auto_recurring']['frequency'] ?? null;
+
+                Log::channel('mercadopago')->info("Estado actual de MercadoPago para usuario $userId: $status");
+
+                // Actualizar los datos en la BD con el estado actual
+                $plan->data = json_encode($currentData);
+                $plan->save();
 
                 if ($frequency && $preapprovalId && $status != "cancelled" && $status) {
                     $newAmount = $frequency == 1 ? $priceMonthly : $priceYearly;
