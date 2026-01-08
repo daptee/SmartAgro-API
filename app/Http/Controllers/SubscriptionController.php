@@ -778,12 +778,29 @@ class SubscriptionController extends Controller
 
         $today = Carbon::today();
         $tomorrow = Carbon::tomorrow();
+        $gracePeriodLimit = Carbon::today()->subDays(30); // 30 días atrás para recuperar fechas vencidas
 
         $accessToken = config('app.mercadopago_token');
 
+        // Buscar suscripciones que:
+        // 1. Tengan fecha de pago próxima (hoy o mañana) - caso normal
+        // 2. Tengan fecha de pago vencida (hasta 30 días atrás) Y sean deudores - caso atrasado
         $userPlans = UserPlan::where('id_plan', 2)
-            ->whereDate('next_payment_date', '>=', $today)
-            ->whereDate('next_payment_date', '<=', $tomorrow)
+            ->where(function($query) use ($today, $tomorrow, $gracePeriodLimit) {
+                // Caso 1: Fechas próximas (flujo normal)
+                $query->where(function($q) use ($today, $tomorrow) {
+                    $q->whereDate('next_payment_date', '>=', $today)
+                      ->whereDate('next_payment_date', '<=', $tomorrow);
+                })
+                // Caso 2: Fechas vencidas SOLO si es deudor (recuperar atrasos sin duplicar procesamiento)
+                ->orWhere(function($q) use ($today, $gracePeriodLimit) {
+                    $q->whereDate('next_payment_date', '<', $today)
+                      ->whereDate('next_payment_date', '>=', $gracePeriodLimit)
+                      ->whereHas('user', function($userQuery) {
+                          $userQuery->where('is_debtor', true);
+                      });
+                });
+            })
             ->orderBy('id', 'desc')
             ->get()
             ->map(function ($plan) use ($priceMonthly, $priceYearly, $accessToken) {
@@ -835,24 +852,41 @@ class SubscriptionController extends Controller
                     } else {
                         // Si falló la reactivación de una suscripción pausada
                         if ($status == "paused") {
-                            Log::channel('mercadopago')->error("No se pudo reactivar suscripción pausada: $preapprovalId. Cambiando usuario a plan gratuito.");
-
-                            // Cambiar al usuario al plan gratuito
                             $user = User::find($userId);
+
                             if ($user) {
-                                $user->update([
-                                    'id_plan' => 1,
-                                    'is_debtor' => false  // Ya no es deudor porque se le cambió a plan gratuito
-                                ]);
+                                // Verificar si ya usó su período de gracia
+                                if ($user->grace_period_used) {
+                                    // Ya usó el período de gracia, bajar a plan gratuito
+                                    Log::channel('mercadopago')->error("No se pudo reactivar suscripción pausada: $preapprovalId. Usuario ya usó período de gracia. Cambiando a plan gratuito.");
 
-                                // Guardar en historial
-                                UserPlan::save_history($userId, 1, ['reason' => 'Suscripción vencida después de período de gracia', 'is_system' => 'true'], now(), $preapprovalId);
+                                    $user->update([
+                                        'id_plan' => 1,
+                                        'is_debtor' => false  // Ya no es deudor porque se le cambió a plan gratuito
+                                        // Mantener grace_period_used = true para evitar que vuelva a tener período de gracia
+                                    ]);
 
-                                // Enviar emails de notificación de forma segura
-                                $this->sendEmailSafely($user->email, new ExpiredSubscription($user), 'Suscripción vencida - usuario');
-                                $this->sendEmailSafely(config('services.research_on_demand.email'), new NotificationExpiredSubscription($user), 'Suscripción vencida - admin');
+                                    // Guardar en historial
+                                    UserPlan::save_history($userId, 1, ['reason' => 'Suscripción vencida después de período de gracia', 'is_system' => 'true'], now(), $preapprovalId);
 
-                                $data['downgraded_to_free'] = true;
+                                    // Enviar emails de notificación de forma segura
+                                    $this->sendEmailSafely($user->email, new ExpiredSubscription($user), 'Suscripción vencida - usuario');
+                                    $this->sendEmailSafely(config('services.research_on_demand.email'), new NotificationExpiredSubscription($user), 'Suscripción vencida - admin');
+
+                                    $data['downgraded_to_free'] = true;
+                                    $data['reason'] = 'grace_period_expired';
+                                } else {
+                                    // Primera vez que falla, otorgar período de gracia (mantener plan)
+                                    Log::channel('mercadopago')->warning("No se pudo reactivar suscripción pausada: $preapprovalId. Otorgando período de gracia al usuario $userId.");
+
+                                    $user->update([
+                                        'grace_period_used' => true,
+                                        'is_debtor' => true
+                                    ]);
+
+                                    $data['grace_period_granted'] = true;
+                                    $data['reason'] = 'grace_period_granted';
+                                }
                             } else {
                                 Log::channel('mercadopago')->error("Usuario no encontrado al procesar vencimiento: $userId");
                             }
