@@ -132,6 +132,14 @@ return [
             'path' => storage_path('logs/excel_processed.log'),
             'level' => 'info',
         ],
+
+        'mercadopago' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/mercadopago.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'days' => 30,
+            'replace_placeholders' => true,
+        ],
     ],
 
 ];
