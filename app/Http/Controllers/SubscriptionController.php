@@ -304,23 +304,20 @@ class SubscriptionController extends Controller
         Log::channel('mercadopago')->info('Webhook recibido de Mercado Pago:', $data);
 
         $accessToken = config('app.mercadopago_token');
-        $mercadopagoWebhookSecret = config('app.mercadopago_webhook_secret');
 
-        // Validar firma del webhook (seguridad)
-        if ($mercadopagoWebhookSecret) {
-            $xSignature = $request->header('x-signature');
-            $xRequestId = $request->header('x-request-id');
-
-            if (!$this->validateWebhookSignature($data, $xSignature, $xRequestId, $mercadopagoWebhookSecret)) {
-                Log::channel('mercadopago')->warning('Webhook rechazado: firma inválida', [
-                    'x-signature' => $xSignature,
-                    'x-request-id' => $xRequestId
-                ]);
-                return response()->json(['error' => 'Invalid signature'], 401);
-            }
-        } else {
-            Log::channel('mercadopago')->warning('Webhook sin validación de firma: mercadopago_webhook_secret no configurado');
-        }
+        // Validación de firma deshabilitada temporalmente
+        // $mercadopagoWebhookSecret = config('app.mercadopago_webhook_secret');
+        // if ($mercadopagoWebhookSecret) {
+        //     $xSignature = $request->header('x-signature');
+        //     $xRequestId = $request->header('x-request-id');
+        //     if (!$this->validateWebhookSignature($data, $xSignature, $xRequestId, $mercadopagoWebhookSecret)) {
+        //         Log::channel('mercadopago')->warning('Webhook rechazado: firma inválida', [
+        //             'x-signature' => $xSignature,
+        //             'x-request-id' => $xRequestId
+        //         ]);
+        //         return response()->json(['error' => 'Invalid signature'], 401);
+        //     }
+        // }
 
         // 🔥 Guardamos temporalmente el preapprovalId si es subscription_preapproval
         if (isset($data['type']) && $data['type'] == 'subscription_preapproval') {
