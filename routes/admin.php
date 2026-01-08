@@ -14,6 +14,7 @@ use App\Http\Controllers\MagSteerIndexController;
 use App\Http\Controllers\MajorCropController;
 use App\Http\Controllers\NewsController;
 use App\Http\Controllers\InsightController;
+use App\Http\Controllers\RainfallRecordController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\StatusController;
 use App\Http\Controllers\SubscriptionController;
@@ -163,6 +164,15 @@ Route::prefix('admin')
             Route::put('insights/{id}', 'update');
             Route::put('insights/{id}/status', 'changeStatus');
             Route::delete('insights/{id}', 'destroy');
+        });
+
+        // Rainfall Records (Registro de Lluvias)
+        Route::controller(RainfallRecordController::class)->group(function () {
+            Route::get('rainfall-records', 'index');
+            Route::post('rainfall-records', 'store');
+            Route::put('rainfall-records/{id}', 'update');
+            Route::put('rainfall-records/{id}/status', 'changeStatus');
+            Route::delete('rainfall-records/{id}', 'destroy');
         });
     }
 );
