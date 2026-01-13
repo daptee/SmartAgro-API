@@ -15,6 +15,7 @@ use App\Http\Controllers\MagSteerIndexController;
 use App\Http\Controllers\MajorCropController;
 use App\Http\Controllers\NewsController;
 use App\Http\Controllers\InsightController;
+use App\Http\Controllers\MainGrainPriceController;
 use App\Http\Controllers\RainfallRecordController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\StatusController;
@@ -174,6 +175,15 @@ Route::prefix('admin')
             Route::put('rainfall-records/{id}', 'update');
             Route::put('rainfall-records/{id}/status', 'changeStatus');
             Route::delete('rainfall-records/{id}', 'destroy');
+        });
+
+        // Main Grain Prices (Precios Principales Granos)
+        Route::controller(MainGrainPriceController::class)->group(function () {
+            Route::get('main-grain-prices', 'index');
+            Route::post('main-grain-prices', 'store');
+            Route::put('main-grain-prices/{id}', 'update');
+            Route::put('main-grain-prices/{id}/status', 'changeStatus');
+            Route::delete('main-grain-prices/{id}', 'destroy');
         });
 
         // Crops (Cultivos)

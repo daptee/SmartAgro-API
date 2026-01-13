@@ -254,6 +254,7 @@ class ExcelImport implements WithMultipleSheets
             'id_plan' => $row[0],
             'date' => $this->convertExcelDate($row[1]),
             'data' => $jsonData,
+            'status_id' => 1,
         ];
     }
 }
