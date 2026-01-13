@@ -2,19 +2,19 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\RainfallRecordProvince;
+use App\Models\MainGrainPrice;
 use App\Models\Audith;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Exception;
 
-class RainfallRecordController extends Controller
+class MainGrainPriceController extends Controller
 {
-    // GET ALL - Retorna todos los registros de lluvia con filtros
+    // GET ALL - Retorna todos los precios de granos con filtros
     public function index(Request $request)
     {
-        $message = "Error al obtener registros de lluvia";
-        $action = "Listado de registros de lluvia";
+        $message = "Error al obtener precios de granos";
+        $action = "Listado de precios de granos";
         $data = null;
         $meta = null;
 
@@ -22,7 +22,7 @@ class RainfallRecordController extends Controller
             $perPage = $request->query('per_page');
             $page = $request->query('page', 1);
 
-            $query = RainfallRecordProvince::query();
+            $query = MainGrainPrice::query();
 
             // Filtro por rango de fechas
             if ($request->has('date_from') && $request->date_from) {
@@ -48,16 +48,16 @@ class RainfallRecordController extends Controller
 
             // Si no se pasa per_page => devolver todo
             if (is_null($perPage)) {
-                $rainfallRecords = $query->with(['plan', 'status', 'user'])->get();
-                $data = $rainfallRecords;
+                $mainGrainPrices = $query->with(['plan', 'status', 'user'])->get();
+                $data = $mainGrainPrices;
             } else {
-                $rainfallRecords = $query->with(['plan', 'status', 'user'])->paginate($perPage, ['*'], 'page', $page);
-                $data = $rainfallRecords->items();
+                $mainGrainPrices = $query->with(['plan', 'status', 'user'])->paginate($perPage, ['*'], 'page', $page);
+                $data = $mainGrainPrices->items();
                 $meta = [
-                    'page' => $rainfallRecords->currentPage(),
-                    'per_page' => $rainfallRecords->perPage(),
-                    'total' => $rainfallRecords->total(),
-                    'last_page' => $rainfallRecords->lastPage(),
+                    'page' => $mainGrainPrices->currentPage(),
+                    'per_page' => $mainGrainPrices->perPage(),
+                    'total' => $mainGrainPrices->total(),
+                    'last_page' => $mainGrainPrices->lastPage(),
                 ];
             }
 
@@ -71,11 +71,11 @@ class RainfallRecordController extends Controller
         return response(compact("data", "meta"));
     }
 
-    // POST - Crear nuevo registro de lluvia
+    // POST - Crear nuevo precio de grano
     public function store(Request $request)
     {
-        $message = "Error al crear registro de lluvia";
-        $action = "Crear registro de lluvia";
+        $message = "Error al crear precio de grano";
+        $action = "Crear precio de grano";
         $id_user = Auth::user()->id ?? null;
         $data = null;
 
@@ -105,7 +105,7 @@ class RainfallRecordController extends Controller
                 $dataValue = json_decode($dataValue, true);
             }
 
-            $data = RainfallRecordProvince::create([
+            $data = MainGrainPrice::create([
                 'date' => $request->date,
                 'data' => $dataValue,
                 'id_plan' => $request->id_plan,
@@ -125,16 +125,16 @@ class RainfallRecordController extends Controller
         return response(compact("data"), 201);
     }
 
-    // PUT - Editar registro de lluvia
+    // PUT - Editar precio de grano
     public function update(Request $request, $id)
     {
-        $message = "Error al actualizar registro de lluvia";
-        $action = "Actualizar registro de lluvia";
+        $message = "Error al actualizar precio de grano";
+        $action = "Actualizar precio de grano";
         $id_user = Auth::user()->id ?? null;
         $data = null;
 
         try {
-            $rainfallRecord = RainfallRecordProvince::findOrFail($id);
+            $mainGrainPrice = MainGrainPrice::findOrFail($id);
 
             // Validaciones según el estado
             $rules = [
@@ -158,19 +158,19 @@ class RainfallRecordController extends Controller
             if ($request->status_id == 1) {
                 if (empty($request->date) || empty($request->data) || empty($request->id_plan)) {
                     return response([
-                        "message" => "No se puede publicar el registro sin completar todos los campos obligatorios (fecha, datos y plan)."
+                        "message" => "No se puede publicar el precio sin completar todos los campos obligatorios (fecha, datos y plan)."
                     ], 400);
                 }
             }
 
             // Normalizar el campo data (Laravel manejará el cast automáticamente)
-            $dataValue = $request->has('data') ? $request->data : $rainfallRecord->data;
+            $dataValue = $request->has('data') ? $request->data : $mainGrainPrice->data;
             // Si viene como string JSON, decodificarlo para que Laravel lo maneje correctamente
             if (is_string($dataValue)) {
                 $dataValue = json_decode($dataValue, true);
             }
 
-            $rainfallRecord->update([
+            $mainGrainPrice->update([
                 'date' => $request->date,
                 'data' => $dataValue,
                 'id_plan' => $request->id_plan,
@@ -178,7 +178,7 @@ class RainfallRecordController extends Controller
                 'id_user' => $id_user,
             ]);
 
-            $data = $rainfallRecord;
+            $data = $mainGrainPrice;
             $data->load(['plan', 'status', 'user']);
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
@@ -191,16 +191,16 @@ class RainfallRecordController extends Controller
         return response(compact("data"));
     }
 
-    // PUT - Cambiar estado del registro de lluvia
+    // PUT - Cambiar estado del precio de grano
     public function changeStatus(Request $request, $id)
     {
-        $message = "Error al cambiar estado del registro de lluvia";
-        $action = "Cambiar estado del registro de lluvia";
+        $message = "Error al cambiar estado del precio de grano";
+        $action = "Cambiar estado del precio de grano";
         $id_user = Auth::user()->id ?? null;
         $data = null;
 
         try {
-            $rainfallRecord = RainfallRecordProvince::findOrFail($id);
+            $mainGrainPrice = MainGrainPrice::findOrFail($id);
 
             $request->validate([
                 'status_id' => 'required|in:1,2',
@@ -208,18 +208,18 @@ class RainfallRecordController extends Controller
 
             // Si se cambia a PUBLICADO (1), validar que todos los datos estén completos
             if ($request->status_id == 1) {
-                if (empty($rainfallRecord->date) || empty($rainfallRecord->data) || empty($rainfallRecord->id_plan)) {
+                if (empty($mainGrainPrice->date) || empty($mainGrainPrice->data) || empty($mainGrainPrice->id_plan)) {
                     return response([
-                        "message" => "No se puede publicar el registro. Todos los campos deben estar completos (fecha, datos y plan)."
+                        "message" => "No se puede publicar el precio. Todos los campos deben estar completos (fecha, datos y plan)."
                     ], 400);
                 }
             }
 
-            $rainfallRecord->update([
+            $mainGrainPrice->update([
                 'status_id' => $request->status_id,
             ]);
 
-            $data = $rainfallRecord;
+            $data = $mainGrainPrice;
             $data->load(['plan', 'status', 'user']);
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
@@ -232,16 +232,16 @@ class RainfallRecordController extends Controller
         return response(compact("data"));
     }
 
-    // DELETE - Soft delete del registro de lluvia
+    // DELETE - Soft delete del precio de grano
     public function destroy(Request $request, $id)
     {
-        $message = "Error al eliminar registro de lluvia";
-        $action = "Eliminar registro de lluvia";
+        $message = "Error al eliminar precio de grano";
+        $action = "Eliminar precio de grano";
         $id_user = Auth::user()->id ?? null;
 
         try {
-            $rainfallRecord = RainfallRecordProvince::findOrFail($id);
-            $rainfallRecord->delete(); // Soft delete
+            $mainGrainPrice = MainGrainPrice::findOrFail($id);
+            $mainGrainPrice->delete(); // Soft delete
 
             Audith::new($id_user, $action, $request->all(), 200, ['deleted_id' => $id]);
 
@@ -250,6 +250,6 @@ class RainfallRecordController extends Controller
             return response(["message" => $message, "error" => $e->getMessage()], 500);
         }
 
-        return response(["message" => "Registro de lluvia eliminado correctamente"]);
+        return response(["message" => "Precio de grano eliminado correctamente"]);
     }
 }

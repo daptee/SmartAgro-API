@@ -13,6 +13,7 @@ use App\Http\Controllers\CompanyPlanController;
 use App\Http\Controllers\CompanyPlanPublicitiesReportController;
 use App\Http\Controllers\CompanyPlanPublicityController;
 use App\Http\Controllers\CompanyRolesController;
+use App\Http\Controllers\CropController;
 use App\Http\Controllers\FaqController;
 use App\Http\Controllers\GeneralImportController;
 use App\Http\Controllers\GetsFunctionsController;
@@ -41,6 +42,9 @@ Route::get('/cron-payment', [SubscriptionController::class, 'cronPayment'])->nam
 
 // sync payment history
 Route::get('/sync-payment-history', [SubscriptionController::class, 'syncPaymentHistory'])->name('sync-payment-history');
+
+// generate payment system documentation PDF
+Route::get('/generate-payment-docs-pdf', [App\Http\Controllers\DocumentationController::class, 'generatePaymentSystemPDF'])->name('generate-payment-docs-pdf');
 
 // finalize expired plans and advertisings
 Route::get('/finalize-expired', [CompanyPlanController::class, 'finalizeExpired'])->name('finalize-expired');
@@ -227,6 +231,9 @@ Route::get('/company-plan-publicities-reports', [CompanyPlanPublicitiesReportCon
 
 // Segments
 Route::get('segments', [SegmentController::class, 'index']);
+
+// Crops
+Route::get('crops', [CropController::class, 'index']);
 
 // Dolar API
 Route::get('dolar/oficial', function () {

@@ -8,12 +8,14 @@ use App\Http\Controllers\CompaniesAdvertisingController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\CompanyPlanController;
 use App\Http\Controllers\CompanyPlanPublicitiesReportController;
+use App\Http\Controllers\CropController;
 use App\Http\Controllers\FaqController;
 use App\Http\Controllers\MagLeaseIndexController;
 use App\Http\Controllers\MagSteerIndexController;
 use App\Http\Controllers\MajorCropController;
 use App\Http\Controllers\NewsController;
 use App\Http\Controllers\InsightController;
+use App\Http\Controllers\MainGrainPriceController;
 use App\Http\Controllers\RainfallRecordController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\StatusController;
@@ -173,6 +175,23 @@ Route::prefix('admin')
             Route::put('rainfall-records/{id}', 'update');
             Route::put('rainfall-records/{id}/status', 'changeStatus');
             Route::delete('rainfall-records/{id}', 'destroy');
+        });
+
+        // Main Grain Prices (Precios Principales Granos)
+        Route::controller(MainGrainPriceController::class)->group(function () {
+            Route::get('main-grain-prices', 'index');
+            Route::post('main-grain-prices', 'store');
+            Route::put('main-grain-prices/{id}', 'update');
+            Route::put('main-grain-prices/{id}/status', 'changeStatus');
+            Route::delete('main-grain-prices/{id}', 'destroy');
+        });
+
+        // Crops (Cultivos)
+        Route::controller(CropController::class)->group(function () {
+            Route::get('crops', 'index');
+            Route::post('crops', 'store');
+            Route::put('crops/{id}', 'update');
+            Route::delete('crops/{id}', 'destroy');
         });
     }
 );
