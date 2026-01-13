@@ -8,6 +8,7 @@ use App\Http\Controllers\CompaniesAdvertisingController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\CompanyPlanController;
 use App\Http\Controllers\CompanyPlanPublicitiesReportController;
+use App\Http\Controllers\CropController;
 use App\Http\Controllers\FaqController;
 use App\Http\Controllers\MagLeaseIndexController;
 use App\Http\Controllers\MagSteerIndexController;
@@ -173,6 +174,14 @@ Route::prefix('admin')
             Route::put('rainfall-records/{id}', 'update');
             Route::put('rainfall-records/{id}/status', 'changeStatus');
             Route::delete('rainfall-records/{id}', 'destroy');
+        });
+
+        // Crops (Cultivos)
+        Route::controller(CropController::class)->group(function () {
+            Route::get('crops', 'index');
+            Route::post('crops', 'store');
+            Route::put('crops/{id}', 'update');
+            Route::delete('crops/{id}', 'destroy');
         });
     }
 );
