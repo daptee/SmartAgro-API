@@ -82,6 +82,8 @@ SET status_id = 1;
 SET SQL_SAFE_UPDATES = 1;
 
 ALTER TABLE rainfall_record_provinces
+ADD COLUMN month INT NULL AFTER data,
+ADD COLUMN year INT NULL AFTER month,
 ADD COLUMN status_id INT AFTER id_plan,
 ADD COLUMN id_user INT NULL AFTER status_id,
 ADD COLUMN deleted_at TIMESTAMP NULL AFTER updated_at,
@@ -93,9 +95,17 @@ SET SQL_SAFE_UPDATES = 0;
 UPDATE rainfall_record_provinces
 SET status_id = 1;
 
+-- Extraer month y year del campo date para rainfall_record_provinces
+UPDATE rainfall_record_provinces
+SET month = MONTH(date),
+    year = YEAR(date)
+WHERE id > 0 AND date IS NOT NULL;
+
 SET SQL_SAFE_UPDATES = 1;
 
 ALTER TABLE main_grain_prices
+ADD COLUMN month INT NULL AFTER data,
+ADD COLUMN year INT NULL AFTER month,
 ADD COLUMN status_id INT AFTER id_plan,
 ADD COLUMN id_user INT NULL AFTER status_id,
 ADD COLUMN deleted_at TIMESTAMP NULL AFTER updated_at,
@@ -106,5 +116,11 @@ SET SQL_SAFE_UPDATES = 0;
 
 UPDATE main_grain_prices
 SET status_id = 1;
+
+-- Extraer month y year del campo date para main_grain_prices
+UPDATE main_grain_prices
+SET month = MONTH(date),
+    year = YEAR(date)
+WHERE id > 0 AND date IS NOT NULL;
 
 SET SQL_SAFE_UPDATES = 1;
