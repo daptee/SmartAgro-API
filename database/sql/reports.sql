@@ -124,3 +124,25 @@ SET month = MONTH(date),
 WHERE id > 0 AND date IS NOT NULL;
 
 SET SQL_SAFE_UPDATES = 1;
+
+ALTER TABLE prices_main_active_ingredients_producers
+ADD COLUMN month INT NULL AFTER data,
+ADD COLUMN year INT NULL AFTER month,
+ADD COLUMN status_id INT AFTER id_plan,
+ADD COLUMN id_user INT NULL AFTER status_id,
+ADD COLUMN deleted_at TIMESTAMP NULL AFTER updated_at,
+ADD CONSTRAINT fk_prices_main_active_ingredients_producers_status
+    FOREIGN KEY (status_id) REFERENCES statuses_reports(id);
+
+SET SQL_SAFE_UPDATES = 0;
+
+UPDATE prices_main_active_ingredients_producers
+SET status_id = 1;
+
+-- Extraer month y year del campo date para prices_main_active_ingredients_producers
+UPDATE prices_main_active_ingredients_producers
+SET month = MONTH(date),
+    year = YEAR(date)
+WHERE id > 0 AND date IS NOT NULL;
+
+SET SQL_SAFE_UPDATES = 1;

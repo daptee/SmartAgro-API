@@ -186,7 +186,7 @@ class ReportController extends Controller
                 'mag_lease_index' => $mag_lease_with_plan,
                 'mag_steer_index' => $mag_steer_with_plan,
                 'insights' => Insight::where($filters)->with('plan')->get(),
-                'price_main_active_ingredients_producers' => PriceMainActiveIngredientsProducer::where($filters)->with(['plan', 'segment'])->get(),
+                'price_main_active_ingredients_producers' => PriceMainActiveIngredientsProducer::where($filtersMonthYear)->with(['plan', 'segment'])->get(),
                 'producer_segment_prices' => ProducerSegmentPrice::where($filters)->with('plan')->get(),
                 'rainfall_records_provinces' => RainfallRecordProvince::where($filtersMonthYear)->with('plan')->get(),
                 'main_grain_prices' => MainGrainPrice::where($filtersMonthYear)->with('plan')->get(),
