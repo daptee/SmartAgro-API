@@ -162,17 +162,34 @@ class ReportController extends Controller
                     ->get();
             }
 
+            // Filtro para tablas que usan columnas 'month' y 'year' directamente (fallback a 'date' si no existen)
+            $filtersMonthYear = function ($query) use ($id_plan, $month, $year) {
+                // Verificar si la tabla tiene columna 'month'
+                $tableName = $query->getModel()->getTable();
+                $hasMonthColumn = \Schema::hasColumn($tableName, 'month');
+
+                if ($hasMonthColumn) {
+                    $query->where('year', $year)
+                        ->where('month', $month)
+                        ->where('id_plan', '<=', $id_plan);
+                } else {
+                    $query->whereYear('date', $year)
+                        ->whereMonth('date', $month)
+                        ->where('id_plan', '<=', $id_plan);
+                }
+            };
+
             // Realizar las consultas a todas las tablas
             $data = [
                 'news' => News::where($filters)->with('plan')->get(),
-                'major_crops' => MajorCrop::where($filters)->with('plan')->get(),
+                'major_crops' => MajorCrop::where($filtersMonthYear)->with('plan')->get(),
                 'mag_lease_index' => $mag_lease_with_plan,
                 'mag_steer_index' => $mag_steer_with_plan,
                 'insights' => Insight::where($filters)->with('plan')->get(),
-                'price_main_active_ingredients_producers' => PriceMainActiveIngredientsProducer::where($filters)->with(['plan', 'segment'])->get(),
+                'price_main_active_ingredients_producers' => PriceMainActiveIngredientsProducer::where($filtersMonthYear)->with(['plan', 'segment'])->get(),
                 'producer_segment_prices' => ProducerSegmentPrice::where($filters)->with('plan')->get(),
-                'rainfall_records_provinces' => RainfallRecordProvince::where($filters)->with('plan')->get(),
-                'main_grain_prices' => MainGrainPrice::where($filters)->with('plan')->get(),
+                'rainfall_records_provinces' => RainfallRecordProvince::where($filtersMonthYear)->with('plan')->get(),
+                'main_grain_prices' => MainGrainPrice::where($filtersMonthYear)->with('plan')->get(),
             ];
 
             // Verificar si todos los arrays están vacíos

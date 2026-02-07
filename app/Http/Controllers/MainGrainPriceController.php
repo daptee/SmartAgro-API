@@ -24,13 +24,30 @@ class MainGrainPriceController extends Controller
 
             $query = MainGrainPrice::query();
 
-            // Filtro por rango de fechas
-            if ($request->has('date_from') && $request->date_from) {
-                $query->where('date', '>=', $request->date_from);
+            // Filtro por rango de mes y año desde
+            if ($request->has('year_from') && $request->year_from) {
+                $yearFrom = $request->year_from;
+                $monthFrom = $request->has('month_from') && $request->month_from ? $request->month_from : 1;
+
+                $query->where(function ($q) use ($yearFrom, $monthFrom) {
+                    $q->where('year', '>', $yearFrom)
+                      ->orWhere(function ($q2) use ($yearFrom, $monthFrom) {
+                          $q2->where('year', $yearFrom)->where('month', '>=', $monthFrom);
+                      });
+                });
             }
 
-            if ($request->has('date_to') && $request->date_to) {
-                $query->where('date', '<=', $request->date_to);
+            // Filtro por rango de mes y año hasta
+            if ($request->has('year_to') && $request->year_to) {
+                $yearTo = $request->year_to;
+                $monthTo = $request->has('month_to') && $request->month_to ? $request->month_to : 12;
+
+                $query->where(function ($q) use ($yearTo, $monthTo) {
+                    $q->where('year', '<', $yearTo)
+                      ->orWhere(function ($q2) use ($yearTo, $monthTo) {
+                          $q2->where('year', $yearTo)->where('month', '<=', $monthTo);
+                      });
+                });
             }
 
             // Filtro por estado
@@ -43,8 +60,8 @@ class MainGrainPriceController extends Controller
                 $query->where('id_plan', $request->id_plan);
             }
 
-            // Orden por defecto (por fecha descendente)
-            $query->orderBy('date', 'desc');
+            // Orden por defecto (por año y mes descendente)
+            $query->orderBy('year', 'desc')->orderBy('month', 'desc');
 
             // Si no se pasa per_page => devolver todo
             if (is_null($perPage)) {
@@ -82,7 +99,8 @@ class MainGrainPriceController extends Controller
         try {
             // Validaciones según el estado
             $rules = [
-                'date' => 'required|date',
+                'month' => 'required|integer|min:1|max:12',
+                'year' => 'required|integer|min:2000|max:2100',
                 'status_id' => 'required|in:1,2', // 1=Publicado, 2=Borrador
             ];
 
@@ -90,23 +108,49 @@ class MainGrainPriceController extends Controller
             if ($request->status_id == 1) {
                 $rules['data'] = 'required';
                 $rules['id_plan'] = 'required|exists:plans,id';
+
+                $request->validate($rules);
+
+                // Normalizar el campo data
+                $dataValue = $request->data;
+                if (is_string($dataValue)) {
+                    $dataValue = json_decode($dataValue, true);
+                }
+
+                if (empty($dataValue)) {
+                    return response([
+                        "message" => "El campo 'data' debe contener información válida cuando el estado es PUBLICADO."
+                    ], 400);
+                }
+
+                // Validar que no exista un registro publicado con el mismo mes y año
+                $exists = MainGrainPrice::where('year', $request->year)
+                    ->where('month', $request->month)
+                    ->where('status_id', 1)
+                    ->exists();
+
+                if ($exists) {
+                    return response([
+                        "message" => "Ya existe un registro publicado para el mes {$request->month} del año {$request->year}."
+                    ], 400);
+                }
             } else {
                 // Si es BORRADOR (2), estos campos son opcionales
                 $rules['data'] = 'nullable';
                 $rules['id_plan'] = 'nullable|exists:plans,id';
+                $request->validate($rules);
             }
-
-            $request->validate($rules);
 
             // Normalizar el campo data (Laravel manejará el cast automáticamente)
             $dataValue = $request->data;
-            // Si viene como string JSON, decodificarlo para que Laravel lo maneje correctamente
             if (is_string($dataValue)) {
                 $dataValue = json_decode($dataValue, true);
             }
 
             $data = MainGrainPrice::create([
-                'date' => $request->date,
+                'month' => $request->month,
+                'year' => $request->year,
+                'date' => $request->date ?? null,
                 'data' => $dataValue,
                 'id_plan' => $request->id_plan,
                 'status_id' => $request->status_id,
@@ -138,7 +182,8 @@ class MainGrainPriceController extends Controller
 
             // Validaciones según el estado
             $rules = [
-                'date' => 'required|date',
+                'month' => 'required|integer|min:1|max:12',
+                'year' => 'required|integer|min:2000|max:2100',
                 'status_id' => 'required|in:1,2',
             ];
 
@@ -146,32 +191,50 @@ class MainGrainPriceController extends Controller
             if ($request->status_id == 1) {
                 $rules['data'] = 'required';
                 $rules['id_plan'] = 'required|exists:plans,id';
+
+                $request->validate($rules);
+
+                // Normalizar el campo data
+                $dataValue = $request->data;
+                if (is_string($dataValue)) {
+                    $dataValue = json_decode($dataValue, true);
+                }
+
+                if (empty($dataValue)) {
+                    return response([
+                        "message" => "El campo 'data' debe contener información válida cuando el estado es PUBLICADO."
+                    ], 400);
+                }
+
+                // Validar que no exista otro registro publicado con el mismo mes y año
+                $exists = MainGrainPrice::where('year', $request->year)
+                    ->where('month', $request->month)
+                    ->where('status_id', 1)
+                    ->where('id', '!=', $id)
+                    ->exists();
+
+                if ($exists) {
+                    return response([
+                        "message" => "Ya existe otro registro publicado para el mes {$request->month} del año {$request->year}."
+                    ], 400);
+                }
             } else {
                 // Si es BORRADOR (2), estos campos son opcionales
                 $rules['data'] = 'nullable';
                 $rules['id_plan'] = 'nullable|exists:plans,id';
-            }
-
-            $request->validate($rules);
-
-            // Validar que si el estado es PUBLICADO, debe tener todos los campos completos
-            if ($request->status_id == 1) {
-                if (empty($request->date) || empty($request->data) || empty($request->id_plan)) {
-                    return response([
-                        "message" => "No se puede publicar el precio sin completar todos los campos obligatorios (fecha, datos y plan)."
-                    ], 400);
-                }
+                $request->validate($rules);
             }
 
             // Normalizar el campo data (Laravel manejará el cast automáticamente)
             $dataValue = $request->has('data') ? $request->data : $mainGrainPrice->data;
-            // Si viene como string JSON, decodificarlo para que Laravel lo maneje correctamente
             if (is_string($dataValue)) {
                 $dataValue = json_decode($dataValue, true);
             }
 
             $mainGrainPrice->update([
-                'date' => $request->date,
+                'month' => $request->month,
+                'year' => $request->year,
+                'date' => $request->date ?? $mainGrainPrice->date,
                 'data' => $dataValue,
                 'id_plan' => $request->id_plan,
                 'status_id' => $request->status_id,
@@ -208,9 +271,22 @@ class MainGrainPriceController extends Controller
 
             // Si se cambia a PUBLICADO (1), validar que todos los datos estén completos
             if ($request->status_id == 1) {
-                if (empty($mainGrainPrice->date) || empty($mainGrainPrice->data) || empty($mainGrainPrice->id_plan)) {
+                if (empty($mainGrainPrice->month) || empty($mainGrainPrice->year) || empty($mainGrainPrice->data)) {
                     return response([
-                        "message" => "No se puede publicar el precio. Todos los campos deben estar completos (fecha, datos y plan)."
+                        "message" => "No se puede publicar el precio. Todos los campos deben estar completos (mes, año y datos)."
+                    ], 400);
+                }
+
+                // Validar que no exista otro registro publicado con el mismo mes y año
+                $exists = MainGrainPrice::where('year', $mainGrainPrice->year)
+                    ->where('month', $mainGrainPrice->month)
+                    ->where('status_id', 1)
+                    ->where('id', '!=', $id)
+                    ->exists();
+
+                if ($exists) {
+                    return response([
+                        "message" => "Ya existe otro registro publicado para el mes {$mainGrainPrice->month} del año {$mainGrainPrice->year}."
                     ], 400);
                 }
             }

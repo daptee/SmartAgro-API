@@ -17,6 +17,8 @@ class RainfallRecordProvince extends Model
         'id_plan',
         'date',
         'data',
+        'month',
+        'year',
         'status_id',
         'id_user',
     ];

@@ -14,6 +14,7 @@ use App\Http\Controllers\CompanyPlanPublicitiesReportController;
 use App\Http\Controllers\CompanyPlanPublicityController;
 use App\Http\Controllers\CompanyRolesController;
 use App\Http\Controllers\CropController;
+use App\Http\Controllers\ActiveIngredientController;
 use App\Http\Controllers\FaqController;
 use App\Http\Controllers\GeneralImportController;
 use App\Http\Controllers\GetsFunctionsController;
@@ -234,6 +235,9 @@ Route::get('segments', [SegmentController::class, 'index']);
 
 // Crops
 Route::get('crops', [CropController::class, 'index']);
+
+// Active Ingredients
+Route::get('active-ingredients', [ActiveIngredientController::class, 'index']);
 
 // Dolar API
 Route::get('dolar/oficial', function () {

@@ -9,6 +9,7 @@ use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\CompanyPlanController;
 use App\Http\Controllers\CompanyPlanPublicitiesReportController;
 use App\Http\Controllers\CropController;
+use App\Http\Controllers\ActiveIngredientController;
 use App\Http\Controllers\FaqController;
 use App\Http\Controllers\MagLeaseIndexController;
 use App\Http\Controllers\MagSteerIndexController;
@@ -16,6 +17,7 @@ use App\Http\Controllers\MajorCropController;
 use App\Http\Controllers\NewsController;
 use App\Http\Controllers\InsightController;
 use App\Http\Controllers\MainGrainPriceController;
+use App\Http\Controllers\PriceMainActiveIngredientsProducerController;
 use App\Http\Controllers\RainfallRecordController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\StatusController;
@@ -186,12 +188,29 @@ Route::prefix('admin')
             Route::delete('main-grain-prices/{id}', 'destroy');
         });
 
+        // Price Main Active Ingredients Producers (Precios de Ingredientes Activos)
+        Route::controller(PriceMainActiveIngredientsProducerController::class)->group(function () {
+            Route::get('price-main-active-ingredients-producers', 'index');
+            Route::post('price-main-active-ingredients-producers', 'store');
+            Route::put('price-main-active-ingredients-producers/{id}', 'update');
+            Route::put('price-main-active-ingredients-producers/{id}/status', 'changeStatus');
+            Route::delete('price-main-active-ingredients-producers/{id}', 'destroy');
+        });
+
         // Crops (Cultivos)
         Route::controller(CropController::class)->group(function () {
             Route::get('crops', 'index');
             Route::post('crops', 'store');
             Route::put('crops/{id}', 'update');
             Route::delete('crops/{id}', 'destroy');
+        });
+
+        // Active Ingredients (Ingredientes Activos)
+        Route::controller(ActiveIngredientController::class)->group(function () {
+            Route::get('active-ingredients', 'index');
+            Route::post('active-ingredients', 'store');
+            Route::put('active-ingredients/{id}', 'update');
+            Route::delete('active-ingredients/{id}', 'destroy');
         });
     }
 );
