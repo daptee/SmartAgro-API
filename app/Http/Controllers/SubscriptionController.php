@@ -1020,6 +1020,9 @@ class SubscriptionController extends Controller
 
                 // Actualizar los datos en la BD con el estado actual
                 $plan->data = json_encode($currentData);
+                if (isset($currentData['next_payment_date'])) {
+                    $plan->next_payment_date = $currentData['next_payment_date'];
+                }
                 $plan->save();
 
                 if ($frequency && $preapprovalId && $status != "cancelled" && $status) {
@@ -1047,6 +1050,9 @@ class SubscriptionController extends Controller
                         // Guardamos la nueva data devuelta por MercadoPago
                         $newData = $response->json();
                         $plan->data = json_encode($newData);
+                        if (isset($newData['next_payment_date'])) {
+                            $plan->next_payment_date = $newData['next_payment_date'];
+                        }
                         $plan->save();
 
                         // Si era pausada y se reactivó exitosamente
