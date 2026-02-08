@@ -179,7 +179,7 @@ Entendemos que a veces pueden ocurrir problemas con los pagos. Aquí te explicam
 
 ---
 
-### 3️⃣ Después de 4 Intentos Fallidos
+### 3️⃣ Después de 4 Intentos Fallidos (aproximadamente 20 dias)
 
 **¿Qué pasa?**
 - 🔴 MercadoPago **pausa** tu suscripción
@@ -191,55 +191,77 @@ Entendemos que a veces pueden ocurrir problemas con los pagos. Aquí te explicam
 
 ### ¿Qué es el Período de Gracia?
 
-Es un **beneficio especial** que te otorgamos la primera vez que tu suscripción es pausada por problemas de pago.
+Es un **beneficio especial y unico** que te otorgamos la primera vez que tu suscripción es pausada por problemas de pago. Te permite mantener tu Plan Siembra activo por un mes adicional mientras regularizas tu situacion.
 
 ### ¿Cómo Funciona?
 
-#### Primera Vez (Período de Gracia):
+#### Primera Vez (Período de Gracia Disponible):
 
 **Cuando tu suscripción se pausa por primera vez:**
-- ✅ **Mantienes** tu Plan Siembra activo
+- ✅ **Mantienes** tu Plan Siembra activo (bonificado)
 - ✅ **No pierdes** acceso a los beneficios premium
+- 📧 **Recibes un email** informandote que se activo tu periodo de gracia
 - ⏰ Tienes hasta el **próximo ciclo de cobro** para resolver el problema
-- 🔄 MercadoPago intentará cobrar nuevamente el próximo mes
+- 🔄 El sistema intentará reactivar y cobrar nuevamente el próximo mes
 
 **Duración:**
 - Hasta **30 días** (hasta la próxima fecha de cobro)
 
 **¿Qué debes hacer?**
-1. Actualizar tu método de pago
-2. Asegurarte de tener fondos disponibles
+1. Actualizar tu método de pago en MercadoPago
+2. Asegurarte de tener fondos disponibles para el proximo cobro
 3. Esperar al próximo intento de cobro automático
 
 **Ejemplo:**
 ```
-📅 15 de Enero: Fecha de cobro - Pago falla
-🔄 20 de Enero: Intento 2 - Falla
-🔄 25 de Enero: Intento 3 - Falla
-🔄 30 de Enero: Intento 4 - Falla
-⏸️ 30 de Enero: Suscripción pausada
+15 de Enero: Fecha de cobro - Pago falla
+20 de Enero: Intento 2 - Falla
+25 de Enero: Intento 3 - Falla
+30 de Enero: Intento 4 - Falla
+30 de Enero: Suscripcion pausada por MercadoPago
 
-🎁 PERÍODO DE GRACIA ACTIVADO
-✅ Mantienes Plan Siembra hasta el 15 de Febrero
+PERIODO DE GRACIA ACTIVADO
+- Recibes email: "Periodo de gracia activado"
+- Mantienes Plan Siembra hasta el 15 de Febrero
 
-📅 15 de Febrero: Nuevo intento de cobro
-   - ✅ Si tiene éxito: Continúas normalmente
-   - ❌ Si falla: Bajas a Plan Gratuito
+15 de Febrero: Nuevo intento de cobro
+   - Si tiene exito: Recibes email "Servicio regularizado",
+     continuas normalmente con Plan Siembra
+   - Si falla: Bajas a Plan Semilla (gratuito),
+     recibes email "Tu suscripcion ha vencido"
 ```
 
 ---
 
-#### Segunda Vez o Más (Sin Período de Gracia):
+#### Resolucion del Periodo de Gracia (Mes Siguiente):
 
-**Si tu suscripción se pausa nuevamente en el futuro:**
+**Si el cobro del mes siguiente es exitoso:**
+- ✅ Tu servicio queda **regularizado**
+- ✅ Continuas con el Plan Siembra normalmente
+- 📧 Recibes un email de **"Servicio regularizado"**
+- El periodo de gracia queda marcado como **agotado** (no se puede volver a usar)
+
+**Si el cobro del mes siguiente falla:**
+- ❌ Tu cuenta baja **inmediatamente** al Plan Semilla (gratuito)
+- 📧 Recibes un email notificandote de la baja
+- 🛑 La suscripcion se cancela en MercadoPago para evitar mas cobros
+- No se dan 20 dias adicionales de reintentos
+
+---
+
+#### Segunda Vez o Mas (Periodo de Gracia Agotado):
+
+**Si tu suscripción tiene problemas de pago nuevamente en el futuro:**
 - ❌ **No recibes** otro período de gracia (solo se otorga una vez)
-- 🔽 Tu cuenta baja **inmediatamente** al Plan Gratuito
+- ❌ Al primer intento de cobro fallido, tu cuenta baja **inmediatamente** al Plan Semilla (gratuito)
+- 🛑 La suscripcion se cancela automaticamente en MercadoPago
 - 📧 Recibes un email notificándote del cambio
 
 **¿Por qué solo una vez?**
 - El período de gracia es un beneficio especial para ayudarte en situaciones excepcionales
 - Está diseñado para evitar interrupciones involuntarias del servicio
 - Después de usarlo, esperamos que mantengas tu método de pago actualizado
+- Si ya se te bonificó un mes y vuelve a fallar, no podemos seguir bonificando el servicio
 
 ---
 
@@ -258,14 +280,20 @@ Puedes verificarlo en tu perfil:
 
 ### ¿Qué pasa cuando el pago se procesa correctamente?
 
-Cuando MercadoPago logra cobrar exitosamente (ya sea en un reintento o en el próximo ciclo):
+**Si el pago se cobra exitosamente durante los reintentos (20 dias):**
+- ✅ Tu cuenta se actualiza como "Al dia con los pagos"
+- ✅ Continuas con todos los beneficios del Plan Siembra
+- 📧 Recibes un email de confirmacion del pago
+- 📅 Se programa el proximo cobro para el mes siguiente
 
-- ✅ Tu cuenta se actualiza como "Al día con los pagos"
-- ✅ Continúas con todos los beneficios del Plan Siembra
-- 📧 Recibes un email de confirmación del pago
-- 📅 Se programa el próximo cobro para el mes siguiente
+**Si el pago se cobra exitosamente despues del periodo de gracia:**
+- ✅ Tu servicio queda **regularizado**
+- ✅ Continuas con Plan Siembra normalmente
+- 📧 Recibes un email especial de **"Servicio regularizado"**
+- El periodo de gracia queda marcado como **agotado**
+- 📅 Se programa el proximo cobro para el mes siguiente
 
-**Importante:** Aunque pagues exitosamente, si ya usaste tu período de gracia, **no se resetea**. El período de gracia es único y permanente.
+**Importante:** Aunque pagues exitosamente, si ya usaste tu periodo de gracia, **no se resetea**. El periodo de gracia es unico y permanente. Esto significa que si en el futuro vuelve a fallar un cobro, no tendras otro mes bonificado.
 
 ---
 
@@ -359,11 +387,11 @@ Cancelas el 25 de enero
 **¿Cuánto dura el período de gracia?**
 - Aproximadamente **30 días**, hasta la próxima fecha de cobro mensual.
 
-**¿Me avisan cuando lo uso?**
-- Sí, recibirás un email informándote (aunque puede ser silencioso para no alarmar).
+**¿Me avisan cuando se activa?**
+- Si, recibiras un email informandote que tu periodo de gracia fue activado, con instrucciones de como regularizar tu situacion.
 
 **¿Qué pasa si mi pago falla después de usar el período de gracia?**
-- Tu cuenta bajará inmediatamente al Plan Gratuito sin período de gracia adicional.
+- Al primer intento de cobro fallido, tu cuenta bajara inmediatamente al Plan Semilla (gratuito). No se daran 20 dias adicionales de reintentos como en el primer ciclo.
 
 **¿Puedo "recomprar" el período de gracia?**
 - No, es un beneficio único e irrepetible por cuenta.
@@ -373,15 +401,17 @@ Cancelas el 25 de enero
 ### 📧 Sobre Notificaciones
 
 **¿Qué emails recibiré?**
-- Confirmación de suscripción
-- Confirmación de cada pago exitoso
-- Notificación de pagos fallidos
-- Notificación de cancelación
-- Notificación si bajas a plan gratuito
+- Confirmacion de suscripcion (bienvenida al Plan Siembra)
+- Confirmacion de cada pago exitoso
+- Notificacion de pagos fallidos (por cada reintento)
+- Notificacion de activacion del periodo de gracia
+- Notificacion de servicio regularizado (cuando pagas despues de problemas)
+- Notificacion de cancelacion
+- Notificacion de baja a Plan Semilla (gratuito)
 
 **¿Puedo desactivar los emails?**
 - Los emails de transacciones (pagos, cambios de plan) no se pueden desactivar por temas de seguridad.
-- Los emails promocionales sí se pueden desactivar desde tu perfil.
+- Los emails promocionales si se pueden desactivar desde tu perfil.
 
 **No recibí un email, ¿qué hago?**
 - Revisa tu carpeta de SPAM
@@ -419,44 +449,55 @@ Cancelas el 25 de enero
 
 ---
 
-### Escenario 2: Primer problema de pago (con Período de Gracia) 🎁
+### Escenario 2: Primer problema de pago (con Periodo de Gracia)
 
 ```
-📅 Fecha de cobro
-    ↓
-❌ Pago falla
-    ↓
-🔄 MercadoPago reintenta 4 veces (20 días)
-    ↓
-⏸️ Suscripción pausada
-    ↓
-🎁 PERÍODO DE GRACIA activado
-    ↓
-✅ Mantienes Plan Siembra por 30 días
-    ↓
-📅 Próxima fecha de cobro
-    ├─ ✅ Pago exitoso → Continúas normalmente
-    └─ ❌ Pago falla → Bajas a Plan Gratuito
+Fecha de cobro
+    |
+Pago falla
+    |
+Email: "Error en el cobro"
+    |
+MercadoPago reintenta 4 veces (20 dias)
+    |
+    +-- Si cobra en un reintento --> Email: "Pago exitoso"
+    |                                Continuas normalmente
+    |
+Suscripcion pausada por MercadoPago
+    |
+PERIODO DE GRACIA ACTIVADO
+Email: "Periodo de gracia activado"
+    |
+Mantienes Plan Siembra bonificado por 30 dias
+    |
+Proxima fecha de cobro (mes siguiente)
+    |-- Pago exitoso --> Email: "Servicio regularizado"
+    |                    Continuas con Plan Siembra
+    |                    Periodo de gracia queda AGOTADO
+    |
+    |-- Pago falla --> Email: "Tu suscripcion ha vencido"
+                       Bajas a Plan Semilla (gratuito)
+                       Suscripcion cancelada en MercadoPago
 ```
 
 ---
 
-### Escenario 3: Segundo problema de pago (sin Período de Gracia) ❌
+### Escenario 3: Segundo problema de pago (Periodo de Gracia ya agotado)
 
 ```
-📅 Fecha de cobro
-    ↓
-❌ Pago falla
-    ↓
-🔄 MercadoPago reintenta 4 veces (20 días)
-    ↓
-⏸️ Suscripción pausada
-    ↓
-❌ Ya usaste tu período de gracia
-    ↓
-🔽 Bajas inmediatamente a Plan Gratuito
-    ↓
-📧 Email de notificación
+Fecha de cobro
+    |
+Primer intento de cobro falla
+    |
+Ya usaste tu periodo de gracia
+    |
+Bajas INMEDIATAMENTE a Plan Semilla (gratuito)
+    |
+Suscripcion cancelada en MercadoPago
+    |
+Email: "Tu suscripcion ha vencido"
+    |
+(No se dan 20 dias de reintentos adicionales)
 ```
 
 ---
@@ -597,7 +638,7 @@ Si tienes alguna duda o consulta, no dudes en contactarnos. Estamos aquí para a
 
 ---
 
-**Última actualización:** Enero 2026
-**Versión:** 1.0
+**Ultima actualizacion:** Febrero 2026
+**Version:** 2.0
 
 _Este documento está sujeto a cambios. Te notificaremos por email si hay actualizaciones importantes._

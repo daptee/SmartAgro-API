@@ -485,19 +485,46 @@ class SubscriptionController extends Controller
             }
         }
 
-        // 🔥 Manejo de pagos individuales autorizados
-        if (isset($data['type']) && $data['type'] == 'payment') {
-            $this->preapprovalId = $data['data']['id'];
+        // 🔥 Manejo de pagos individuales autorizados (payment y subscription_authorized_payment)
+        if (isset($data['type']) && ($data['type'] == 'payment' || $data['type'] == 'subscription_authorized_payment')) {
+            $webhookDataId = $data['data']['id'];
+            $webhookType = $data['type'];
 
-            Log::channel('mercadopago')->info('id preapprovalId: ' . $this->preapprovalId);
+            Log::channel('mercadopago')->info("Webhook tipo: $webhookType, id: $webhookDataId");
 
-            $preapprovalResponse = Http::withToken($accessToken)->get("https://api.mercadopago.com/v1/payments/{$this->preapprovalId}");
+            // Para subscription_authorized_payment, consultar el endpoint de authorized_payments
+            // y luego obtener el pago real con el payment.id
+            if ($webhookType == 'subscription_authorized_payment') {
+                $authorizedPaymentResponse = Http::withToken($accessToken)->get("https://api.mercadopago.com/authorized_payments/{$webhookDataId}");
+
+                if (!$authorizedPaymentResponse->successful()) {
+                    Log::channel('mercadopago')->error("No se pudo consultar authorized_payment: $webhookDataId");
+                    return response()->json(['status' => 'error consulting authorized_payment']);
+                }
+
+                $authorizedPaymentData = $authorizedPaymentResponse->json();
+                Log::channel('mercadopago')->info("Authorized payment data:", $authorizedPaymentData);
+
+                // El authorized_payment tiene payment.id que es el ID real del pago
+                $paymentId = $authorizedPaymentData['payment']['id'] ?? null;
+
+                if (!$paymentId) {
+                    Log::channel('mercadopago')->error("No se encontró payment.id en authorized_payment: $webhookDataId");
+                    return response()->json(['status' => 'no payment id found']);
+                }
+
+                // Consultar el pago real
+                $preapprovalResponse = Http::withToken($accessToken)->get("https://api.mercadopago.com/v1/payments/{$paymentId}");
+            } else {
+                $preapprovalResponse = Http::withToken($accessToken)->get("https://api.mercadopago.com/v1/payments/{$webhookDataId}");
+            }
 
             if ($preapprovalResponse->successful()) {
                 $subscriptionData = $preapprovalResponse->json();
                 $status = $subscriptionData['status'];
                 $userId = json_decode($subscriptionData['external_reference'], true);
 
+                Log::channel('mercadopago')->info("Pago consultado - Usuario: $userId, Status: $status");
 
                 if ($data['action'] == 'payment.updated') {
                     Log::channel('mercadopago')->info("Actualizando pago para preapproval_id: {$subscriptionData['metadata']['preapproval_id']}");
