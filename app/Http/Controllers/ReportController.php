@@ -162,21 +162,13 @@ class ReportController extends Controller
                     ->get();
             }
 
-            // Filtro para tablas que usan columnas 'month' y 'year' directamente (fallback a 'date' si no existen)
+            // Filtro para tablas que usan columnas 'month' y 'year' directamente (fallback a 'date' si no existen o están NULL)
             $filtersMonthYear = function ($query) use ($id_plan, $month, $year) {
-                // Verificar si la tabla tiene columna 'month'
-                $tableName = $query->getModel()->getTable();
-                $hasMonthColumn = \Schema::hasColumn($tableName, 'month');
-
-                if ($hasMonthColumn) {
-                    $query->where('year', $year)
-                        ->where('month', $month)
-                        ->where('id_plan', '<=', $id_plan);
-                } else {
-                    $query->whereYear('date', $year)
-                        ->whereMonth('date', $month)
-                        ->where('id_plan', '<=', $id_plan);
-                }
+                // Siempre usar whereYear y whereMonth en la columna 'date' para garantizar resultados consistentes
+                // ya que algunas tablas pueden tener las columnas month/year pero con valores NULL
+                $query->whereYear('date', $year)
+                    ->whereMonth('date', $month)
+                    ->where('id_plan', '<=', $id_plan);
             };
 
             // Realizar las consultas a todas las tablas
