@@ -65,6 +65,12 @@ SET SQL_SAFE_UPDATES = 0;
 UPDATE major_crops
 SET status_id = 1;
 
+-- Extraer month y year del campo date para major_crops
+UPDATE major_crops
+SET month = MONTH(date),
+    year = YEAR(date)
+WHERE id > 0 AND date IS NOT NULL;
+
 SET SQL_SAFE_UPDATES = 1;
 
 ALTER TABLE insights
