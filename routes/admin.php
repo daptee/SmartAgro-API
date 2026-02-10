@@ -18,6 +18,7 @@ use App\Http\Controllers\NewsController;
 use App\Http\Controllers\InsightController;
 use App\Http\Controllers\MainGrainPriceController;
 use App\Http\Controllers\PriceMainActiveIngredientsProducerController;
+use App\Http\Controllers\ProducerSegmentPriceController;
 use App\Http\Controllers\RainfallRecordController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\StatusController;
@@ -195,6 +196,15 @@ Route::prefix('admin')
             Route::put('price-main-active-ingredients-producers/{id}', 'update');
             Route::put('price-main-active-ingredients-producers/{id}/status', 'changeStatus');
             Route::delete('price-main-active-ingredients-producers/{id}', 'destroy');
+        });
+
+        // Producer Segment Prices (Precios por Segmento a Productor)
+        Route::controller(ProducerSegmentPriceController::class)->group(function () {
+            Route::get('producer-segment-prices', 'index');
+            Route::post('producer-segment-prices', 'store');
+            Route::put('producer-segment-prices/{id}', 'update');
+            Route::put('producer-segment-prices/{id}/status', 'changeStatus');
+            Route::delete('producer-segment-prices/{id}', 'destroy');
         });
 
         // Crops (Cultivos)

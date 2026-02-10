@@ -179,7 +179,7 @@ class ReportController extends Controller
                 'mag_steer_index' => $mag_steer_with_plan,
                 'insights' => Insight::where($filters)->with('plan')->get(),
                 'price_main_active_ingredients_producers' => PriceMainActiveIngredientsProducer::where($filtersMonthYear)->with(['plan', 'segment'])->get(),
-                'producer_segment_prices' => ProducerSegmentPrice::where($filters)->with('plan')->get(),
+                'producer_segment_prices' => ProducerSegmentPrice::where($filtersMonthYear)->with('plan')->get(),
                 'rainfall_records_provinces' => RainfallRecordProvince::where($filtersMonthYear)->with('plan')->get(),
                 'main_grain_prices' => MainGrainPrice::where($filtersMonthYear)->with('plan')->get(),
             ];
