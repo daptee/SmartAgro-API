@@ -113,7 +113,7 @@ class PriceMainActiveIngredientsProducerController extends Controller
             if ($request->status_id == 1) {
                 $rules['data'] = 'required';
                 $rules['id_plan'] = 'required|exists:plans,id';
-                $rules['segment_id'] = 'required|exists:segments,id';
+                $rules['segment_id'] = 'nullable|exists:segments,id';
 
                 $request->validate($rules);
 
@@ -148,7 +148,7 @@ class PriceMainActiveIngredientsProducerController extends Controller
                 'date' => $request->date ?? null,
                 'data' => $dataValue,
                 'id_plan' => $request->id_plan,
-                'segment_id' => $request->segment_id,
+                'segment_id' => $request->segment_id ?? null,
                 'status_id' => $request->status_id,
                 'id_user' => $id_user,
             ]);
@@ -187,7 +187,7 @@ class PriceMainActiveIngredientsProducerController extends Controller
             if ($request->status_id == 1) {
                 $rules['data'] = 'required';
                 $rules['id_plan'] = 'required|exists:plans,id';
-                $rules['segment_id'] = 'required|exists:segments,id';
+                $rules['segment_id'] = 'nullable|exists:segments,id';
 
                 $request->validate($rules);
 
@@ -222,7 +222,7 @@ class PriceMainActiveIngredientsProducerController extends Controller
                 'date' => $request->date ?? $price->date,
                 'data' => $dataValue,
                 'id_plan' => $request->id_plan,
-                'segment_id' => $request->segment_id,
+                'segment_id' => $request->segment_id ?? null,
                 'status_id' => $request->status_id,
                 'id_user' => $id_user,
             ]);
