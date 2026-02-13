@@ -154,9 +154,6 @@ class MajorCropController extends Controller
                 'month' => $request->month,
                 'year' => $request->year,
                 'data' => $dataToStore,
-                'date' => $request->date ?? null,
-                'icon' => $request->icon ?? null,
-                'id_plan' => $request->id_plan ?? null,
                 'status_id' => $request->status_id,
                 'id_user' => $id_user,
             ]);
@@ -240,9 +237,6 @@ class MajorCropController extends Controller
                 'month' => $request->month,
                 'year' => $request->year,
                 'data' => $dataToStore,
-                'date' => $request->date ?? $crop->date,
-                'icon' => $request->icon ?? $crop->icon,
-                'id_plan' => $request->id_plan ?? $crop->id_plan,
                 'status_id' => $request->status_id,
                 'id_user' => $id_user,
             ]);
