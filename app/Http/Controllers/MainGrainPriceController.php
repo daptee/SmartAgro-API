@@ -150,7 +150,6 @@ class MainGrainPriceController extends Controller
             $data = MainGrainPrice::create([
                 'month' => $request->month,
                 'year' => $request->year,
-                'date' => $request->date ?? null,
                 'data' => $dataValue,
                 'id_plan' => $request->id_plan,
                 'status_id' => $request->status_id,
@@ -234,7 +233,6 @@ class MainGrainPriceController extends Controller
             $mainGrainPrice->update([
                 'month' => $request->month,
                 'year' => $request->year,
-                'date' => $request->date ?? $mainGrainPrice->date,
                 'data' => $dataValue,
                 'id_plan' => $request->id_plan,
                 'status_id' => $request->status_id,
