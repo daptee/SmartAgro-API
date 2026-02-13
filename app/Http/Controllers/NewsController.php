@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\News;
 use App\Models\Audith;
+use App\Http\Controllers\MarketGeneralControlController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
@@ -123,6 +124,11 @@ class NewsController extends Controller
 
             $data->load(['plan', 'status', 'user']);
 
+            // Sincronizar con control general de mercado
+            $newsMonth = (int) date('m', strtotime($data->date));
+            $newsYear = (int) date('Y', strtotime($data->date));
+            MarketGeneralControlController::syncBlockStatus($newsMonth, $newsYear, 'news', $data->status_id == 1);
+
             Audith::new($id_user, $action, $request->all(), 201, compact("data"));
 
         } catch (Exception $e) {
@@ -188,6 +194,11 @@ class NewsController extends Controller
             $data = $news;
             $data->load(['plan', 'status', 'user']);
 
+            // Sincronizar con control general de mercado
+            $newsMonth = (int) date('m', strtotime($data->date));
+            $newsYear = (int) date('Y', strtotime($data->date));
+            MarketGeneralControlController::syncBlockStatus($newsMonth, $newsYear, 'news', $data->status_id == 1);
+
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
 
         } catch (Exception $e) {
@@ -228,6 +239,11 @@ class NewsController extends Controller
 
             $data = $news;
             $data->load(['plan', 'status', 'user']);
+
+            // Sincronizar con control general de mercado
+            $newsMonth = (int) date('m', strtotime($data->date));
+            $newsYear = (int) date('Y', strtotime($data->date));
+            MarketGeneralControlController::syncBlockStatus($newsMonth, $newsYear, 'news', $request->status_id == 1);
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
 

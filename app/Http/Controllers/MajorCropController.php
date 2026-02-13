@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\MajorCrop;
 use App\Models\Audith;
+use App\Http\Controllers\MarketGeneralControlController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Exception;
@@ -160,6 +161,9 @@ class MajorCropController extends Controller
 
             $data->load(['status', 'user']);
 
+            // Sincronizar con control general de mercado
+            MarketGeneralControlController::syncBlockStatus($data->month, $data->year, 'major_crops', $data->status_id == 1);
+
             Audith::new($id_user, $action, $request->all(), 201, compact("data"));
 
         } catch (Exception $e) {
@@ -244,6 +248,9 @@ class MajorCropController extends Controller
             $data = $crop;
             $data->load(['status', 'user']);
 
+            // Sincronizar con control general de mercado
+            MarketGeneralControlController::syncBlockStatus($data->month, $data->year, 'major_crops', $data->status_id == 1);
+
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
 
         } catch (Exception $e) {
@@ -305,6 +312,9 @@ class MajorCropController extends Controller
 
             $data = $crop;
             $data->load(['status', 'user']);
+
+            // Sincronizar con control general de mercado
+            MarketGeneralControlController::syncBlockStatus($data->month, $data->year, 'major_crops', $request->status_id == 1);
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
 

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\PriceMainActiveIngredientsProducer;
 use App\Models\Audith;
+use App\Http\Controllers\MarketGeneralControlController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Exception;
@@ -155,6 +156,9 @@ class PriceMainActiveIngredientsProducerController extends Controller
 
             $data->load(['plan', 'segment', 'status', 'user']);
 
+            // Sincronizar con control general de mercado
+            MarketGeneralControlController::syncBlockStatus($data->month, $data->year, 'price_main_active_ingredients_producers', $data->status_id == 1);
+
             Audith::new($id_user, $action, $request->all(), 201, compact("data"));
 
         } catch (Exception $e) {
@@ -230,6 +234,9 @@ class PriceMainActiveIngredientsProducerController extends Controller
             $data = $price;
             $data->load(['plan', 'segment', 'status', 'user']);
 
+            // Sincronizar con control general de mercado
+            MarketGeneralControlController::syncBlockStatus($data->month, $data->year, 'price_main_active_ingredients_producers', $data->status_id == 1);
+
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
 
         } catch (Exception $e) {
@@ -270,6 +277,9 @@ class PriceMainActiveIngredientsProducerController extends Controller
 
             $data = $price;
             $data->load(['plan', 'segment', 'status', 'user']);
+
+            // Sincronizar con control general de mercado
+            MarketGeneralControlController::syncBlockStatus($data->month, $data->year, 'price_main_active_ingredients_producers', $request->status_id == 1);
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
 

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ProducerSegmentPrice;
 use App\Models\Audith;
+use App\Http\Controllers\MarketGeneralControlController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Exception;
@@ -159,6 +160,9 @@ class ProducerSegmentPriceController extends Controller
 
             $data->load(['plan', 'status', 'user']);
 
+            // Sincronizar con control general de mercado
+            MarketGeneralControlController::syncBlockStatus($data->month, $data->year, 'producer_segment_prices', $data->status_id == 1);
+
             Audith::new($id_user, $action, $request->all(), 201, compact("data"));
 
         } catch (Exception $e) {
@@ -244,6 +248,9 @@ class ProducerSegmentPriceController extends Controller
             $data = $price;
             $data->load(['plan', 'status', 'user']);
 
+            // Sincronizar con control general de mercado
+            MarketGeneralControlController::syncBlockStatus($data->month, $data->year, 'producer_segment_prices', $data->status_id == 1);
+
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
 
         } catch (Exception $e) {
@@ -297,6 +304,9 @@ class ProducerSegmentPriceController extends Controller
 
             $data = $price;
             $data->load(['plan', 'status', 'user']);
+
+            // Sincronizar con control general de mercado
+            MarketGeneralControlController::syncBlockStatus($data->month, $data->year, 'producer_segment_prices', $request->status_id == 1);
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
 
