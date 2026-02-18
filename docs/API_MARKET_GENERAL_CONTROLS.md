@@ -24,15 +24,13 @@ Authorization: Bearer {token}
 |-----------|------|-----------|-------------|
 | `per_page` | integer | No | Numero de registros por pagina. Si no se especifica, retorna todos |
 | `page` | integer | No | Numero de pagina (default: 1) |
-| `year_from` | integer | No | Anio desde |
-| `month_from` | integer | No | Mes desde (default: 1) |
-| `year_to` | integer | No | Anio hasta |
-| `month_to` | integer | No | Mes hasta (default: 12) |
-| `status_id` | integer | No | ID del estado (1=Publicado, 2=Borrador) |
+| `month` | integer | No | Filtrar por mes (1-12) |
+| `year` | integer | No | Filtrar por anio |
+| `status_id` | integer | No | Filtrar por estado (1=Publicado, 2=Borrador) |
 
 **Ejemplo Request:**
 ```
-GET /admin/market-general-controls?per_page=10&page=1&year_from=2025&month_from=1
+GET /admin/market-general-controls?per_page=10&page=1&year=2026&month=1&status_id=1
 ```
 
 **Ejemplo Response (200 OK):**

@@ -4,6 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Models\MarketGeneralControl;
 use App\Models\Audith;
+use App\Models\Insight;
+use App\Models\MagLeaseIndex;
+use App\Models\MagSteerIndex;
+use App\Models\MainGrainPrice;
+use App\Models\MajorCrop;
+use App\Models\News;
+use App\Models\PriceMainActiveIngredientsProducer;
+use App\Models\ProducerSegmentPrice;
+use App\Models\RainfallRecordProvince;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Exception;
@@ -24,30 +33,14 @@ class MarketGeneralControlController extends Controller
 
             $query = MarketGeneralControl::query();
 
-            // Filtro por rango de mes y año desde
-            if ($request->has('year_from') && $request->year_from) {
-                $yearFrom = $request->year_from;
-                $monthFrom = $request->has('month_from') && $request->month_from ? $request->month_from : 1;
-
-                $query->where(function ($q) use ($yearFrom, $monthFrom) {
-                    $q->where('year', '>', $yearFrom)
-                      ->orWhere(function ($q2) use ($yearFrom, $monthFrom) {
-                          $q2->where('year', $yearFrom)->where('month', '>=', $monthFrom);
-                      });
-                });
+            // Filtro por mes exacto
+            if ($request->has('month') && $request->month) {
+                $query->where('month', $request->month);
             }
 
-            // Filtro por rango de mes y año hasta
-            if ($request->has('year_to') && $request->year_to) {
-                $yearTo = $request->year_to;
-                $monthTo = $request->has('month_to') && $request->month_to ? $request->month_to : 12;
-
-                $query->where(function ($q) use ($yearTo, $monthTo) {
-                    $q->where('year', '<', $yearTo)
-                      ->orWhere(function ($q2) use ($yearTo, $monthTo) {
-                          $q2->where('year', $yearTo)->where('month', '<=', $monthTo);
-                      });
-                });
+            // Filtro por año exacto
+            if ($request->has('year') && $request->year) {
+                $query->where('year', $request->year);
             }
 
             // Filtro por estado
@@ -128,23 +121,13 @@ class MarketGeneralControlController extends Controller
                 ], 400);
             }
 
-            // Inicializar data con todos los bloques en false
-            $defaultData = [
-                'major_crops' => false,
-                'insights' => false,
-                'news' => false,
-                'rainfall_records' => false,
-                'main_grain_prices' => false,
-                'price_main_active_ingredients_producers' => false,
-                'producer_segment_prices' => false,
-                'mag_lease_index' => false,
-                'mag_steer_index' => false,
-            ];
+            // Calcular data según lo que ya existe publicado para ese mes/año
+            $initialData = self::calculateBlockStatuses($request->month, $request->year);
 
             $data = MarketGeneralControl::create([
                 'month' => $request->month,
                 'year' => $request->year,
-                'data' => $defaultData,
+                'data' => $initialData,
                 'status_id' => 2, // Siempre inicia como borrador
                 'id_user' => $id_user,
             ]);
@@ -189,9 +172,13 @@ class MarketGeneralControlController extends Controller
                 ], 400);
             }
 
+            // Recalcular data según lo que existe publicado en el nuevo mes/año
+            $newData = self::calculateBlockStatuses($request->month, $request->year);
+
             $control->update([
                 'month' => $request->month,
                 'year' => $request->year,
+                'data' => $newData,
                 'id_user' => $id_user,
             ]);
 
@@ -299,6 +286,25 @@ class MarketGeneralControlController extends Controller
     }
 
     /**
+     * Calcula el estado real de cada bloque para un mes/año dado
+     * consultando las tablas de cada bloque
+     */
+    public static function calculateBlockStatuses($month, $year)
+    {
+        return [
+            'major_crops' => MajorCrop::where('month', $month)->where('year', $year)->where('status_id', 1)->whereNull('deleted_at')->exists(),
+            'insights' => Insight::whereMonth('date', $month)->whereYear('date', $year)->where('status_id', 1)->whereNull('deleted_at')->exists(),
+            'news' => News::whereMonth('date', $month)->whereYear('date', $year)->where('status_id', 1)->whereNull('deleted_at')->exists(),
+            'rainfall_records' => RainfallRecordProvince::where('month', $month)->where('year', $year)->where('status_id', 1)->whereNull('deleted_at')->exists(),
+            'main_grain_prices' => MainGrainPrice::where('month', $month)->where('year', $year)->where('status_id', 1)->whereNull('deleted_at')->exists(),
+            'price_main_active_ingredients_producers' => PriceMainActiveIngredientsProducer::where('month', $month)->where('year', $year)->where('status_id', 1)->whereNull('deleted_at')->exists(),
+            'producer_segment_prices' => ProducerSegmentPrice::where('month', $month)->where('year', $year)->where('status_id', 1)->whereNull('deleted_at')->exists(),
+            'mag_lease_index' => MagLeaseIndex::whereMonth('date', $month)->whereYear('date', $year)->where('status_id', 1)->whereNull('deleted_at')->exists(),
+            'mag_steer_index' => MagSteerIndex::whereMonth('date', $month)->whereYear('date', $year)->where('status_id', 1)->whereNull('deleted_at')->exists(),
+        ];
+    }
+
+    /**
      * Método estático helper para actualizar el JSON data de la tabla madre
      * cuando un bloque cambia de estado (publicado/borrador)
      */
@@ -310,7 +316,15 @@ class MarketGeneralControlController extends Controller
 
         if ($control) {
             $currentData = $control->data ?? [];
-            $currentData[$blockName] = $isPublished;
+
+            if ($isPublished) {
+                $currentData[$blockName] = true;
+            } else {
+                // Recalcular: verificar si quedan otros registros publicados de ese bloque
+                $allStatuses = self::calculateBlockStatuses($month, $year);
+                $currentData[$blockName] = $allStatuses[$blockName] ?? false;
+            }
+
             $control->update(['data' => $currentData]);
         }
     }
