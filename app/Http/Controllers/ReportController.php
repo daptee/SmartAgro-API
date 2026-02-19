@@ -24,6 +24,7 @@ use App\Models\HarvestPrices;
 use App\Models\LivestockInputOutputRatio;
 use App\Models\PitIndicator;
 use App\Models\ProductPrice;
+use App\Models\MarketGeneralControl;
 use App\Models\StatusReport;
 use App\Models\User;
 use Exception;
@@ -80,8 +81,24 @@ class ReportController extends Controller
         $year = $request->input('year');
 
         try {
+            // Verificar que el mes/año esté publicado en control general de mercado
+            $control = MarketGeneralControl::where('month', $month)
+                ->where('year', $year)
+                ->where('status_id', 1)
+                ->first();
+
+            if (!$control) {
+                $response = [
+                    'message' => 'No hay datos publicados para el mes seleccionado.',
+                    'error_code' => 600
+                ];
+                Audith::new($id_user, $action, $request->all(), 422, $response);
+                return response()->json($response, 422);
+            }
+
             $filters = function ($query) use ($id_plan, $month, $year) {
-                $query->whereYear('date', $year)
+                $query->where('status_id', 1)
+                    ->whereYear('date', $year)
                     ->whereMonth('date', $month)
                     ->where('id_plan', '<=', $id_plan);
             };
@@ -93,6 +110,7 @@ class ReportController extends Controller
 
             $mag_lease_data = DB::table('mag_lease_index')
                 ->select('*')
+                ->where('status_id', 1)
                 ->where('date', '>=', $twoMonthsBefore->format('Y-m-d'))
                 ->where('date', '<=', $searchDate->format('Y-m-d'))
                 ->where('id_plan', '<=', $id_plan)
@@ -129,6 +147,7 @@ class ReportController extends Controller
             // Filtro especial para mag_steer_index: obtener el mes buscado y los 2 meses anteriores
             $mag_steer_data = DB::table('mag_steer_index')
                 ->select('*')
+                ->where('status_id', 1)
                 ->where('date', '>=', $twoMonthsBefore->format('Y-m-d'))
                 ->where('date', '<=', $searchDate->format('Y-m-d'))
                 ->where('id_plan', '<=', $id_plan)
@@ -167,14 +186,15 @@ class ReportController extends Controller
                 // Obtener el nombre de la tabla del modelo
                 $tableName = $query->getModel()->getTable();
                 $hasDateColumn = \Schema::hasColumn($tableName, 'date');
-                
-                $query->where(function ($q) use ($month, $year, $hasDateColumn) {
+
+                $query->where('status_id', 1)
+                ->where(function ($q) use ($month, $year, $hasDateColumn) {
                     $q->where(function ($subQ) use ($month, $year) {
                         // Siempre intentar buscar por month y year (en dev están rellenados)
                         $subQ->where('month', $month)
                             ->where('year', $year);
                     });
-                    
+
                     // Solo agregar la opción de date si la columna existe
                     if ($hasDateColumn) {
                         $q->orWhere(function ($subQ) use ($month, $year) {
