@@ -110,7 +110,6 @@ class ReportController extends Controller
 
             $mag_lease_data = DB::table('mag_lease_index')
                 ->select('*')
-                ->where('status_id', 1)
                 ->where('date', '>=', $twoMonthsBefore->format('Y-m-d'))
                 ->where('date', '<=', $searchDate->format('Y-m-d'))
                 ->where('id_plan', '<=', $id_plan)
@@ -147,7 +146,6 @@ class ReportController extends Controller
             // Filtro especial para mag_steer_index: obtener el mes buscado y los 2 meses anteriores
             $mag_steer_data = DB::table('mag_steer_index')
                 ->select('*')
-                ->where('status_id', 1)
                 ->where('date', '>=', $twoMonthsBefore->format('Y-m-d'))
                 ->where('date', '<=', $searchDate->format('Y-m-d'))
                 ->where('id_plan', '<=', $id_plan)
@@ -181,30 +179,12 @@ class ReportController extends Controller
                     ->get();
             }
 
-            // Filtro para tablas que usan columnas 'month' y 'year' directamente (fallback a 'date' si no existen o están NULL)
+            // Filtro para tablas que usan columnas 'month' y 'year' directamente
             $filtersMonthYear = function ($query) use ($id_plan, $month, $year) {
-                // Obtener el nombre de la tabla del modelo
-                $tableName = $query->getModel()->getTable();
-                $hasDateColumn = \Schema::hasColumn($tableName, 'date');
-
                 $query->where('status_id', 1)
-                ->where(function ($q) use ($month, $year, $hasDateColumn) {
-                    $q->where(function ($subQ) use ($month, $year) {
-                        // Siempre intentar buscar por month y year (en dev están rellenados)
-                        $subQ->where('month', $month)
-                            ->where('year', $year);
-                    });
-
-                    // Solo agregar la opción de date si la columna existe
-                    if ($hasDateColumn) {
-                        $q->orWhere(function ($subQ) use ($month, $year) {
-                            // Si se pueden extraer de la columna date (en prod)
-                            $subQ->whereYear('date', $year)
-                                ->whereMonth('date', $month);
-                        });
-                    }
-                })
-                ->where('id_plan', '<=', $id_plan);
+                    ->where('month', $month)
+                    ->where('year', $year)
+                    ->where('id_plan', '<=', $id_plan);
             };
 
             // Realizar las consultas a todas las tablas
