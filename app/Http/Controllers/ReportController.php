@@ -100,7 +100,9 @@ class ReportController extends Controller
                 $query->where('status_id', 1)
                     ->whereYear('date', $year)
                     ->whereMonth('date', $month)
-                    ->where('id_plan', '<=', $id_plan);
+                    ->where(function ($q) use ($id_plan) {
+                        $q->whereNull('id_plan')->orWhere('id_plan', '<=', $id_plan);
+                    });
             };
 
             // Filtro especial para mag_lease_index: obtener el mes buscado y los 2 meses anteriores
@@ -112,7 +114,9 @@ class ReportController extends Controller
                 ->select('*')
                 ->where('date', '>=', $twoMonthsBefore->format('Y-m-d'))
                 ->where('date', '<=', $searchDate->format('Y-m-d'))
-                ->where('id_plan', '<=', $id_plan)
+                ->where(function ($q) use ($id_plan) {
+                    $q->whereNull('id_plan')->orWhere('id_plan', '<=', $id_plan);
+                })
                 ->whereNull('deleted_at')
                 ->orderBy('date', 'desc')
                 ->orderBy('created_at', 'desc')
@@ -148,7 +152,9 @@ class ReportController extends Controller
                 ->select('*')
                 ->where('date', '>=', $twoMonthsBefore->format('Y-m-d'))
                 ->where('date', '<=', $searchDate->format('Y-m-d'))
-                ->where('id_plan', '<=', $id_plan)
+                ->where(function ($q) use ($id_plan) {
+                    $q->whereNull('id_plan')->orWhere('id_plan', '<=', $id_plan);
+                })
                 ->whereNull('deleted_at')
                 ->orderBy('date', 'desc')
                 ->orderBy('created_at', 'desc')
@@ -184,7 +190,9 @@ class ReportController extends Controller
                 $query->where('status_id', 1)
                     ->where('month', $month)
                     ->where('year', $year)
-                    ->where('id_plan', '<=', $id_plan);
+                    ->where(function ($q) use ($id_plan) {
+                        $q->whereNull('id_plan')->orWhere('id_plan', '<=', $id_plan);
+                    });
             };
 
             // Realizar las consultas a todas las tablas
