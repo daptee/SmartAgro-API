@@ -39,6 +39,16 @@ class Audith extends Model
 
     public static function new($id_user, $action, $data_json, $status, $response)
     {
+        // Solo guardar auditorías en producción
+        if (config('services.app_environment') !== 'PROD') {
+            return;
+        }
+
+        // No guardar auditorías de GETs exitosos (200)
+        if ($status === 200) {
+            return;
+        }
+
         $message = "Error al guardar auditoria";
         try {
             $audith = new Audith();
