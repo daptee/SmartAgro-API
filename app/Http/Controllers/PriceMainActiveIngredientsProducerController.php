@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\PriceMainActiveIngredientsProducer;
 use App\Models\Audith;
+use App\Http\Controllers\MarketGeneralControlController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Exception;
@@ -113,7 +114,7 @@ class PriceMainActiveIngredientsProducerController extends Controller
             if ($request->status_id == 1) {
                 $rules['data'] = 'required';
                 $rules['id_plan'] = 'required|exists:plans,id';
-                $rules['segment_id'] = 'required|exists:segments,id';
+                $rules['segment_id'] = 'nullable|exists:segments,id';
 
                 $request->validate($rules);
 
@@ -148,12 +149,15 @@ class PriceMainActiveIngredientsProducerController extends Controller
                 'date' => $request->date ?? null,
                 'data' => $dataValue,
                 'id_plan' => $request->id_plan,
-                'segment_id' => $request->segment_id,
+                'segment_id' => $request->segment_id ?? null,
                 'status_id' => $request->status_id,
                 'id_user' => $id_user,
             ]);
 
             $data->load(['plan', 'segment', 'status', 'user']);
+
+            // Sincronizar con control general de mercado
+            MarketGeneralControlController::syncBlockStatus($data->month, $data->year, 'price_main_active_ingredients_producers', $data->status_id == 1);
 
             Audith::new($id_user, $action, $request->all(), 201, compact("data"));
 
@@ -187,7 +191,7 @@ class PriceMainActiveIngredientsProducerController extends Controller
             if ($request->status_id == 1) {
                 $rules['data'] = 'required';
                 $rules['id_plan'] = 'required|exists:plans,id';
-                $rules['segment_id'] = 'required|exists:segments,id';
+                $rules['segment_id'] = 'nullable|exists:segments,id';
 
                 $request->validate($rules);
 
@@ -222,13 +226,16 @@ class PriceMainActiveIngredientsProducerController extends Controller
                 'date' => $request->date ?? $price->date,
                 'data' => $dataValue,
                 'id_plan' => $request->id_plan,
-                'segment_id' => $request->segment_id,
+                'segment_id' => $request->segment_id ?? null,
                 'status_id' => $request->status_id,
                 'id_user' => $id_user,
             ]);
 
             $data = $price;
             $data->load(['plan', 'segment', 'status', 'user']);
+
+            // Sincronizar con control general de mercado
+            MarketGeneralControlController::syncBlockStatus($data->month, $data->year, 'price_main_active_ingredients_producers', $data->status_id == 1);
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
 
@@ -270,6 +277,9 @@ class PriceMainActiveIngredientsProducerController extends Controller
 
             $data = $price;
             $data->load(['plan', 'segment', 'status', 'user']);
+
+            // Sincronizar con control general de mercado
+            MarketGeneralControlController::syncBlockStatus($data->month, $data->year, 'price_main_active_ingredients_producers', $request->status_id == 1);
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
 

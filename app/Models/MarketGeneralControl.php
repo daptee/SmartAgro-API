@@ -7,18 +7,16 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class ProducerSegmentPrice extends Model
+class MarketGeneralControl extends Model
 {
     use HasFactory, SoftDeletes;
 
-    protected $table = "producer_segment_prices";
+    protected $table = 'market_general_controls';
 
     protected $fillable = [
-        'id_plan',
-        'date',
-        'data',
         'month',
         'year',
+        'data',
         'status_id',
         'id_user',
     ];
@@ -32,11 +30,6 @@ class ProducerSegmentPrice extends Model
         ];
     }
 
-    public function plan(): BelongsTo
-    {
-        return $this->belongsTo(Plan::class, 'id_plan', 'id');
-    }
-
     public function status(): BelongsTo
     {
         return $this->belongsTo(StatusReport::class, 'status_id', 'id');
@@ -45,5 +38,10 @@ class ProducerSegmentPrice extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'id_user', 'id');
+    }
+
+    public function scopePublished($query)
+    {
+        return $query->where('status_id', 1);
     }
 }

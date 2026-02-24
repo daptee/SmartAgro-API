@@ -14,10 +14,13 @@ use App\Http\Controllers\FaqController;
 use App\Http\Controllers\MagLeaseIndexController;
 use App\Http\Controllers\MagSteerIndexController;
 use App\Http\Controllers\MajorCropController;
+use App\Http\Controllers\MarketDataTransferController;
+use App\Http\Controllers\MarketGeneralControlController;
 use App\Http\Controllers\NewsController;
 use App\Http\Controllers\InsightController;
 use App\Http\Controllers\MainGrainPriceController;
 use App\Http\Controllers\PriceMainActiveIngredientsProducerController;
+use App\Http\Controllers\ProducerSegmentPriceController;
 use App\Http\Controllers\RainfallRecordController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\StatusController;
@@ -195,6 +198,30 @@ Route::prefix('admin')
             Route::put('price-main-active-ingredients-producers/{id}', 'update');
             Route::put('price-main-active-ingredients-producers/{id}/status', 'changeStatus');
             Route::delete('price-main-active-ingredients-producers/{id}', 'destroy');
+        });
+
+        // Producer Segment Prices (Precios por Segmento a Productor)
+        Route::controller(ProducerSegmentPriceController::class)->group(function () {
+            Route::get('producer-segment-prices', 'index');
+            Route::post('producer-segment-prices', 'store');
+            Route::put('producer-segment-prices/{id}', 'update');
+            Route::put('producer-segment-prices/{id}/status', 'changeStatus');
+            Route::delete('producer-segment-prices/{id}', 'destroy');
+        });
+
+        // Market Data Transfer (Exportar/Importar datos de mercado entre entornos)
+        Route::get('export-market-data', [MarketDataTransferController::class, 'export']);
+        Route::post('import-market-data', [MarketDataTransferController::class, 'import']);
+
+        // Market General Controls (Control General de Mercado)
+        Route::controller(MarketGeneralControlController::class)->group(function () {
+            Route::get('market-general-controls', 'index');
+            Route::get('market-general-controls/{id}', 'show');
+            Route::post('market-general-controls', 'store');
+            Route::put('market-general-controls/{id}', 'update');
+            Route::put('market-general-controls/{id}/data', 'updateData');
+            Route::put('market-general-controls/{id}/status', 'changeStatus');
+            Route::delete('market-general-controls/{id}', 'destroy');
         });
 
         // Crops (Cultivos)

@@ -2,20 +2,20 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\MajorCrop;
+use App\Models\ProducerSegmentPrice;
 use App\Models\Audith;
 use App\Http\Controllers\MarketGeneralControlController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Exception;
 
-class MajorCropController extends Controller
+class ProducerSegmentPriceController extends Controller
 {
-    // GET ALL - Retorna todos los registros con filtros
+    // GET ALL - Retorna todos los precios por segmento a productor con filtros
     public function index(Request $request)
     {
-        $message = "Error al obtener perspectivas de principales cultivos";
-        $action = "Listado de perspectivas de principales cultivos";
+        $message = "Error al obtener precios por segmento a productor";
+        $action = "Listado de precios por segmento a productor";
         $data = null;
         $meta = null;
 
@@ -23,7 +23,7 @@ class MajorCropController extends Controller
             $perPage = $request->query('per_page');
             $page = $request->query('page', 1);
 
-            $query = MajorCrop::query();
+            $query = ProducerSegmentPrice::query();
 
             // Filtro por rango de mes y año desde
             if ($request->has('year_from') && $request->year_from) {
@@ -56,13 +56,9 @@ class MajorCropController extends Controller
                 $query->where('status_id', $request->status_id);
             }
 
-            // Campo de búsqueda en el JSON data
-            if ($request->has('search') && $request->search) {
-                $search = $request->search;
-                $query->where(function ($q) use ($search) {
-                    // Buscar en el campo JSON data
-                    $q->where('data', 'LIKE', "%{$search}%");
-                });
+            // Filtro por plan
+            if ($request->has('id_plan') && $request->id_plan) {
+                $query->where('id_plan', $request->id_plan);
             }
 
             // Orden por defecto (por año y mes descendente)
@@ -70,16 +66,16 @@ class MajorCropController extends Controller
 
             // Si no se pasa per_page => devolver todo
             if (is_null($perPage)) {
-                $crops = $query->with(['status', 'user'])->get();
-                $data = $crops;
+                $prices = $query->with(['plan', 'status', 'user'])->get();
+                $data = $prices;
             } else {
-                $crops = $query->with(['status', 'user'])->paginate($perPage, ['*'], 'page', $page);
-                $data = $crops->items();
+                $prices = $query->with(['plan', 'status', 'user'])->paginate($perPage, ['*'], 'page', $page);
+                $data = $prices->items();
                 $meta = [
-                    'page' => $crops->currentPage(),
-                    'per_page' => $crops->perPage(),
-                    'total' => $crops->total(),
-                    'last_page' => $crops->lastPage(),
+                    'page' => $prices->currentPage(),
+                    'per_page' => $prices->perPage(),
+                    'total' => $prices->total(),
+                    'last_page' => $prices->lastPage(),
                 ];
             }
 
@@ -93,11 +89,11 @@ class MajorCropController extends Controller
         return response(compact("data", "meta"));
     }
 
-    // POST - Crear nuevo registro
+    // POST - Crear nuevo precio por segmento a productor
     public function store(Request $request)
     {
-        $message = "Error al crear perspectiva de principales cultivos";
-        $action = "Crear perspectiva de principales cultivos";
+        $message = "Error al crear precio por segmento a productor";
+        $action = "Crear precio por segmento a productor";
         $id_user = Auth::user()->id ?? null;
         $data = null;
 
@@ -109,23 +105,27 @@ class MajorCropController extends Controller
                 'status_id' => 'required|in:1,2', // 1=Publicado, 2=Borrador
             ];
 
-            // Si el estado es PUBLICADO (1), el campo data es obligatorio
+            // Si el estado es PUBLICADO (1), todos los campos son obligatorios
             if ($request->status_id == 1) {
                 $rules['data'] = 'required';
+                $rules['id_plan'] = 'required|exists:plans,id';
 
                 $request->validate($rules);
 
-                // Convertir data a array si viene como string o array
-                $dataJson = is_string($request->data) ? json_decode($request->data, true) : $request->data;
+                // Normalizar el campo data
+                $dataValue = $request->data;
+                if (is_string($dataValue)) {
+                    $dataValue = json_decode($dataValue, true);
+                }
 
-                if (empty($dataJson)) {
+                if (empty($dataValue)) {
                     return response([
                         "message" => "El campo 'data' debe contener información válida cuando el estado es PUBLICADO."
                     ], 400);
                 }
 
                 // Validar que no exista un registro publicado con el mismo mes y año
-                $exists = MajorCrop::where('year', $request->year)
+                $exists = ProducerSegmentPrice::where('year', $request->year)
                     ->where('month', $request->month)
                     ->where('status_id', 1)
                     ->exists();
@@ -136,33 +136,32 @@ class MajorCropController extends Controller
                     ], 400);
                 }
             } else {
-                // Si es BORRADOR (2), data es opcional
+                // Si es BORRADOR (2), estos campos son opcionales
                 $rules['data'] = 'nullable';
+                $rules['id_plan'] = 'nullable|exists:plans,id';
                 $request->validate($rules);
             }
 
-            // Procesar el campo data: si es string, convertir a JSON; si es array, dejar como está
-            $dataToStore = null;
-            if ($request->has('data') && $request->data) {
-                if (is_string($request->data)) {
-                    $dataToStore = json_decode($request->data);
-                } else if (is_array($request->data)) {
-                    $dataToStore = $request->data;
-                }
+            // Normalizar el campo data (Laravel manejará el cast automáticamente)
+            $dataValue = $request->data;
+            if (is_string($dataValue)) {
+                $dataValue = json_decode($dataValue, true);
             }
 
-            $data = MajorCrop::create([
+            $data = ProducerSegmentPrice::create([
                 'month' => $request->month,
                 'year' => $request->year,
-                'data' => $dataToStore,
+                'date' => $request->date ?? null,
+                'data' => $dataValue,
+                'id_plan' => $request->id_plan,
                 'status_id' => $request->status_id,
                 'id_user' => $id_user,
             ]);
 
-            $data->load(['status', 'user']);
+            $data->load(['plan', 'status', 'user']);
 
             // Sincronizar con control general de mercado
-            MarketGeneralControlController::syncBlockStatus($data->month, $data->year, 'major_crops', $data->status_id == 1);
+            MarketGeneralControlController::syncBlockStatus($data->month, $data->year, 'producer_segment_prices', $data->status_id == 1);
 
             Audith::new($id_user, $action, $request->all(), 201, compact("data"));
 
@@ -174,41 +173,45 @@ class MajorCropController extends Controller
         return response(compact("data"), 201);
     }
 
-    // PUT - Editar registro
+    // PUT - Editar precio por segmento a productor
     public function update(Request $request, $id)
     {
-        $message = "Error al actualizar perspectiva de principales cultivos";
-        $action = "Actualizar perspectiva de principales cultivos";
+        $message = "Error al actualizar precio por segmento a productor";
+        $action = "Actualizar precio por segmento a productor";
         $id_user = Auth::user()->id ?? null;
         $data = null;
 
         try {
-            $crop = MajorCrop::findOrFail($id);
+            $price = ProducerSegmentPrice::findOrFail($id);
 
             // Validaciones según el estado
             $rules = [
                 'month' => 'required|integer|min:1|max:12',
                 'year' => 'required|integer|min:2000|max:2100',
-                'status_id' => 'required|in:1,2', // 1=Publicado, 2=Borrador
+                'status_id' => 'required|in:1,2',
             ];
 
-            // Si el estado es PUBLICADO (1), el campo data es obligatorio
+            // Si el estado es PUBLICADO (1), todos los campos son obligatorios
             if ($request->status_id == 1) {
                 $rules['data'] = 'required';
+                $rules['id_plan'] = 'required|exists:plans,id';
 
                 $request->validate($rules);
 
-                // Convertir data a array si viene como string o array
-                $dataJson = is_string($request->data) ? json_decode($request->data, true) : $request->data;
+                // Normalizar el campo data
+                $dataValue = $request->data;
+                if (is_string($dataValue)) {
+                    $dataValue = json_decode($dataValue, true);
+                }
 
-                if (empty($dataJson)) {
+                if (empty($dataValue)) {
                     return response([
                         "message" => "El campo 'data' debe contener información válida cuando el estado es PUBLICADO."
                     ], 400);
                 }
 
                 // Validar que no exista otro registro publicado con el mismo mes y año
-                $exists = MajorCrop::where('year', $request->year)
+                $exists = ProducerSegmentPrice::where('year', $request->year)
                     ->where('month', $request->month)
                     ->where('status_id', 1)
                     ->where('id', '!=', $id)
@@ -220,36 +223,33 @@ class MajorCropController extends Controller
                     ], 400);
                 }
             } else {
-                // Si es BORRADOR (2), data es opcional
+                // Si es BORRADOR (2), estos campos son opcionales
                 $rules['data'] = 'nullable';
+                $rules['id_plan'] = 'nullable|exists:plans,id';
                 $request->validate($rules);
             }
 
-            // Procesar el campo data: si es string, convertir a JSON; si es array, dejar como está
-            $dataToStore = $crop->data;
-            if ($request->has('data')) {
-                if (is_string($request->data)) {
-                    $dataToStore = json_decode($request->data);
-                } else if (is_array($request->data)) {
-                    $dataToStore = $request->data;
-                } else if (is_null($request->data)) {
-                    $dataToStore = null;
-                }
+            // Normalizar el campo data (Laravel manejará el cast automáticamente)
+            $dataValue = $request->has('data') ? $request->data : $price->data;
+            if (is_string($dataValue)) {
+                $dataValue = json_decode($dataValue, true);
             }
 
-            $crop->update([
+            $price->update([
                 'month' => $request->month,
                 'year' => $request->year,
-                'data' => $dataToStore,
+                'date' => $request->date ?? $price->date,
+                'data' => $dataValue,
+                'id_plan' => $request->id_plan,
                 'status_id' => $request->status_id,
                 'id_user' => $id_user,
             ]);
 
-            $data = $crop;
-            $data->load(['status', 'user']);
+            $data = $price;
+            $data->load(['plan', 'status', 'user']);
 
             // Sincronizar con control general de mercado
-            MarketGeneralControlController::syncBlockStatus($data->month, $data->year, 'major_crops', $data->status_id == 1);
+            MarketGeneralControlController::syncBlockStatus($data->month, $data->year, 'producer_segment_prices', $data->status_id == 1);
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
 
@@ -261,16 +261,16 @@ class MajorCropController extends Controller
         return response(compact("data"));
     }
 
-    // PUT - Cambiar estado del registro
+    // PUT - Cambiar estado del precio por segmento a productor
     public function changeStatus(Request $request, $id)
     {
-        $message = "Error al cambiar estado de perspectiva de principales cultivos";
-        $action = "Cambiar estado de perspectiva de principales cultivos";
+        $message = "Error al cambiar estado del precio por segmento a productor";
+        $action = "Cambiar estado del precio por segmento a productor";
         $id_user = Auth::user()->id ?? null;
         $data = null;
 
         try {
-            $crop = MajorCrop::findOrFail($id);
+            $price = ProducerSegmentPrice::findOrFail($id);
 
             $request->validate([
                 'status_id' => 'required|in:1,2',
@@ -278,43 +278,35 @@ class MajorCropController extends Controller
 
             // Si se cambia a PUBLICADO (1), validar que todos los datos estén completos
             if ($request->status_id == 1) {
-                if (empty($crop->month) || empty($crop->year) || empty($crop->data)) {
+                if (empty($price->month) || empty($price->year) || empty($price->data)) {
                     return response([
-                        "message" => "No se puede publicar el registro. Todos los campos deben estar completos (mes, año y data)."
-                    ], 400);
-                }
-
-                // Validar que el JSON tenga contenido
-                $dataJson = is_string($crop->data) ? json_decode($crop->data, true) : (array) $crop->data;
-                if (empty($dataJson)) {
-                    return response([
-                        "message" => "No se puede publicar el registro. El campo 'data' debe contener información válida."
+                        "message" => "No se puede publicar el precio. Todos los campos deben estar completos (mes, año y datos)."
                     ], 400);
                 }
 
                 // Validar que no exista otro registro publicado con el mismo mes y año
-                $exists = MajorCrop::where('year', $crop->year)
-                    ->where('month', $crop->month)
+                $exists = ProducerSegmentPrice::where('year', $price->year)
+                    ->where('month', $price->month)
                     ->where('status_id', 1)
                     ->where('id', '!=', $id)
                     ->exists();
 
                 if ($exists) {
                     return response([
-                        "message" => "Ya existe otro registro publicado para el mes {$crop->month} del año {$crop->year}."
+                        "message" => "Ya existe otro registro publicado para el mes {$price->month} del año {$price->year}."
                     ], 400);
                 }
             }
 
-            $crop->update([
+            $price->update([
                 'status_id' => $request->status_id,
             ]);
 
-            $data = $crop;
-            $data->load(['status', 'user']);
+            $data = $price;
+            $data->load(['plan', 'status', 'user']);
 
             // Sincronizar con control general de mercado
-            MarketGeneralControlController::syncBlockStatus($data->month, $data->year, 'major_crops', $request->status_id == 1);
+            MarketGeneralControlController::syncBlockStatus($data->month, $data->year, 'producer_segment_prices', $request->status_id == 1);
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
 
@@ -326,16 +318,16 @@ class MajorCropController extends Controller
         return response(compact("data"));
     }
 
-    // DELETE - Soft delete del registro
+    // DELETE - Soft delete del precio por segmento a productor
     public function destroy(Request $request, $id)
     {
-        $message = "Error al eliminar perspectiva de principales cultivos";
-        $action = "Eliminar perspectiva de principales cultivos";
+        $message = "Error al eliminar precio por segmento a productor";
+        $action = "Eliminar precio por segmento a productor";
         $id_user = Auth::user()->id ?? null;
 
         try {
-            $crop = MajorCrop::findOrFail($id);
-            $crop->delete(); // Delete (no soft delete por defecto)
+            $price = ProducerSegmentPrice::findOrFail($id);
+            $price->delete(); // Soft delete
 
             Audith::new($id_user, $action, $request->all(), 200, ['deleted_id' => $id]);
 
@@ -344,6 +336,6 @@ class MajorCropController extends Controller
             return response(["message" => $message, "error" => $e->getMessage()], 500);
         }
 
-        return response(["message" => "Perspectiva de principales cultivos eliminada correctamente"]);
+        return response(["message" => "Precio por segmento a productor eliminado correctamente"]);
     }
 }

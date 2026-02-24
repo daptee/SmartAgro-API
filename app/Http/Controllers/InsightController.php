@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Insight;
 use App\Models\Audith;
+use App\Http\Controllers\MarketGeneralControlController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Exception;
@@ -122,6 +123,11 @@ class InsightController extends Controller
 
             $data->load(['plan', 'status', 'user']);
 
+            // Sincronizar con control general de mercado
+            $insightMonth = (int) date('m', strtotime($data->date));
+            $insightYear = (int) date('Y', strtotime($data->date));
+            MarketGeneralControlController::syncBlockStatus($insightMonth, $insightYear, 'insights', $data->status_id == 1);
+
             Audith::new($id_user, $action, $request->all(), 201, compact("data"));
 
         } catch (Exception $e) {
@@ -186,6 +192,11 @@ class InsightController extends Controller
             $data = $insight;
             $data->load(['plan', 'status', 'user']);
 
+            // Sincronizar con control general de mercado
+            $insightMonth = (int) date('m', strtotime($data->date));
+            $insightYear = (int) date('Y', strtotime($data->date));
+            MarketGeneralControlController::syncBlockStatus($insightMonth, $insightYear, 'insights', $data->status_id == 1);
+
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
 
         } catch (Exception $e) {
@@ -226,6 +237,11 @@ class InsightController extends Controller
 
             $data = $insight;
             $data->load(['plan', 'status', 'user']);
+
+            // Sincronizar con control general de mercado
+            $insightMonth = (int) date('m', strtotime($data->date));
+            $insightYear = (int) date('Y', strtotime($data->date));
+            MarketGeneralControlController::syncBlockStatus($insightMonth, $insightYear, 'insights', $request->status_id == 1);
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
 

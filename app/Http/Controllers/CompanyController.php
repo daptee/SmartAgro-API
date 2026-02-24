@@ -16,6 +16,7 @@ use App\Models\MagSteerIndex;
 use App\Models\MainCropsBuyingSellingTrafficLight;
 use App\Models\MainGrainPrice;
 use App\Models\MajorCrop;
+use App\Models\MarketGeneralControl;
 use App\Models\News;
 use App\Models\PitIndicator;
 use App\Models\PriceMainActiveIngredientsProducer;
@@ -487,7 +488,12 @@ class CompanyController extends Controller
                 'params' => $request->all(),
             ]);
 
+            // Obtener meses/años publicados en control general de mercado
+            $publishedControls = MarketGeneralControl::where('status_id', 1)->get(['month', 'year']);
+            $publishedPeriods = $publishedControls->map(fn($c) => $c->year . '-' . str_pad($c->month, 2, '0', STR_PAD_LEFT))->toArray();
+
             $data = News::query()
+                ->whereRaw("DATE_FORMAT(date, '%Y-%m') IN (" . (count($publishedPeriods) > 0 ? implode(',', array_map(fn($p) => "'{$p}'", $publishedPeriods)) : "''" ) . ")")
                 ->when($dateFrom, function ($query) use ($dateFrom) {
                     return $query->where('date', '>=', $dateFrom);
                 })
@@ -560,7 +566,12 @@ class CompanyController extends Controller
                 'params' => $request->all(),
             ]);
 
+            // Obtener meses/años publicados en control general de mercado
+            $publishedControls = MarketGeneralControl::where('status_id', 1)->get(['month', 'year']);
+            $publishedPeriods = $publishedControls->map(fn($c) => $c->year . '-' . str_pad($c->month, 2, '0', STR_PAD_LEFT))->toArray();
+
             $data = Insight::query()
+                ->whereRaw("DATE_FORMAT(date, '%Y-%m') IN (" . (count($publishedPeriods) > 0 ? implode(',', array_map(fn($p) => "'{$p}'", $publishedPeriods)) : "''" ) . ")")
                 ->when($dateFrom, function ($query) use ($dateFrom) {
                     return $query->where('date', '>=', $dateFrom);
                 })
@@ -632,7 +643,12 @@ class CompanyController extends Controller
                 'params' => $request->all(),
             ]);
 
+            // Obtener meses/años publicados en control general de mercado
+            $publishedControls = MarketGeneralControl::where('status_id', 1)->get(['month', 'year']);
+            $publishedPeriods = $publishedControls->map(fn($c) => $c->year . '-' . str_pad($c->month, 2, '0', STR_PAD_LEFT))->toArray();
+
             $data = MagLeaseIndex::query()
+                ->whereRaw("DATE_FORMAT(date, '%Y-%m') IN (" . (count($publishedPeriods) > 0 ? implode(',', array_map(fn($p) => "'{$p}'", $publishedPeriods)) : "''" ) . ")")
                 ->when($dateFrom, function ($query) use ($dateFrom) {
                     return $query->where('date', '>=', $dateFrom);
                 })
@@ -704,7 +720,12 @@ class CompanyController extends Controller
                 'params' => $request->all(),
             ]);
 
+            // Obtener meses/años publicados en control general de mercado
+            $publishedControls = MarketGeneralControl::where('status_id', 1)->get(['month', 'year']);
+            $publishedPeriods = $publishedControls->map(fn($c) => $c->year . '-' . str_pad($c->month, 2, '0', STR_PAD_LEFT))->toArray();
+
             $data = MagSteerIndex::query()
+                ->whereRaw("DATE_FORMAT(date, '%Y-%m') IN (" . (count($publishedPeriods) > 0 ? implode(',', array_map(fn($p) => "'{$p}'", $publishedPeriods)) : "''" ) . ")")
                 ->when($dateFrom, function ($query) use ($dateFrom) {
                     return $query->where('date', '>=', $dateFrom);
                 })
@@ -776,7 +797,12 @@ class CompanyController extends Controller
                 'params' => $request->all(),
             ]);
 
+            // Obtener meses/años publicados en control general de mercado
+            $publishedControls = MarketGeneralControl::where('status_id', 1)->get(['month', 'year']);
+            $publishedPeriods = $publishedControls->map(fn($c) => $c->year . '-' . str_pad($c->month, 2, '0', STR_PAD_LEFT))->toArray();
+
             $data = MajorCrop::query()
+                ->whereRaw("DATE_FORMAT(date, '%Y-%m') IN (" . (count($publishedPeriods) > 0 ? implode(',', array_map(fn($p) => "'{$p}'", $publishedPeriods)) : "''" ) . ")")
                 ->when($dateFrom, function ($query) use ($dateFrom) {
                     return $query->where('date', '>=', $dateFrom);
                 })
@@ -848,7 +874,12 @@ class CompanyController extends Controller
                 'params' => $request->all(),
             ]);
 
+            // Obtener meses/años publicados en control general de mercado
+            $publishedControls = MarketGeneralControl::where('status_id', 1)->get(['month', 'year']);
+            $publishedPeriods = $publishedControls->map(fn($c) => $c->year . '-' . str_pad($c->month, 2, '0', STR_PAD_LEFT))->toArray();
+
             $data = PriceMainActiveIngredientsProducer::query()
+                ->whereRaw("DATE_FORMAT(date, '%Y-%m') IN (" . (count($publishedPeriods) > 0 ? implode(',', array_map(fn($p) => "'{$p}'", $publishedPeriods)) : "''" ) . ")")
                 ->when($dateFrom, function ($query) use ($dateFrom) {
                     return $query->where('date', '>=', $dateFrom);
                 })
@@ -920,7 +951,12 @@ class CompanyController extends Controller
                 'params' => $request->all(),
             ]);
 
+            // Obtener meses/años publicados en control general de mercado
+            $publishedControls = MarketGeneralControl::where('status_id', 1)->get(['month', 'year']);
+            $publishedPeriods = $publishedControls->map(fn($c) => $c->year . '-' . str_pad($c->month, 2, '0', STR_PAD_LEFT))->toArray();
+
             $data = ProducerSegmentPrice::query()
+                ->whereRaw("DATE_FORMAT(date, '%Y-%m') IN (" . (count($publishedPeriods) > 0 ? implode(',', array_map(fn($p) => "'{$p}'", $publishedPeriods)) : "''" ) . ")")
                 ->when($dateFrom, function ($query) use ($dateFrom) {
                     return $query->where('date', '>=', $dateFrom);
                 })
@@ -992,7 +1028,12 @@ class CompanyController extends Controller
                 'params' => $request->all(),
             ]);
 
+            // Obtener meses/años publicados en control general de mercado
+            $publishedControls = MarketGeneralControl::where('status_id', 1)->get(['month', 'year']);
+            $publishedPeriods = $publishedControls->map(fn($c) => $c->year . '-' . str_pad($c->month, 2, '0', STR_PAD_LEFT))->toArray();
+
             $data = RainfallRecordProvince::query()
+                ->whereRaw("DATE_FORMAT(date, '%Y-%m') IN (" . (count($publishedPeriods) > 0 ? implode(',', array_map(fn($p) => "'{$p}'", $publishedPeriods)) : "''" ) . ")")
                 ->when($dateFrom, function ($query) use ($dateFrom) {
                     return $query->where('date', '>=', $dateFrom);
                 })
@@ -1064,7 +1105,12 @@ class CompanyController extends Controller
                 'params' => $request->all(),
             ]);
 
+            // Obtener meses/años publicados en control general de mercado
+            $publishedControls = MarketGeneralControl::where('status_id', 1)->get(['month', 'year']);
+            $publishedPeriods = $publishedControls->map(fn($c) => $c->year . '-' . str_pad($c->month, 2, '0', STR_PAD_LEFT))->toArray();
+
             $data = MainGrainPrice::query()
+                ->whereRaw("DATE_FORMAT(date, '%Y-%m') IN (" . (count($publishedPeriods) > 0 ? implode(',', array_map(fn($p) => "'{$p}'", $publishedPeriods)) : "''" ) . ")")
                 ->when($dateFrom, function ($query) use ($dateFrom) {
                     return $query->where('date', '>=', $dateFrom);
                 })

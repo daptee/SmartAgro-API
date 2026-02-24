@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\MagSteerIndex;
 use App\Models\Audith;
+use App\Http\Controllers\MarketGeneralControlController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Exception;
@@ -140,6 +141,11 @@ class MagSteerIndexController extends Controller
 
             $data->load(['plan', 'status', 'user']);
 
+            // Sincronizar con control general de mercado
+            $magMonth = (int) date('m', strtotime($data->date));
+            $magYear = (int) date('Y', strtotime($data->date));
+            MarketGeneralControlController::syncBlockStatus($magMonth, $magYear, 'mag_steer_index', $data->status_id == 1);
+
             Audith::new($id_user, $action, $request->all(), 201, compact("data"));
 
         } catch (Exception $e) {
@@ -212,6 +218,11 @@ class MagSteerIndexController extends Controller
             $data = $index;
             $data->load(['plan', 'status', 'user']);
 
+            // Sincronizar con control general de mercado
+            $magMonth = (int) date('m', strtotime($data->date));
+            $magYear = (int) date('Y', strtotime($data->date));
+            MarketGeneralControlController::syncBlockStatus($magMonth, $magYear, 'mag_steer_index', $data->status_id == 1);
+
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
 
         } catch (Exception $e) {
@@ -260,6 +271,11 @@ class MagSteerIndexController extends Controller
 
             $data = $index;
             $data->load(['plan', 'status', 'user']);
+
+            // Sincronizar con control general de mercado
+            $magMonth = (int) date('m', strtotime($data->date));
+            $magYear = (int) date('Y', strtotime($data->date));
+            MarketGeneralControlController::syncBlockStatus($magMonth, $magYear, 'mag_steer_index', $request->status_id == 1);
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
 

@@ -201,6 +201,7 @@ Route::group(['middleware' => ['company_api_key']], function () {
 Route::post('research-on-demand', [ResearchOnDemand::class, 'research_on_demand']);
 Route::post('/import-reports', [GeneralImportController::class, 'import'])->name('import.reports');
 Route::post('/import-business-indicators', [GeneralImportController::class, 'import_business_indicators']);
+
 Route::post('/notification-users-report', [ReportController::class, 'notification_users_report']);
 
 // Delete report

@@ -24,6 +24,7 @@ use App\Models\HarvestPrices;
 use App\Models\LivestockInputOutputRatio;
 use App\Models\PitIndicator;
 use App\Models\ProductPrice;
+use App\Models\MarketGeneralControl;
 use App\Models\StatusReport;
 use App\Models\User;
 use Exception;
@@ -80,10 +81,28 @@ class ReportController extends Controller
         $year = $request->input('year');
 
         try {
+            // Verificar que el mes/año esté publicado en control general de mercado
+            $control = MarketGeneralControl::where('month', $month)
+                ->where('year', $year)
+                ->where('status_id', 1)
+                ->first();
+
+            if (!$control) {
+                $response = [
+                    'message' => 'No hay datos publicados para el mes seleccionado.',
+                    'error_code' => 600
+                ];
+                Audith::new($id_user, $action, $request->all(), 422, $response);
+                return response()->json($response, 422);
+            }
+
             $filters = function ($query) use ($id_plan, $month, $year) {
-                $query->whereYear('date', $year)
+                $query->where('status_id', 1)
+                    ->whereYear('date', $year)
                     ->whereMonth('date', $month)
-                    ->where('id_plan', '<=', $id_plan);
+                    ->where(function ($q) use ($id_plan) {
+                        $q->whereNull('id_plan')->orWhere('id_plan', '<=', $id_plan);
+                    });
             };
 
             // Filtro especial para mag_lease_index: obtener el mes buscado y los 2 meses anteriores
@@ -93,9 +112,12 @@ class ReportController extends Controller
 
             $mag_lease_data = DB::table('mag_lease_index')
                 ->select('*')
+                ->where('status_id', 1)
                 ->where('date', '>=', $twoMonthsBefore->format('Y-m-d'))
                 ->where('date', '<=', $searchDate->format('Y-m-d'))
-                ->where('id_plan', '<=', $id_plan)
+                ->where(function ($q) use ($id_plan) {
+                    $q->whereNull('id_plan')->orWhere('id_plan', '<=', $id_plan);
+                })
                 ->whereNull('deleted_at')
                 ->orderBy('date', 'desc')
                 ->orderBy('created_at', 'desc')
@@ -129,9 +151,12 @@ class ReportController extends Controller
             // Filtro especial para mag_steer_index: obtener el mes buscado y los 2 meses anteriores
             $mag_steer_data = DB::table('mag_steer_index')
                 ->select('*')
+                ->where('status_id', 1)
                 ->where('date', '>=', $twoMonthsBefore->format('Y-m-d'))
                 ->where('date', '<=', $searchDate->format('Y-m-d'))
-                ->where('id_plan', '<=', $id_plan)
+                ->where(function ($q) use ($id_plan) {
+                    $q->whereNull('id_plan')->orWhere('id_plan', '<=', $id_plan);
+                })
                 ->whereNull('deleted_at')
                 ->orderBy('date', 'desc')
                 ->orderBy('created_at', 'desc')
@@ -162,13 +187,14 @@ class ReportController extends Controller
                     ->get();
             }
 
-            // Filtro para tablas que usan columnas 'month' y 'year' directamente (fallback a 'date' si no existen o están NULL)
+            // Filtro para tablas que usan columnas 'month' y 'year' directamente
             $filtersMonthYear = function ($query) use ($id_plan, $month, $year) {
-                // Siempre usar whereYear y whereMonth en la columna 'date' para garantizar resultados consistentes
-                // ya que algunas tablas pueden tener las columnas month/year pero con valores NULL
-                $query->whereYear('date', $year)
-                    ->whereMonth('date', $month)
-                    ->where('id_plan', '<=', $id_plan);
+                $query->where('status_id', 1)
+                    ->where('month', $month)
+                    ->where('year', $year)
+                    ->where(function ($q) use ($id_plan) {
+                        $q->whereNull('id_plan')->orWhere('id_plan', '<=', $id_plan);
+                    });
             };
 
             // Realizar las consultas a todas las tablas
@@ -179,7 +205,7 @@ class ReportController extends Controller
                 'mag_steer_index' => $mag_steer_with_plan,
                 'insights' => Insight::where($filters)->with('plan')->get(),
                 'price_main_active_ingredients_producers' => PriceMainActiveIngredientsProducer::where($filtersMonthYear)->with(['plan', 'segment'])->get(),
-                'producer_segment_prices' => ProducerSegmentPrice::where($filters)->with('plan')->get(),
+                'producer_segment_prices' => ProducerSegmentPrice::where($filtersMonthYear)->with('plan')->get(),
                 'rainfall_records_provinces' => RainfallRecordProvince::where($filtersMonthYear)->with('plan')->get(),
                 'main_grain_prices' => MainGrainPrice::where($filtersMonthYear)->with('plan')->get(),
             ];
