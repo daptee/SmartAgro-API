@@ -187,27 +187,17 @@ class ReportController extends Controller
                     ->get();
             }
 
-            // Filtro para tablas que usan columnas 'month' y 'year' directamente
-            $filtersMonthYear = function ($query) use ($id_plan, $month, $year) {
-                $query->where('status_id', 1)
-                    ->where('month', $month)
-                    ->where('year', $year)
-                    ->where(function ($q) use ($id_plan) {
-                        $q->whereNull('id_plan')->orWhere('id_plan', '<=', $id_plan);
-                    });
-            };
-
             // Realizar las consultas a todas las tablas
             $data = [
                 'news' => News::where($filters)->with('plan')->get(),
-                'major_crops' => MajorCrop::where($filtersMonthYear)->with('plan')->get(),
+                'major_crops' => MajorCrop::where($filters)->with('plan')->get(),
                 'mag_lease_index' => $mag_lease_with_plan,
                 'mag_steer_index' => $mag_steer_with_plan,
                 'insights' => Insight::where($filters)->with('plan')->get(),
-                'price_main_active_ingredients_producers' => PriceMainActiveIngredientsProducer::where($filtersMonthYear)->with(['plan', 'segment'])->get(),
-                'producer_segment_prices' => ProducerSegmentPrice::where($filtersMonthYear)->with('plan')->get(),
+                'price_main_active_ingredients_producers' => PriceMainActiveIngredientsProducer::where($filters)->with(['plan', 'segment'])->get(),
+                'producer_segment_prices' => ProducerSegmentPrice::where($filters)->with('plan')->get(),
                 'rainfall_records_provinces' => RainfallRecordProvince::where($filters)->with('plan')->get(),
-                'main_grain_prices' => MainGrainPrice::where($filtersMonthYear)->with('plan')->get(),
+                'main_grain_prices' => MainGrainPrice::where($filters)->with('plan')->get(),
             ];
 
             // Verificar si todos los arrays están vacíos
