@@ -82,7 +82,7 @@ class ReportController extends Controller
 
         try {
             // Verificar que el mes/año esté publicado en control general de mercado
-            $control = MarketGeneralControl::where('month', $month)
+            /* $control = MarketGeneralControl::where('month', $month)
                 ->where('year', $year)
                 ->where('status_id', 1)
                 ->first();
@@ -94,7 +94,7 @@ class ReportController extends Controller
                 ];
                 Audith::new($id_user, $action, $request->all(), 422, $response);
                 return response()->json($response, 422);
-            }
+            } */
 
             $filters = function ($query) use ($id_plan, $month, $year) {
                 $query->where('status_id', 1)
