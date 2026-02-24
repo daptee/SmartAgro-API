@@ -206,7 +206,7 @@ class ReportController extends Controller
                 'insights' => Insight::where($filters)->with('plan')->get(),
                 'price_main_active_ingredients_producers' => PriceMainActiveIngredientsProducer::where($filtersMonthYear)->with(['plan', 'segment'])->get(),
                 'producer_segment_prices' => ProducerSegmentPrice::where($filtersMonthYear)->with('plan')->get(),
-                'rainfall_records_provinces' => RainfallRecordProvince::where($filtersMonthYear)->with('plan')->get(),
+                'rainfall_records_provinces' => RainfallRecordProvince::where($filters)->with('plan')->get(),
                 'main_grain_prices' => MainGrainPrice::where($filtersMonthYear)->with('plan')->get(),
             ];
 
