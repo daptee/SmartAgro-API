@@ -14,6 +14,7 @@ use App\Http\Controllers\FaqController;
 use App\Http\Controllers\MagLeaseIndexController;
 use App\Http\Controllers\MagSteerIndexController;
 use App\Http\Controllers\MajorCropController;
+use App\Http\Controllers\MarketDataTransferController;
 use App\Http\Controllers\MarketGeneralControlController;
 use App\Http\Controllers\NewsController;
 use App\Http\Controllers\InsightController;
@@ -207,6 +208,10 @@ Route::prefix('admin')
             Route::put('producer-segment-prices/{id}/status', 'changeStatus');
             Route::delete('producer-segment-prices/{id}', 'destroy');
         });
+
+        // Market Data Transfer (Exportar/Importar datos de mercado entre entornos)
+        Route::get('export-market-data', [MarketDataTransferController::class, 'export']);
+        Route::post('import-market-data', [MarketDataTransferController::class, 'import']);
 
         // Market General Controls (Control General de Mercado)
         Route::controller(MarketGeneralControlController::class)->group(function () {

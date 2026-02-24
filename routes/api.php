@@ -17,7 +17,6 @@ use App\Http\Controllers\CropController;
 use App\Http\Controllers\ActiveIngredientController;
 use App\Http\Controllers\FaqController;
 use App\Http\Controllers\GeneralImportController;
-use App\Http\Controllers\MarketDataTransferController;
 use App\Http\Controllers\GetsFunctionsController;
 use App\Http\Controllers\IconController;
 use App\Http\Controllers\LocalityProvinceController;
@@ -203,9 +202,6 @@ Route::post('research-on-demand', [ResearchOnDemand::class, 'research_on_demand'
 Route::post('/import-reports', [GeneralImportController::class, 'import'])->name('import.reports');
 Route::post('/import-business-indicators', [GeneralImportController::class, 'import_business_indicators']);
 
-// Market data transfer (solo admin)
-Route::get('/export-market-data', [MarketDataTransferController::class, 'export'])->middleware('admin');
-Route::post('/import-market-data', [MarketDataTransferController::class, 'import'])->middleware('admin');
 Route::post('/notification-users-report', [ReportController::class, 'notification_users_report']);
 
 // Delete report

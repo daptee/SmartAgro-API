@@ -84,9 +84,12 @@ class MarketDataTransferController extends Controller
             ];
 
             $filename = "market_data_{$year}_" . str_pad($month, 2, '0', STR_PAD_LEFT) . ".json";
+            $json = json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
 
-            return response()->json($payload, 200, [
-                'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+            return response()->streamDownload(function () use ($json) {
+                echo $json;
+            }, $filename, [
+                'Content-Type' => 'application/json',
             ]);
         } catch (Exception $e) {
             Log::error('Error en exportación de datos de mercado', [
