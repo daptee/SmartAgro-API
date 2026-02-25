@@ -325,7 +325,12 @@ class RainfallRecordController extends Controller
 
         try {
             $rainfallRecord = RainfallRecordProvince::findOrFail($id);
+            $month = $rainfallRecord->month;
+            $year = $rainfallRecord->year;
             $rainfallRecord->delete(); // Soft delete
+
+            // Sincronizar con control general de mercado
+            MarketGeneralControlController::syncBlockStatus($month, $year, 'rainfall_records', false);
 
             Audith::new($id_user, $action, $request->all(), 200, ['deleted_id' => $id]);
 

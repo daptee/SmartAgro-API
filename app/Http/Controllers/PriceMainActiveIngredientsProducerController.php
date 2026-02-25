@@ -298,7 +298,12 @@ class PriceMainActiveIngredientsProducerController extends Controller
 
         try {
             $price = PriceMainActiveIngredientsProducer::findOrFail($id);
+            $month = $price->month;
+            $year = $price->year;
             $price->delete(); // Soft delete
+
+            // Sincronizar con control general de mercado
+            MarketGeneralControlController::syncBlockStatus($month, $year, 'price_main_active_ingredients_producers', false);
 
             Audith::new($id_user, $action, $request->all(), 200, ['deleted_id' => $id]);
 

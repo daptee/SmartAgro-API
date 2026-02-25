@@ -325,7 +325,12 @@ class ProducerSegmentPriceController extends Controller
 
         try {
             $price = ProducerSegmentPrice::findOrFail($id);
+            $month = $price->month;
+            $year = $price->year;
             $price->delete(); // Soft delete
+
+            // Sincronizar con control general de mercado
+            MarketGeneralControlController::syncBlockStatus($month, $year, 'producer_segment_prices', false);
 
             Audith::new($id_user, $action, $request->all(), 200, ['deleted_id' => $id]);
 
