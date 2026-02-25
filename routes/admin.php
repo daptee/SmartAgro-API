@@ -21,6 +21,7 @@ use App\Http\Controllers\InsightController;
 use App\Http\Controllers\MainGrainPriceController;
 use App\Http\Controllers\PriceMainActiveIngredientsProducerController;
 use App\Http\Controllers\GrossMarginController;
+use App\Http\Controllers\GrossMarginsTrendController;
 use App\Http\Controllers\ProducerSegmentPriceController;
 use App\Http\Controllers\RainfallRecordController;
 use App\Http\Controllers\ReportController;
@@ -217,6 +218,15 @@ Route::prefix('admin')
             Route::put('gross-margins/{id}', 'update');
             Route::put('gross-margins/{id}/status', 'changeStatus');
             Route::delete('gross-margins/{id}', 'destroy');
+        });
+
+        // Gross Margins Trend (Tendencia de Márgenes Brutos - Intercampaña)
+        Route::controller(GrossMarginsTrendController::class)->group(function () {
+            Route::get('gross-margins-trend', 'index');
+            Route::post('gross-margins-trend', 'store');
+            Route::put('gross-margins-trend/{id}', 'update');
+            Route::put('gross-margins-trend/{id}/status', 'changeStatus');
+            Route::delete('gross-margins-trend/{id}', 'destroy');
         });
 
         // Market Data Transfer (Exportar/Importar datos de mercado entre entornos)
