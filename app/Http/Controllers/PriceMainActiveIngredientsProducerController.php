@@ -146,7 +146,6 @@ class PriceMainActiveIngredientsProducerController extends Controller
             $data = PriceMainActiveIngredientsProducer::create([
                 'month' => $request->month,
                 'year' => $request->year,
-                'date' => $request->date ?? null,
                 'data' => $dataValue,
                 'id_plan' => $request->id_plan,
                 'segment_id' => $request->segment_id ?? null,
@@ -223,7 +222,6 @@ class PriceMainActiveIngredientsProducerController extends Controller
             $price->update([
                 'month' => $request->month,
                 'year' => $request->year,
-                'date' => $request->date ?? $price->date,
                 'data' => $dataValue,
                 'id_plan' => $request->id_plan,
                 'segment_id' => $request->segment_id ?? null,

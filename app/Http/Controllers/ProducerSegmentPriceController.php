@@ -151,7 +151,6 @@ class ProducerSegmentPriceController extends Controller
             $data = ProducerSegmentPrice::create([
                 'month' => $request->month,
                 'year' => $request->year,
-                'date' => $request->date ?? null,
                 'data' => $dataValue,
                 'id_plan' => $request->id_plan,
                 'status_id' => $request->status_id,
@@ -238,7 +237,6 @@ class ProducerSegmentPriceController extends Controller
             $price->update([
                 'month' => $request->month,
                 'year' => $request->year,
-                'date' => $request->date ?? $price->date,
                 'data' => $dataValue,
                 'id_plan' => $request->id_plan,
                 'status_id' => $request->status_id,
