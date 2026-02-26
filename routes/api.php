@@ -17,6 +17,7 @@ use App\Http\Controllers\CropController;
 use App\Http\Controllers\ActiveIngredientController;
 use App\Http\Controllers\ClassificationController;
 use App\Http\Controllers\FaqController;
+use App\Http\Controllers\ImageController;
 use App\Http\Controllers\GeneralImportController;
 use App\Http\Controllers\GetsFunctionsController;
 use App\Http\Controllers\IconController;
@@ -164,65 +165,12 @@ Route::group(['middleware' => ['token']], function ($router) {
     Route::controller(IconController::class)->group(function () {
         Route::get('icons', 'index');
         Route::get('icons/{id}', 'show');
-        Route::post('icons', 'store');
-        Route::post('icons/{id}', 'update');
-        Route::delete('icons/{id}', 'destroy');
     });
 
-    // FAQs
-    Route::controller(FaqController::class)->group(function () {
-        Route::post('faqs', 'store');
-        Route::put('faqs/{id}', 'update');
-        Route::put('faqs/{id}/status', 'updateStatus');
-        Route::delete('faqs/{id}', 'destroy');
-    });
-
-    // Regions
-    Route::controller(RegionController::class)->group(function () {
-        Route::get('regions', 'index');
-        Route::get('regions/{id}', 'show');
-        Route::post('regions', 'store');
-        Route::put('regions/{id}', 'update');
-        Route::put('regions/{id}/status', 'updateStatus');
-        Route::delete('regions/{id}', 'destroy');
-    });
-
-    // User Profiles
-    Route::controller(UserProfileController::class)->group(function () {
-        Route::get('user-profiles', 'index');
-        Route::get('user-profiles/{id}', 'show');
-        Route::post('user-profiles', 'store');
-        Route::put('user-profiles/{id}', 'update');
-        Route::put('user-profiles/{id}/status', 'updateStatus');
-        Route::delete('user-profiles/{id}', 'destroy');
-    });
-
-    // Plans (solo edición, sin crear ni eliminar)
-    Route::controller(PlanController::class)->group(function () {
-        Route::get('plans-admin', 'index');
-        Route::get('plans-admin/{id}', 'show');
-        Route::put('plans-admin/{id}', 'update');
-        Route::put('plans-admin/{id}/status', 'updateStatus');
-    });
-
-    // Classifications
-    Route::controller(ClassificationController::class)->group(function () {
-        Route::get('classifications', 'index');
-        Route::get('classifications/{id}', 'show');
-        Route::post('classifications', 'store');
-        Route::put('classifications/{id}', 'update');
-        Route::put('classifications/{id}/status', 'updateStatus');
-        Route::delete('classifications/{id}', 'destroy');
-    });
-
-    // Products
-    Route::controller(ProductController::class)->group(function () {
-        Route::get('products', 'index');
-        Route::get('products/{id}', 'show');
-        Route::post('products', 'store');
-        Route::put('products/{id}', 'update');
-        Route::put('products/{id}/status', 'updateStatus');
-        Route::delete('products/{id}', 'destroy');
+    // Images
+    Route::controller(ImageController::class)->group(function () {
+        Route::get('images', 'index');
+        Route::get('images/{id}', 'show');
     });
 });
 
@@ -275,6 +223,33 @@ Route::get('provinces', [LocalityProvinceController::class, 'get_provinces']);
 Route::controller(GetsFunctionsController::class)->group(function () {
     Route::get('/countries', 'countries');
     Route::get('/plans', 'plans');
+});
+
+// Plans
+Route::get('plans/{id}', [PlanController::class, 'show']);
+
+// Regions
+Route::controller(RegionController::class)->group(function () {
+    Route::get('regions', 'index');
+    Route::get('regions/{id}', 'show');
+});
+
+// User Profiles
+Route::controller(UserProfileController::class)->group(function () {
+    Route::get('user-profiles', 'index');
+    Route::get('user-profiles/{id}', 'show');
+});
+
+// Classifications
+Route::controller(ClassificationController::class)->group(function () {
+    Route::get('classifications', 'index');
+    Route::get('classifications/{id}', 'show');
+});
+
+// Products
+Route::controller(ProductController::class)->group(function () {
+    Route::get('products', 'index');
+    Route::get('products/{id}', 'show');
 });
 
 // Advertising

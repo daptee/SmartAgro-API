@@ -4,6 +4,7 @@ use App\Http\Controllers\AdvertisingReportController;
 use App\Http\Controllers\AdvertisingSpaceController;
 use App\Http\Controllers\AudithController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\ClassificationController;
 use App\Http\Controllers\CompaniesAdvertisingController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\CompanyPlanController;
@@ -11,6 +12,8 @@ use App\Http\Controllers\CompanyPlanPublicitiesReportController;
 use App\Http\Controllers\CropController;
 use App\Http\Controllers\ActiveIngredientController;
 use App\Http\Controllers\FaqController;
+use App\Http\Controllers\IconController;
+use App\Http\Controllers\ImageController;
 use App\Http\Controllers\MagLeaseIndexController;
 use App\Http\Controllers\MagSteerIndexController;
 use App\Http\Controllers\MajorCropController;
@@ -19,16 +22,20 @@ use App\Http\Controllers\MarketGeneralControlController;
 use App\Http\Controllers\NewsController;
 use App\Http\Controllers\InsightController;
 use App\Http\Controllers\MainGrainPriceController;
+use App\Http\Controllers\PlanController;
 use App\Http\Controllers\PriceMainActiveIngredientsProducerController;
 use App\Http\Controllers\GrossMarginController;
 use App\Http\Controllers\GrossMarginsTrendController;
 use App\Http\Controllers\ProducerSegmentPriceController;
+use App\Http\Controllers\ProductController;
 use App\Http\Controllers\RainfallRecordController;
+use App\Http\Controllers\RegionController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\StatusController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\UserCompanyController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\UserProfileController;
 use Illuminate\Support\Facades\Route;
 
 // Middleware for admin users
@@ -106,11 +113,66 @@ Route::prefix('admin')
         // Advertising Interactions (anteriormente Reports) - Ya no se gestionan manualmente
         // Las interacciones se registran automáticamente a través de los endpoints públicos
 
+        // Icons
+        Route::controller(IconController::class)->group(function () {
+            Route::get('icons', 'index');
+            Route::get('icons/{id}', 'show');
+            Route::post('icons', 'store');
+            Route::post('icons/{id}', 'update');
+            Route::delete('icons/{id}', 'destroy');
+        });
+
+        // Images
+        Route::controller(ImageController::class)->group(function () {
+            Route::post('images', 'store');
+            Route::post('images/{id}', 'update');
+            Route::delete('images/{id}', 'destroy');
+        });
+
         // faq
         Route::controller(FaqController::class)->group(function () {
             Route::post('faqs', 'store');
-            Route::put('faqs/{id}', 'update');
+            Route::put('faqs/{id}', 'update');        
+            Route::put('faqs/{id}/status', 'updateStatus');
             Route::delete('faqs/{id}', 'destroy');
+        });
+
+        // Regions
+        Route::controller(RegionController::class)->group(function () {
+            Route::post('regions', 'store');
+            Route::put('regions/{id}', 'update');
+            Route::put('regions/{id}/status', 'updateStatus');
+            Route::delete('regions/{id}', 'destroy');
+        });
+
+        // User Profiles
+        Route::controller(UserProfileController::class)->group(function () {
+            Route::post('user-profiles', 'store');
+            Route::put('user-profiles/{id}', 'update');
+            Route::put('user-profiles/{id}/status', 'updateStatus');
+            Route::delete('user-profiles/{id}', 'destroy');
+        });
+
+        // Plans (solo edición, sin crear ni eliminar)
+        Route::controller(PlanController::class)->group(function () {
+            Route::put('plans/{id}', 'update');
+            Route::put('plans/{id}/status', 'updateStatus');
+        });
+
+        // Classifications
+        Route::controller(ClassificationController::class)->group(function () {
+            Route::post('classifications', 'store');
+            Route::put('classifications/{id}', 'update');
+            Route::put('classifications/{id}/status', 'updateStatus');
+            Route::delete('classifications/{id}', 'destroy');
+        });
+
+        // Products
+        Route::controller(ProductController::class)->group(function () {
+            Route::post('products', 'store');
+            Route::put('products/{id}', 'update');
+            Route::put('products/{id}/status', 'updateStatus');
+            Route::delete('products/{id}', 'destroy');
         });
 
         // audits
