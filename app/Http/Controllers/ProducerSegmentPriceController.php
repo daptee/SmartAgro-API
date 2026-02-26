@@ -151,7 +151,6 @@ class ProducerSegmentPriceController extends Controller
             $data = ProducerSegmentPrice::create([
                 'month' => $request->month,
                 'year' => $request->year,
-                'date' => $request->date ?? null,
                 'data' => $dataValue,
                 'id_plan' => $request->id_plan,
                 'status_id' => $request->status_id,
@@ -238,7 +237,6 @@ class ProducerSegmentPriceController extends Controller
             $price->update([
                 'month' => $request->month,
                 'year' => $request->year,
-                'date' => $request->date ?? $price->date,
                 'data' => $dataValue,
                 'id_plan' => $request->id_plan,
                 'status_id' => $request->status_id,
@@ -327,7 +325,12 @@ class ProducerSegmentPriceController extends Controller
 
         try {
             $price = ProducerSegmentPrice::findOrFail($id);
+            $month = $price->month;
+            $year = $price->year;
             $price->delete(); // Soft delete
+
+            // Sincronizar con control general de mercado
+            MarketGeneralControlController::syncBlockStatus($month, $year, 'producer_segment_prices', false);
 
             Audith::new($id_user, $action, $request->all(), 200, ['deleted_id' => $id]);
 

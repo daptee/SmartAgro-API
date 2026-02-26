@@ -151,7 +151,6 @@ class RainfallRecordController extends Controller
             $data = RainfallRecordProvince::create([
                 'month' => $request->month,
                 'year' => $request->year,
-                'date' => $request->date ?? null,
                 'data' => $dataValue,
                 'id_plan' => $request->id_plan,
                 'status_id' => $request->status_id,
@@ -238,7 +237,6 @@ class RainfallRecordController extends Controller
             $rainfallRecord->update([
                 'month' => $request->month,
                 'year' => $request->year,
-                'date' => $request->date ?? $rainfallRecord->date,
                 'data' => $dataValue,
                 'id_plan' => $request->id_plan,
                 'status_id' => $request->status_id,
@@ -327,7 +325,12 @@ class RainfallRecordController extends Controller
 
         try {
             $rainfallRecord = RainfallRecordProvince::findOrFail($id);
+            $month = $rainfallRecord->month;
+            $year = $rainfallRecord->year;
             $rainfallRecord->delete(); // Soft delete
+
+            // Sincronizar con control general de mercado
+            MarketGeneralControlController::syncBlockStatus($month, $year, 'rainfall_records', false);
 
             Audith::new($id_user, $action, $request->all(), 200, ['deleted_id' => $id]);
 

@@ -262,7 +262,12 @@ class InsightController extends Controller
 
         try {
             $insight = Insight::findOrFail($id);
+            $insightMonth = (int) date('m', strtotime($insight->date));
+            $insightYear = (int) date('Y', strtotime($insight->date));
             $insight->delete(); // Soft delete
+
+            // Sincronizar con control general de mercado
+            MarketGeneralControlController::syncBlockStatus($insightMonth, $insightYear, 'insights', false);
 
             Audith::new($id_user, $action, $request->all(), 200, ['deleted_id' => $id]);
 
