@@ -187,10 +187,19 @@ class ReportController extends Controller
                     ->get();
             }
 
+            $majorCropsFilters = function ($query) use ($id_plan, $month, $year) {
+                $query->where('status_id', 1)
+                    ->where('year', $year)
+                    ->where('month', $month)
+                    ->where(function ($q) use ($id_plan) {
+                        $q->whereNull('id_plan')->orWhere('id_plan', '<=', $id_plan);
+                    });
+            };
+
             // Realizar las consultas a todas las tablas
             $data = [
                 'news' => News::where($filters)->with('plan')->get(),
-                'major_crops' => MajorCrop::where($filters)->with('plan')->get(),
+                'major_crops' => MajorCrop::where($majorCropsFilters)->with('plan')->get(),
                 'mag_lease_index' => $mag_lease_with_plan,
                 'mag_steer_index' => $mag_steer_with_plan,
                 'insights' => Insight::where($filters)->with('plan')->get(),
