@@ -98,8 +98,8 @@ class ReportController extends Controller
 
             $filters = function ($query) use ($id_plan, $month, $year) {
                 $query->where('status_id', 1)
-                    ->whereYear('date', $year)
-                    ->whereMonth('date', $month)
+                    ->where('year', $year)
+                    ->where('month', $month)
                     ->where(function ($q) use ($id_plan) {
                         $q->whereNull('id_plan')->orWhere('id_plan', '<=', $id_plan);
                     });
