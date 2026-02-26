@@ -22,7 +22,7 @@ class ClassificationController extends Controller
             $perPage = $request->input('per_page', null);
             $search = $request->input('search', '');
 
-            $query = Classification::with(['parent'])->orderBy('name', 'asc');
+            $query = Classification::with(['parent', 'status'])->orderBy('name', 'asc');
 
             if ($search) {
                 $query->where(function ($q) use ($search) {
@@ -56,7 +56,7 @@ class ClassificationController extends Controller
         $data = null;
 
         try {
-            $data = Classification::with(['parent', 'children'])->findOrFail($id);
+            $data = Classification::with(['parent', 'children', 'status'])->findOrFail($id);
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
 
@@ -78,19 +78,19 @@ class ClassificationController extends Controller
 
         try {
             $request->validate([
-                'name'                    => 'required|string|max:255',
-                'description'             => 'nullable|string',
+                'name'                     => 'required|string|max:255',
+                'description'              => 'nullable|string',
                 'id_parent_classification' => 'nullable|exists:classifications,id',
             ]);
 
             $data = Classification::create([
-                'name'                    => $request->name,
-                'description'             => $request->description,
+                'name'                     => $request->name,
+                'description'              => $request->description,
                 'id_parent_classification' => $request->id_parent_classification,
-                'status'                  => true,
+                'status_id'                => 1,
             ]);
 
-            $data->load(['parent']);
+            $data->load(['parent', 'status']);
 
             Audith::new($id_user, $action, $request->all(), 201, compact("data"));
 
@@ -114,8 +114,8 @@ class ClassificationController extends Controller
             $classification = Classification::findOrFail($id);
 
             $request->validate([
-                'name'                    => 'required|string|max:255',
-                'description'             => 'nullable|string',
+                'name'                     => 'required|string|max:255',
+                'description'              => 'nullable|string',
                 'id_parent_classification' => [
                     'nullable',
                     'exists:classifications,id',
@@ -128,13 +128,13 @@ class ClassificationController extends Controller
             ]);
 
             $classification->update([
-                'name'                    => $request->name,
-                'description'             => $request->description,
+                'name'                     => $request->name,
+                'description'              => $request->description,
                 'id_parent_classification' => $request->id_parent_classification,
             ]);
 
             $data = $classification;
-            $data->load(['parent']);
+            $data->load(['parent', 'status']);
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
 
@@ -158,13 +158,13 @@ class ClassificationController extends Controller
             $classification = Classification::findOrFail($id);
 
             $request->validate([
-                'status' => 'required|boolean',
+                'status_id' => 'required|exists:status,id',
             ]);
 
-            $classification->update(['status' => $request->status]);
+            $classification->update(['status_id' => $request->status_id]);
 
             $data = $classification;
-            $data->load(['parent']);
+            $data->load(['parent', 'status']);
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
 

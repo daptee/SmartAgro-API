@@ -156,7 +156,6 @@ Route::prefix('admin')
         // Plans (solo edición, sin crear ni eliminar)
         Route::controller(PlanController::class)->group(function () {
             Route::put('plans/{id}', 'update');
-            Route::put('plans/{id}/status', 'updateStatus');
         });
 
         // Classifications

@@ -20,7 +20,7 @@ class RegionController extends Controller
         $id_user = Auth::user()->id ?? null;
 
         try {
-            $data = Region::all();
+            $data = Region::with(['status'])->get();
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
         } catch (Exception $e) {
             Log::debug(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()]);
@@ -40,7 +40,7 @@ class RegionController extends Controller
         $data = null;
 
         try {
-            $data = Region::findOrFail($id);
+            $data = Region::with(['status'])->findOrFail($id);
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
 
@@ -69,7 +69,10 @@ class RegionController extends Controller
             $data = Region::create([
                 'region'     => $request->region,
                 'id_country' => $request->id_country,
+                'status_id'  => 1,
             ]);
+
+            $data->load(['status']);
 
             Audith::new($id_user, $action, $request->all(), 201, compact("data"));
 
@@ -103,6 +106,7 @@ class RegionController extends Controller
             ]);
 
             $data = $region;
+            $data->load(['status']);
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
 
@@ -126,12 +130,13 @@ class RegionController extends Controller
             $region = Region::findOrFail($id);
 
             $request->validate([
-                'status' => 'required|boolean',
+                'status_id' => 'required|exists:status,id',
             ]);
 
-            $region->update(['status' => $request->status]);
+            $region->update(['status_id' => $request->status_id]);
 
             $data = $region;
+            $data->load(['status']);
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
 

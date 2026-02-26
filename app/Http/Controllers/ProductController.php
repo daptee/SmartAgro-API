@@ -23,7 +23,7 @@ class ProductController extends Controller
             $search = $request->input('search', '');
             $id_classification = $request->input('id_classification');
 
-            $query = Product::with(['classification'])->orderBy('name', 'asc');
+            $query = Product::with(['classification', 'status'])->orderBy('name', 'asc');
 
             if ($search) {
                 $query->where(function ($q) use ($search) {
@@ -61,7 +61,7 @@ class ProductController extends Controller
         $data = null;
 
         try {
-            $data = Product::with(['classification'])->findOrFail($id);
+            $data = Product::with(['classification', 'status'])->findOrFail($id);
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
 
@@ -92,10 +92,10 @@ class ProductController extends Controller
                 'name'              => $request->name,
                 'description'       => $request->description,
                 'id_classification' => $request->id_classification,
-                'status'            => true,
+                'status_id'         => 1,
             ]);
 
-            $data->load(['classification']);
+            $data->load(['classification', 'status']);
 
             Audith::new($id_user, $action, $request->all(), 201, compact("data"));
 
@@ -131,7 +131,7 @@ class ProductController extends Controller
             ]);
 
             $data = $product;
-            $data->load(['classification']);
+            $data->load(['classification', 'status']);
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
 
@@ -155,13 +155,13 @@ class ProductController extends Controller
             $product = Product::findOrFail($id);
 
             $request->validate([
-                'status' => 'required|boolean',
+                'status_id' => 'required|exists:status,id',
             ]);
 
-            $product->update(['status' => $request->status]);
+            $product->update(['status_id' => $request->status_id]);
 
             $data = $product;
-            $data->load(['classification']);
+            $data->load(['classification', 'status']);
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
 

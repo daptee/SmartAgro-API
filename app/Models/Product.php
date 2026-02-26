@@ -14,8 +14,13 @@ class Product extends Model
         'name',
         'description',
         'id_classification',
-        'status',
+        'status_id',
     ];
+
+    public function status()
+    {
+        return $this->belongsTo(Status::class, 'status_id');
+    }
 
     public function classification()
     {
