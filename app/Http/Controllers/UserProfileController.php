@@ -2,30 +2,30 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Region;
 use App\Models\Audith;
+use App\Models\UserProfile;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
 
-class RegionController extends Controller
+class UserProfileController extends Controller
 {
     // GET ALL
     public function index(Request $request)
     {
-        $message = "Error al obtener registros";
-        $action = "Listado de regiones";
-        $data = null;
+        $message = "Error al obtener perfiles de usuario";
+        $action = "Listado de perfiles de usuario";
         $id_user = Auth::user()->id ?? null;
+        $data = null;
 
         try {
-            $data = Region::with(['status'])->get();
+            $data = UserProfile::all();
+
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
+
         } catch (Exception $e) {
-            Log::debug(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()]);
             Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
-            return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+            return response(["message" => $message, "error" => $e->getMessage()], 500);
         }
 
         return response(compact("data"));
@@ -34,13 +34,13 @@ class RegionController extends Controller
     // GET ONE
     public function show(Request $request, $id)
     {
-        $message = "Error al obtener región";
-        $action = "Obtener región";
+        $message = "Error al obtener perfil de usuario";
+        $action = "Obtener perfil de usuario";
         $id_user = Auth::user()->id ?? null;
         $data = null;
 
         try {
-            $data = Region::with(['status'])->findOrFail($id);
+            $data = UserProfile::findOrFail($id);
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
 
@@ -55,24 +55,21 @@ class RegionController extends Controller
     // POST
     public function store(Request $request)
     {
-        $message = "Error al crear región";
-        $action = "Crear región";
+        $message = "Error al crear perfil de usuario";
+        $action = "Crear perfil de usuario";
         $id_user = Auth::user()->id ?? null;
         $data = null;
 
         try {
             $request->validate([
-                'region'     => 'required|string|max:255',
-                'id_country' => 'required|exists:countries,id',
+                'name'        => 'required|string|max:255',
+                'description' => 'nullable|string',
             ]);
 
-            $data = Region::create([
-                'region'     => $request->region,
-                'id_country' => $request->id_country,
-                'status_id'  => 1,
+            $data = UserProfile::create([
+                'name'        => $request->name,
+                'description' => $request->description,
             ]);
-
-            $data->load(['status']);
 
             Audith::new($id_user, $action, $request->all(), 201, compact("data"));
 
@@ -87,26 +84,25 @@ class RegionController extends Controller
     // PUT
     public function update(Request $request, $id)
     {
-        $message = "Error al actualizar región";
-        $action = "Actualizar región";
+        $message = "Error al actualizar perfil de usuario";
+        $action = "Actualizar perfil de usuario";
         $id_user = Auth::user()->id ?? null;
         $data = null;
 
         try {
-            $region = Region::findOrFail($id);
+            $profile = UserProfile::findOrFail($id);
 
             $request->validate([
-                'region'     => 'required|string|max:255',
-                'id_country' => 'required|exists:countries,id',
+                'name'        => 'required|string|max:255',
+                'description' => 'nullable|string',
             ]);
 
-            $region->update([
-                'region'     => $request->region,
-                'id_country' => $request->id_country,
+            $profile->update([
+                'name'        => $request->name,
+                'description' => $request->description,
             ]);
 
-            $data = $region;
-            $data->load(['status']);
+            $data = $profile;
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
 
@@ -121,22 +117,21 @@ class RegionController extends Controller
     // PUT STATUS
     public function updateStatus(Request $request, $id)
     {
-        $message = "Error al actualizar estado de región";
-        $action = "Actualizar estado de región";
+        $message = "Error al actualizar estado de perfil de usuario";
+        $action = "Actualizar estado de perfil de usuario";
         $id_user = Auth::user()->id ?? null;
         $data = null;
 
         try {
-            $region = Region::findOrFail($id);
+            $profile = UserProfile::findOrFail($id);
 
             $request->validate([
-                'status_id' => 'required|exists:status,id',
+                'status' => 'required|boolean',
             ]);
 
-            $region->update(['status_id' => $request->status_id]);
+            $profile->update(['status' => $request->status]);
 
-            $data = $region;
-            $data->load(['status']);
+            $data = $profile;
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
 
@@ -151,13 +146,13 @@ class RegionController extends Controller
     // DELETE (soft delete)
     public function destroy(Request $request, $id)
     {
-        $message = "Error al eliminar región";
-        $action = "Eliminar región";
+        $message = "Error al eliminar perfil de usuario";
+        $action = "Eliminar perfil de usuario";
         $id_user = Auth::user()->id ?? null;
 
         try {
-            $region = Region::findOrFail($id);
-            $region->delete();
+            $profile = UserProfile::findOrFail($id);
+            $profile->delete();
 
             Audith::new($id_user, $action, $request->all(), 200, ['deleted_id' => $id]);
 
@@ -166,6 +161,6 @@ class RegionController extends Controller
             return response(["message" => $message, "error" => $e->getMessage()], 500);
         }
 
-        return response(["message" => "Región eliminada correctamente"]);
+        return response(["message" => "Perfil de usuario eliminado correctamente"]);
     }
 }

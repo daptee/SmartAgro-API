@@ -6,14 +6,24 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class Region extends Model
+class Product extends Model
 {
     use HasFactory, SoftDeletes;
 
-    protected $fillable = ['id_country', 'region', 'status_id'];
+    protected $fillable = [
+        'name',
+        'description',
+        'id_classification',
+        'status_id',
+    ];
 
     public function status()
     {
         return $this->belongsTo(Status::class, 'status_id');
+    }
+
+    public function classification()
+    {
+        return $this->belongsTo(Classification::class, 'id_classification');
     }
 }

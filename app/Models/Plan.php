@@ -9,6 +9,12 @@ class Plan extends Model
 {
     use HasFactory;
 
+    protected $fillable = [
+        'plan',
+        'price',
+        'characteristics',
+    ];
+
     protected function casts(): array
     {
         return [
