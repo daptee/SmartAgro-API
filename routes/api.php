@@ -15,12 +15,15 @@ use App\Http\Controllers\CompanyPlanPublicityController;
 use App\Http\Controllers\CompanyRolesController;
 use App\Http\Controllers\CropController;
 use App\Http\Controllers\ActiveIngredientController;
+use App\Http\Controllers\ClassificationController;
 use App\Http\Controllers\FaqController;
 use App\Http\Controllers\GeneralImportController;
 use App\Http\Controllers\GetsFunctionsController;
 use App\Http\Controllers\IconController;
 use App\Http\Controllers\LocalityProvinceController;
 use App\Http\Controllers\NewsController;
+use App\Http\Controllers\PlanController;
+use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ReferredController;
 use App\Http\Controllers\RegionController;
 use App\Http\Controllers\SegmentController;
@@ -29,6 +32,7 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ResearchOnDemand;
 use App\Http\Controllers\UserCompanyController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\UserProfileController;
 use App\Http\Middleware\CheckPlan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -148,11 +152,6 @@ Route::group(['middleware' => ['token']], function ($router) {
         Route::post('company-plan-publicities-reports/impressions/{id_company_plan_publicity}', 'reportsImpressions');
     });
 
-    // Regions
-    Route::controller(RegionController::class)->group(function () {
-        Route::get('regions', 'get_regions');
-    });
-
     // Referred
     Route::controller(ReferredController::class)->group(function () {
         Route::get('referred/{id}', 'index');
@@ -168,6 +167,62 @@ Route::group(['middleware' => ['token']], function ($router) {
         Route::post('icons', 'store');
         Route::post('icons/{id}', 'update');
         Route::delete('icons/{id}', 'destroy');
+    });
+
+    // FAQs
+    Route::controller(FaqController::class)->group(function () {
+        Route::post('faqs', 'store');
+        Route::put('faqs/{id}', 'update');
+        Route::put('faqs/{id}/status', 'updateStatus');
+        Route::delete('faqs/{id}', 'destroy');
+    });
+
+    // Regions
+    Route::controller(RegionController::class)->group(function () {
+        Route::get('regions', 'index');
+        Route::get('regions/{id}', 'show');
+        Route::post('regions', 'store');
+        Route::put('regions/{id}', 'update');
+        Route::put('regions/{id}/status', 'updateStatus');
+        Route::delete('regions/{id}', 'destroy');
+    });
+
+    // User Profiles
+    Route::controller(UserProfileController::class)->group(function () {
+        Route::get('user-profiles', 'index');
+        Route::get('user-profiles/{id}', 'show');
+        Route::post('user-profiles', 'store');
+        Route::put('user-profiles/{id}', 'update');
+        Route::put('user-profiles/{id}/status', 'updateStatus');
+        Route::delete('user-profiles/{id}', 'destroy');
+    });
+
+    // Plans (solo edición, sin crear ni eliminar)
+    Route::controller(PlanController::class)->group(function () {
+        Route::get('plans-admin', 'index');
+        Route::get('plans-admin/{id}', 'show');
+        Route::put('plans-admin/{id}', 'update');
+        Route::put('plans-admin/{id}/status', 'updateStatus');
+    });
+
+    // Classifications
+    Route::controller(ClassificationController::class)->group(function () {
+        Route::get('classifications', 'index');
+        Route::get('classifications/{id}', 'show');
+        Route::post('classifications', 'store');
+        Route::put('classifications/{id}', 'update');
+        Route::put('classifications/{id}/status', 'updateStatus');
+        Route::delete('classifications/{id}', 'destroy');
+    });
+
+    // Products
+    Route::controller(ProductController::class)->group(function () {
+        Route::get('products', 'index');
+        Route::get('products/{id}', 'show');
+        Route::post('products', 'store');
+        Route::put('products/{id}', 'update');
+        Route::put('products/{id}/status', 'updateStatus');
+        Route::delete('products/{id}', 'destroy');
     });
 });
 

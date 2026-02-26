@@ -1,0 +1,34 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+class Classification extends Model
+{
+    use HasFactory, SoftDeletes;
+
+    protected $fillable = [
+        'name',
+        'description',
+        'id_parent_classification',
+        'status',
+    ];
+
+    public function parent()
+    {
+        return $this->belongsTo(Classification::class, 'id_parent_classification');
+    }
+
+    public function children()
+    {
+        return $this->hasMany(Classification::class, 'id_parent_classification');
+    }
+
+    public function products()
+    {
+        return $this->hasMany(Product::class, 'id_classification');
+    }
+}
