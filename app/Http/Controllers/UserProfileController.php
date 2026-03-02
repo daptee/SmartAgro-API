@@ -19,7 +19,7 @@ class UserProfileController extends Controller
         $data = null;
 
         try {
-            $data = UserProfile::all();
+            $data = UserProfile::with(['status'])->withCount('users')->get();
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
 
@@ -40,7 +40,7 @@ class UserProfileController extends Controller
         $data = null;
 
         try {
-            $data = UserProfile::findOrFail($id);
+            $data = UserProfile::with(['status'])->findOrFail($id);
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
 
@@ -62,14 +62,15 @@ class UserProfileController extends Controller
 
         try {
             $request->validate([
-                'name'        => 'required|string|max:255',
-                'description' => 'nullable|string',
+                'name' => 'required|string|max:255',
             ]);
 
             $data = UserProfile::create([
-                'name'        => $request->name,
-                'description' => $request->description,
+                'name'      => $request->name,
+                'status_id' => 1,
             ]);
+
+            $data->load(['status']);
 
             Audith::new($id_user, $action, $request->all(), 201, compact("data"));
 
@@ -93,16 +94,15 @@ class UserProfileController extends Controller
             $profile = UserProfile::findOrFail($id);
 
             $request->validate([
-                'name'        => 'required|string|max:255',
-                'description' => 'nullable|string',
+                'name' => 'required|string|max:255',
             ]);
 
             $profile->update([
-                'name'        => $request->name,
-                'description' => $request->description,
+                'name' => $request->name,
             ]);
 
             $data = $profile;
+            $data->load(['status']);
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
 
@@ -126,12 +126,13 @@ class UserProfileController extends Controller
             $profile = UserProfile::findOrFail($id);
 
             $request->validate([
-                'status' => 'required|boolean',
+                'status_id' => 'required|exists:status,id',
             ]);
 
-            $profile->update(['status' => $request->status]);
+            $profile->update(['status_id' => $request->status_id]);
 
             $data = $profile;
+            $data->load(['status']);
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
 
