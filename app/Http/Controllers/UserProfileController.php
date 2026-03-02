@@ -2,55 +2,72 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Faq;
 use App\Models\Audith;
+use App\Models\UserProfile;
+use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Validation\Rule;
-use Exception;
 
-class FaqController extends Controller
+class UserProfileController extends Controller
 {
-    // GET ALL - Público (sin token)
+    // GET ALL
     public function index(Request $request)
     {
-        $message = "Error al obtener FAQs";
-        $action = "Listado de FAQs públicas";
+        $message = "Error al obtener perfiles de usuario";
+        $action = "Listado de perfiles de usuario";
+        $id_user = Auth::user()->id ?? null;
         $data = null;
 
         try {
-            $data = Faq::where('status_id', 1)->get();
+            $data = UserProfile::with(['status'])->withCount('users')->get();
 
-            $data->load(['status']);
-
-            Audith::new(null, $action, $request->all(), 200, compact("data"));
+            Audith::new($id_user, $action, $request->all(), 200, compact("data"));
 
         } catch (Exception $e) {
-            Audith::new(null, $action, $request->all(), 500, $e->getMessage());
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
             return response(["message" => $message, "error" => $e->getMessage()], 500);
         }
 
         return response(compact("data"));
     }
 
-    // POST - Requiere token
+    // GET ONE
+    public function show(Request $request, $id)
+    {
+        $message = "Error al obtener perfil de usuario";
+        $action = "Obtener perfil de usuario";
+        $id_user = Auth::user()->id ?? null;
+        $data = null;
+
+        try {
+            $data = UserProfile::with(['status'])->findOrFail($id);
+
+            Audith::new($id_user, $action, $request->all(), 200, compact("data"));
+
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage()], 500);
+        }
+
+        return response(compact("data"));
+    }
+
+    // POST
     public function store(Request $request)
     {
-        $message = "Error al crear FAQ";
-        $action = "Crear FAQ";
+        $message = "Error al crear perfil de usuario";
+        $action = "Crear perfil de usuario";
         $id_user = Auth::user()->id ?? null;
         $data = null;
 
         try {
             $request->validate([
-                'question' => 'required|string|max:255',
-                'answer' => 'required|string'
+                'name' => 'required|string|max:255',
             ]);
 
-            $data = Faq::create([
-                'question' => $request->question,
-                'answer' => $request->answer,
-                'status_id' => 1
+            $data = UserProfile::create([
+                'name'      => $request->name,
+                'status_id' => 1,
             ]);
 
             $data->load(['status']);
@@ -65,30 +82,26 @@ class FaqController extends Controller
         return response(compact("data"), 201);
     }
 
-    // PUT - Requiere token
+    // PUT
     public function update(Request $request, $id)
     {
-        $message = "Error al actualizar FAQ";
-        $action = "Actualizar FAQ";
+        $message = "Error al actualizar perfil de usuario";
+        $action = "Actualizar perfil de usuario";
         $id_user = Auth::user()->id ?? null;
         $data = null;
 
         try {
-            $faq = Faq::findOrFail($id);
+            $profile = UserProfile::findOrFail($id);
 
             $request->validate([
-                'question' => 'required|string|max:255',
-                'answer' => 'required|string',
-                'status' => 'required|exists:status,id',
+                'name' => 'required|string|max:255',
             ]);
 
-            $faq->update([
-                'question' => $request->question,
-                'answer' => $request->answer,
-                'status_id' => $request->status,
+            $profile->update([
+                'name' => $request->name,
             ]);
 
-            $data = $faq;
+            $data = $profile;
             $data->load(['status']);
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
@@ -101,24 +114,24 @@ class FaqController extends Controller
         return response(compact("data"));
     }
 
-    // PUT STATUS - Requiere token
+    // PUT STATUS
     public function updateStatus(Request $request, $id)
     {
-        $message = "Error al actualizar estado de FAQ";
-        $action = "Actualizar estado de FAQ";
+        $message = "Error al actualizar estado de perfil de usuario";
+        $action = "Actualizar estado de perfil de usuario";
         $id_user = Auth::user()->id ?? null;
         $data = null;
 
         try {
-            $faq = Faq::findOrFail($id);
+            $profile = UserProfile::findOrFail($id);
 
             $request->validate([
-                'status' => 'required|exists:status,id',
+                'status_id' => 'required|exists:status,id',
             ]);
 
-            $faq->update(['status_id' => $request->status]);
+            $profile->update(['status_id' => $request->status_id]);
 
-            $data = $faq;
+            $data = $profile;
             $data->load(['status']);
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
@@ -131,16 +144,16 @@ class FaqController extends Controller
         return response(compact("data"));
     }
 
-    // DELETE - Requiere token
+    // DELETE (soft delete)
     public function destroy(Request $request, $id)
     {
-        $message = "Error al eliminar FAQ";
-        $action = "Eliminar FAQ";
+        $message = "Error al eliminar perfil de usuario";
+        $action = "Eliminar perfil de usuario";
         $id_user = Auth::user()->id ?? null;
 
         try {
-            $faq = Faq::findOrFail($id);
-            $faq->delete();
+            $profile = UserProfile::findOrFail($id);
+            $profile->delete();
 
             Audith::new($id_user, $action, $request->all(), 200, ['deleted_id' => $id]);
 
@@ -149,6 +162,6 @@ class FaqController extends Controller
             return response(["message" => $message, "error" => $e->getMessage()], 500);
         }
 
-        return response(["message" => "FAQ eliminada correctamente"]);
+        return response(["message" => "Perfil de usuario eliminado correctamente"]);
     }
 }

@@ -15,12 +15,16 @@ use App\Http\Controllers\CompanyPlanPublicityController;
 use App\Http\Controllers\CompanyRolesController;
 use App\Http\Controllers\CropController;
 use App\Http\Controllers\ActiveIngredientController;
+use App\Http\Controllers\ClassificationController;
 use App\Http\Controllers\FaqController;
+use App\Http\Controllers\ImageController;
 use App\Http\Controllers\GeneralImportController;
 use App\Http\Controllers\GetsFunctionsController;
 use App\Http\Controllers\IconController;
 use App\Http\Controllers\LocalityProvinceController;
 use App\Http\Controllers\NewsController;
+use App\Http\Controllers\PlanController;
+use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ReferredController;
 use App\Http\Controllers\RegionController;
 use App\Http\Controllers\SegmentController;
@@ -29,6 +33,7 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ResearchOnDemand;
 use App\Http\Controllers\UserCompanyController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\UserProfileController;
 use App\Http\Middleware\CheckPlan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -148,11 +153,6 @@ Route::group(['middleware' => ['token']], function ($router) {
         Route::post('company-plan-publicities-reports/impressions/{id_company_plan_publicity}', 'reportsImpressions');
     });
 
-    // Regions
-    Route::controller(RegionController::class)->group(function () {
-        Route::get('regions', 'get_regions');
-    });
-
     // Referred
     Route::controller(ReferredController::class)->group(function () {
         Route::get('referred/{id}', 'index');
@@ -165,9 +165,12 @@ Route::group(['middleware' => ['token']], function ($router) {
     Route::controller(IconController::class)->group(function () {
         Route::get('icons', 'index');
         Route::get('icons/{id}', 'show');
-        Route::post('icons', 'store');
-        Route::post('icons/{id}', 'update');
-        Route::delete('icons/{id}', 'destroy');
+    });
+
+    // Images
+    Route::controller(ImageController::class)->group(function () {
+        Route::get('images', 'index');
+        Route::get('images/{id}', 'show');
     });
 });
 
@@ -220,6 +223,33 @@ Route::get('provinces', [LocalityProvinceController::class, 'get_provinces']);
 Route::controller(GetsFunctionsController::class)->group(function () {
     Route::get('/countries', 'countries');
     Route::get('/plans', 'plans');
+});
+
+// Plans
+Route::get('plans/{id}', [PlanController::class, 'show']);
+
+// Regions
+Route::controller(RegionController::class)->group(function () {
+    Route::get('regions', 'index');
+    Route::get('regions/{id}', 'show');
+});
+
+// User Profiles
+Route::controller(UserProfileController::class)->group(function () {
+    Route::get('user-profiles', 'index');
+    Route::get('user-profiles/{id}', 'show');
+});
+
+// Classifications
+Route::controller(ClassificationController::class)->group(function () {
+    Route::get('classifications', 'index');
+    Route::get('classifications/{id}', 'show');
+});
+
+// Products
+Route::controller(ProductController::class)->group(function () {
+    Route::get('products', 'index');
+    Route::get('products/{id}', 'show');
 });
 
 // Advertising
