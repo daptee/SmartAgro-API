@@ -175,31 +175,39 @@ class MarketDataTransferController extends Controller
      * Importa un bloque de registros si no existen datos para el mes/año en la tabla.
      */
     private function importBlock(string $key, array $records, string $model, callable $existsCheck, string $now): string
-    {
-        if (empty($records)) {
-            return 'skipped (no data in file)';
-        }
-
-        if ($existsCheck($model)) {
-            return 'skipped (already exists)';
-        }
-
-        // Limpiar campos autogenerados y preparar para inserción masiva
-        $toInsert = array_map(function ($record) use ($now) {
-            unset($record['id']);
-            $record['created_at'] = $record['created_at'] ?? $now;
-            $record['updated_at'] = $now;
-            // Convertir arrays/json a string para insert()
-            foreach ($record as $k => $v) {
-                if (is_array($v)) {
-                    $record[$k] = json_encode($v);
-                }
-            }
-            return $record;
-        }, $records);
-
-        $model::insert($toInsert);
-
-        return 'imported (' . count($toInsert) . ' records)';
+{
+    if (empty($records)) {
+        return 'skipped (no data in file)';
     }
+
+    if ($existsCheck($model)) {
+        return 'skipped (already exists)';
+    }
+
+    $toInsert = array_map(function ($record) use ($now) {
+        unset($record['id']);
+
+        // --- SOLUCIÓN AQUÍ: Formatear fechas para MySQL ---
+        if (isset($record['created_at'])) {
+            $record['created_at'] = date('Y-m-d H:i:s', strtotime($record['created_at']));
+        } else {
+            $record['created_at'] = $now;
+        }
+        
+        $record['updated_at'] = $now;
+        // -------------------------------------------------
+
+        foreach ($record as $k => $v) {
+            if (is_array($v)) {
+                $record[$k] = json_encode($v);
+            }
+        }
+        return $record;
+    }, $records);
+
+    $model::insert($toInsert);
+
+    return 'imported (' . count($toInsert) . ' records)';
+}
+
 }
