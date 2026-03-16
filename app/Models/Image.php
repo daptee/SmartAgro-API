@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class Icon extends Model
+class Image extends Model
 {
     use HasFactory, SoftDeletes;
 
@@ -28,6 +28,6 @@ class Icon extends Model
 
     public function getUrlAttribute()
     {
-        return asset('public/storage/Iconos/' . $this->file_name);
+        return asset('images/news/' . $this->file_name);
     }
 }

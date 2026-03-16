@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Icon;
+use App\Models\Image;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\File;
 
-class IconController extends Controller
+class ImageController extends Controller
 {
     public function index(Request $request)
     {
@@ -16,7 +16,7 @@ class IconController extends Controller
             $perPage = $request->input('per_page', null);
             $search = $request->input('search', '');
 
-            $query = Icon::query();
+            $query = Image::query();
 
             if ($search) {
                 $query->where('name', 'like', "%{$search}%")
@@ -26,22 +26,22 @@ class IconController extends Controller
             $query->orderBy('name', 'asc');
 
             if ($perPage) {
-                $icons = $query->paginate($perPage);
+                $images = $query->paginate($perPage);
             } else {
-                $icons = $query->get();
+                $images = $query->get();
             }
 
             return response()->json([
                 'success' => true,
-                'message' => 'Iconos obtenidos exitosamente',
-                'data' => $icons
+                'message' => 'Imágenes obtenidas exitosamente',
+                'data' => $images
             ], 200);
 
         } catch (Exception $e) {
-            Log::error('Error al obtener iconos: ' . $e->getMessage());
+            Log::error('Error al obtener imágenes: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Error al obtener los iconos',
+                'message' => 'Error al obtener las imágenes',
                 'error' => $e->getMessage()
             ], 500);
         }
@@ -51,44 +51,44 @@ class IconController extends Controller
     {
         try {
             $request->validate([
-                'name' => 'required|string|max:255|unique:icons,name',
-                'icon' => 'required|file|mimes:svg,png,jpg,jpeg,gif|max:2048',
+                'name'        => 'required|string|max:255|unique:images,name',
+                'image'       => 'required|file|mimes:png,jpg,jpeg,gif,webp|max:5120',
                 'description' => 'nullable|string'
             ]);
 
-            if (!$request->hasFile('icon')) {
+            if (!$request->hasFile('image')) {
                 return response()->json([
                     'success' => false,
                     'message' => 'No se ha enviado ningún archivo'
                 ], 400);
             }
 
-            $file = $request->file('icon');
+            $file = $request->file('image');
             $extension = $file->getClientOriginalExtension();
             $fileName = time() . '_' . uniqid() . '.' . $extension;
 
-            $file->move(public_path('storage/Iconos'), $fileName);
-            $publicPath = 'public/storage/Iconos/' . $fileName;
+            $file->move(public_path('images/news'), $fileName);
+            $publicPath = 'images/news/' . $fileName;
 
-            $icon = Icon::create([
-                'name' => $request->name,
-                'file_path' => $publicPath,
-                'file_name' => $fileName,
-                'extension' => $extension,
+            $image = Image::create([
+                'name'        => $request->name,
+                'file_path'   => $publicPath,
+                'file_name'   => $fileName,
+                'extension'   => $extension,
                 'description' => $request->description
             ]);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Icono creado exitosamente',
-                'data' => $icon
+                'message' => 'Imagen creada exitosamente',
+                'data' => $image
             ], 201);
 
         } catch (Exception $e) {
-            Log::error('Error al crear icono: ' . $e->getMessage());
+            Log::error('Error al crear imagen: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Error al crear el icono',
+                'message' => 'Error al crear la imagen',
                 'error' => $e->getMessage()
             ], 500);
         }
@@ -97,19 +97,19 @@ class IconController extends Controller
     public function show($id)
     {
         try {
-            $icon = Icon::findOrFail($id);
+            $image = Image::findOrFail($id);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Icono obtenido exitosamente',
-                'data' => $icon
+                'message' => 'Imagen obtenida exitosamente',
+                'data' => $image
             ], 200);
 
         } catch (Exception $e) {
-            Log::error('Error al obtener icono: ' . $e->getMessage());
+            Log::error('Error al obtener imagen: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Error al obtener el icono',
+                'message' => 'Error al obtener la imagen',
                 'error' => $e->getMessage()
             ], 404);
         }
@@ -118,49 +118,49 @@ class IconController extends Controller
     public function update(Request $request, $id)
     {
         try {
-            $icon = Icon::findOrFail($id);
+            $image = Image::findOrFail($id);
 
             $request->validate([
-                'name' => 'required|string|max:255|unique:icons,name,' . $id,
-                'icon' => 'nullable|file|mimes:svg,png,jpg,jpeg,gif|max:2048',
+                'name'        => 'required|string|max:255|unique:images,name,' . $id,
+                'image'       => 'nullable|file|mimes:png,jpg,jpeg,gif,webp|max:5120',
                 'description' => 'nullable|string'
             ]);
 
-            if ($request->hasFile('icon')) {
-                if ($icon->file_name) {
-                    $oldPath = public_path('storage/Iconos/' . $icon->file_name);
+            if ($request->hasFile('image')) {
+                if ($image->file_name) {
+                    $oldPath = public_path('images/news/' . $image->file_name);
                     if (File::exists($oldPath)) {
                         File::delete($oldPath);
                     }
                 }
 
-                $file = $request->file('icon');
+                $file = $request->file('image');
                 $extension = $file->getClientOriginalExtension();
                 $fileName = time() . '_' . uniqid() . '.' . $extension;
 
-                $file->move(public_path('storage/Iconos'), $fileName);
-                $publicPath = 'public/storage/Iconos/' . $fileName;
+                $file->move(public_path('images/news'), $fileName);
+                $publicPath = 'images/news/' . $fileName;
 
-                $icon->file_path = $publicPath;
-                $icon->file_name = $fileName;
-                $icon->extension = $extension;
+                $image->file_path = $publicPath;
+                $image->file_name = $fileName;
+                $image->extension = $extension;
             }
 
-            $icon->name = $request->name;
-            $icon->description = $request->description;
-            $icon->save();
+            $image->name = $request->name;
+            $image->description = $request->description;
+            $image->save();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Icono actualizado exitosamente',
-                'data' => $icon
+                'message' => 'Imagen actualizada exitosamente',
+                'data' => $image
             ], 200);
 
         } catch (Exception $e) {
-            Log::error('Error al actualizar icono: ' . $e->getMessage());
+            Log::error('Error al actualizar imagen: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Error al actualizar el icono',
+                'message' => 'Error al actualizar la imagen',
                 'error' => $e->getMessage()
             ], 500);
         }
@@ -169,27 +169,27 @@ class IconController extends Controller
     public function destroy($id)
     {
         try {
-            $icon = Icon::findOrFail($id);
+            $image = Image::findOrFail($id);
 
-            if ($icon->file_name) {
-                $path = public_path('storage/Iconos/' . $icon->file_name);
+            if ($image->file_name) {
+                $path = public_path('images/news/' . $image->file_name);
                 if (File::exists($path)) {
                     File::delete($path);
                 }
             }
 
-            $icon->delete();
+            $image->delete();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Icono eliminado exitosamente'
+                'message' => 'Imagen eliminada exitosamente'
             ], 200);
 
         } catch (Exception $e) {
-            Log::error('Error al eliminar icono: ' . $e->getMessage());
+            Log::error('Error al eliminar imagen: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Error al eliminar el icono',
+                'message' => 'Error al eliminar la imagen',
                 'error' => $e->getMessage()
             ], 500);
         }
