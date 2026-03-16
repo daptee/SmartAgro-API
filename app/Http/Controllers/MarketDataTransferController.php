@@ -20,7 +20,6 @@ class MarketDataTransferController extends Controller
 {
     /**
      * Modelos que usan columna 'date' para filtrar por mes/año.
-     * Modelos que usan columnas 'month' y 'year' directas.
      */
     private array $dateModels = [
         'insights'    => Insight::class,
@@ -29,6 +28,9 @@ class MarketDataTransferController extends Controller
         'mag_steer_index' => MagSteerIndex::class,
     ];
 
+    /**
+     * Modelos que usan columnas 'month' y 'year' directas.
+     */
     private array $monthYearModels = [
         'major_crops'                            => MajorCrop::class,
         'main_grain_prices'                      => MainGrainPrice::class,
@@ -39,7 +41,6 @@ class MarketDataTransferController extends Controller
 
     /**
      * GET /export-market-data?month=1&year=2025
-     * Exporta todos los datos de mercado de un mes/año como archivo JSON descargable.
      */
     public function export(Request $request)
     {
@@ -54,7 +55,7 @@ class MarketDataTransferController extends Controller
         try {
             $blocks = [];
 
-            // market_general_controls (solo usa month/year)
+            // market_general_controls
             $blocks['market_general_controls'] = MarketGeneralControl::where('month', $month)
                 ->where('year', $year)
                 ->get()
@@ -102,13 +103,11 @@ class MarketDataTransferController extends Controller
 
     /**
      * POST /import-market-data
-     * Importa datos de mercado desde un archivo JSON exportado previamente.
-     * Solo inserta los bloques que NO tengan datos para ese mes/año.
      */
     public function import(Request $request)
     {
         $request->validate([
-            'file' => 'required|file|mimes:json',
+            'file' => 'required|file',
         ]);
 
         try {
@@ -184,12 +183,21 @@ class MarketDataTransferController extends Controller
             return 'skipped (already exists)';
         }
 
-        // Limpiar campos autogenerados y preparar para inserción masiva
         $toInsert = array_map(function ($record) use ($now) {
+            // Eliminamos el ID para que MySQL genere uno nuevo
             unset($record['id']);
-            $record['created_at'] = $record['created_at'] ?? $now;
+
+            // FIX: Convertimos el formato ISO (con T y Z) al formato estándar de MySQL
+            if (!empty($record['created_at'])) {
+                $record['created_at'] = date('Y-m-d H:i:s', strtotime($record['created_at']));
+            } else {
+                $record['created_at'] = $now;
+            }
+
+            // Forzamos updated_at al momento actual de la importación
             $record['updated_at'] = $now;
-            // Convertir arrays/json a string para insert()
+
+            // Aseguramos que campos nulos o arrays se manejen bien para insert()
             foreach ($record as $k => $v) {
                 if (is_array($v)) {
                     $record[$k] = json_encode($v);

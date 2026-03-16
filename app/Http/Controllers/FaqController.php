@@ -101,36 +101,6 @@ class FaqController extends Controller
         return response(compact("data"));
     }
 
-    // PUT STATUS - Requiere token
-    public function updateStatus(Request $request, $id)
-    {
-        $message = "Error al actualizar estado de FAQ";
-        $action = "Actualizar estado de FAQ";
-        $id_user = Auth::user()->id ?? null;
-        $data = null;
-
-        try {
-            $faq = Faq::findOrFail($id);
-
-            $request->validate([
-                'status' => 'required|exists:status,id',
-            ]);
-
-            $faq->update(['status_id' => $request->status]);
-
-            $data = $faq;
-            $data->load(['status']);
-
-            Audith::new($id_user, $action, $request->all(), 200, compact("data"));
-
-        } catch (Exception $e) {
-            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
-            return response(["message" => $message, "error" => $e->getMessage()], 500);
-        }
-
-        return response(compact("data"));
-    }
-
     // DELETE - Requiere token
     public function destroy(Request $request, $id)
     {
