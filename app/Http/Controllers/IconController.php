@@ -6,7 +6,7 @@ use App\Models\Icon;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\File;
 
 class IconController extends Controller
 {
@@ -67,8 +67,8 @@ class IconController extends Controller
             $extension = $file->getClientOriginalExtension();
             $fileName = time() . '_' . uniqid() . '.' . $extension;
 
-            $path = $file->storeAs('public/iconos', $fileName);
-            $publicPath = 'storage/iconos/' . $fileName;
+            $file->move(public_path('storage/Iconos'), $fileName);
+            $publicPath = 'public/storage/Iconos/' . $fileName;
 
             $icon = Icon::create([
                 'name' => $request->name,
@@ -127,16 +127,19 @@ class IconController extends Controller
             ]);
 
             if ($request->hasFile('icon')) {
-                if ($icon->file_name && Storage::exists('public/iconos/' . $icon->file_name)) {
-                    Storage::delete('public/iconos/' . $icon->file_name);
+                if ($icon->file_name) {
+                    $oldPath = public_path('storage/Iconos/' . $icon->file_name);
+                    if (File::exists($oldPath)) {
+                        File::delete($oldPath);
+                    }
                 }
 
                 $file = $request->file('icon');
                 $extension = $file->getClientOriginalExtension();
                 $fileName = time() . '_' . uniqid() . '.' . $extension;
 
-                $path = $file->storeAs('public/iconos', $fileName);
-                $publicPath = 'storage/iconos/' . $fileName;
+                $file->move(public_path('storage/Iconos'), $fileName);
+                $publicPath = 'public/storage/Iconos/' . $fileName;
 
                 $icon->file_path = $publicPath;
                 $icon->file_name = $fileName;
@@ -168,8 +171,11 @@ class IconController extends Controller
         try {
             $icon = Icon::findOrFail($id);
 
-            if ($icon->file_name && Storage::exists('public/iconos/' . $icon->file_name)) {
-                Storage::delete('public/iconos/' . $icon->file_name);
+            if ($icon->file_name) {
+                $path = public_path('storage/Iconos/' . $icon->file_name);
+                if (File::exists($path)) {
+                    File::delete($path);
+                }
             }
 
             $icon->delete();

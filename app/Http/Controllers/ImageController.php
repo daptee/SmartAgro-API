@@ -6,7 +6,7 @@ use App\Models\Image;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\File;
 
 class ImageController extends Controller
 {
@@ -67,8 +67,8 @@ class ImageController extends Controller
             $extension = $file->getClientOriginalExtension();
             $fileName = time() . '_' . uniqid() . '.' . $extension;
 
-            $file->storeAs('public/imagenes', $fileName);
-            $publicPath = 'storage/imagenes/' . $fileName;
+            $file->move(public_path('images/news'), $fileName);
+            $publicPath = 'images/news/' . $fileName;
 
             $image = Image::create([
                 'name'        => $request->name,
@@ -127,16 +127,19 @@ class ImageController extends Controller
             ]);
 
             if ($request->hasFile('image')) {
-                if ($image->file_name && Storage::exists('public/imagenes/' . $image->file_name)) {
-                    Storage::delete('public/imagenes/' . $image->file_name);
+                if ($image->file_name) {
+                    $oldPath = public_path('images/news/' . $image->file_name);
+                    if (File::exists($oldPath)) {
+                        File::delete($oldPath);
+                    }
                 }
 
                 $file = $request->file('image');
                 $extension = $file->getClientOriginalExtension();
                 $fileName = time() . '_' . uniqid() . '.' . $extension;
 
-                $file->storeAs('public/imagenes', $fileName);
-                $publicPath = 'storage/imagenes/' . $fileName;
+                $file->move(public_path('images/news'), $fileName);
+                $publicPath = 'images/news/' . $fileName;
 
                 $image->file_path = $publicPath;
                 $image->file_name = $fileName;
@@ -168,8 +171,11 @@ class ImageController extends Controller
         try {
             $image = Image::findOrFail($id);
 
-            if ($image->file_name && Storage::exists('public/imagenes/' . $image->file_name)) {
-                Storage::delete('public/imagenes/' . $image->file_name);
+            if ($image->file_name) {
+                $path = public_path('images/news/' . $image->file_name);
+                if (File::exists($path)) {
+                    File::delete($path);
+                }
             }
 
             $image->delete();

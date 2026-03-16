@@ -28,6 +28,6 @@ class Icon extends Model
 
     public function getUrlAttribute()
     {
-        return asset($this->file_path);
+        return asset('public/storage/Iconos/' . $this->file_name);
     }
 }
