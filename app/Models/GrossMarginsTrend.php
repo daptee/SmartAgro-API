@@ -16,7 +16,6 @@ class GrossMarginsTrend extends Model
 
     protected $fillable = [
         'id_plan',
-        'date',
         'region',
         'month',
         'year',

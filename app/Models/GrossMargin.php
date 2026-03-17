@@ -16,7 +16,6 @@ class GrossMargin extends Model
 
     protected $fillable = [
         'id_plan',
-        'date',
         'region',
         'data',
         'month',

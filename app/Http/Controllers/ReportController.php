@@ -203,10 +203,10 @@ class ReportController extends Controller
                 'mag_lease_index' => $mag_lease_with_plan,
                 'mag_steer_index' => $mag_steer_with_plan,
                 'insights' => Insight::where($filters)->with('plan')->get(),
-                'price_main_active_ingredients_producers' => PriceMainActiveIngredientsProducer::where($filters)->with(['plan', 'segment'])->get(),
-                'producer_segment_prices' => ProducerSegmentPrice::where($filters)->with('plan')->get(),
-                'rainfall_records_provinces' => RainfallRecordProvince::where($filters)->with('plan')->get(),
-                'main_grain_prices' => MainGrainPrice::where($filters)->with('plan')->get(),
+                'price_main_active_ingredients_producers' => PriceMainActiveIngredientsProducer::where($majorCropsFilters)->with(['plan', 'segment'])->get(),
+                'producer_segment_prices' => ProducerSegmentPrice::where($majorCropsFilters)->with('plan')->get(),
+                'rainfall_records_provinces' => RainfallRecordProvince::where($majorCropsFilters)->with('plan')->get(),
+                'main_grain_prices' => MainGrainPrice::where($majorCropsFilters)->with('plan')->get(),
             ];
 
             // Verificar si todos los arrays están vacíos
