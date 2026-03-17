@@ -187,7 +187,15 @@ class MarketDataTransferController extends Controller
         // Limpiar campos autogenerados y preparar para inserción masiva
         $toInsert = array_map(function ($record) use ($now) {
             unset($record['id']);
-            $record['created_at'] = $record['created_at'] ?? $now;
+
+            // FIX: Convertimos el formato ISO (con T y Z) al formato estándar de MySQL
+            if (!empty($record['created_at'])) {
+                $record['created_at'] = date('Y-m-d H:i:s', strtotime($record['created_at']));
+            } else {
+                $record['created_at'] = $now;
+            }
+
+            // Forzamos updated_at al momento actual de la importación
             $record['updated_at'] = $now;
             // Convertir arrays/json a string para insert()
             foreach ($record as $k => $v) {
