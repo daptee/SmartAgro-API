@@ -171,6 +171,7 @@ Route::group(['middleware' => ['token']], function ($router) {
     Route::controller(ImageController::class)->group(function () {
         Route::get('images', 'index');
         Route::get('images/{id}', 'show');
+        Route::post('images/sync-from-disk', 'syncFromDisk');
     });
 });
 
