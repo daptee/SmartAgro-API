@@ -15,7 +15,6 @@ class ProducerSegmentPrice extends Model
 
     protected $fillable = [
         'id_plan',
-        'date',
         'data',
         'month',
         'year',

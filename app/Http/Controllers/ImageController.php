@@ -10,6 +10,70 @@ use Illuminate\Support\Facades\File;
 
 class ImageController extends Controller
 {
+    public function syncFromDisk()
+    {
+        try {
+            $baseDir = public_path('images');
+            $inserted = [];
+            $skipped = [];
+
+            if (!File::exists($baseDir)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El directorio public/images no existe'
+                ], 404);
+            }
+
+            $folders = File::directories($baseDir);
+            $folders[] = $baseDir;
+
+            foreach ($folders as $folder) {
+                $folderName = basename($folder);
+                $files = File::files($folder);
+
+                foreach ($files as $file) {
+                    $fileName = $file->getFilename();
+                    $extension = $file->getExtension();
+                    $relativePath = 'images/' . ($folder === $baseDir ? '' : $folderName . '/') . $fileName;
+                    $nameWithoutExt = pathinfo($fileName, PATHINFO_FILENAME);
+
+                    if (Image::where('file_name', $fileName)->exists()) {
+                        $skipped[] = $relativePath;
+                        continue;
+                    }
+
+                    Image::create([
+                        'name'      => $nameWithoutExt,
+                        'file_path' => $relativePath,
+                        'file_name' => $fileName,
+                        'extension' => $extension,
+                    ]);
+
+                    $inserted[] = $relativePath;
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Sincronización completada',
+                'data' => [
+                    'inserted'       => count($inserted),
+                    'skipped'        => count($skipped),
+                    'files_inserted' => $inserted,
+                    'files_skipped'  => $skipped,
+                ]
+            ], 200);
+
+        } catch (Exception $e) {
+            Log::error('Error al sincronizar imágenes: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al sincronizar imágenes',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function index(Request $request)
     {
         try {

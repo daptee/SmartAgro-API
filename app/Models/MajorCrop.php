@@ -15,7 +15,6 @@ class MajorCrop extends Model
         'month',
         'year',
         'data',
-        'date',
         'icon',
         'id_plan',
         'status_id',

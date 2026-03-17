@@ -96,7 +96,6 @@ class ReportController extends Controller
                 return response()->json($response, 422);
             }
 
-            // Filtro para modelos con columna 'date'
             $filters = function ($query) use ($id_plan, $month, $year) {
                 $query->where('status_id', 1)
                     ->whereYear('date', $year)
@@ -106,8 +105,7 @@ class ReportController extends Controller
                     });
             };
 
-            // Filtro para modelos con columnas 'year' y 'month' (sin columna 'date')
-            $filtersYearMonth = function ($query) use ($id_plan, $month, $year) {
+            $majorCropsFilters = function ($query) use ($id_plan, $month, $year) {
                 $query->where('status_id', 1)
                     ->where('year', $year)
                     ->where('month', $month)
@@ -198,15 +196,6 @@ class ReportController extends Controller
                     ->get();
             }
 
-            $majorCropsFilters = function ($query) use ($id_plan, $month, $year) {
-                $query->where('status_id', 1)
-                    ->where('year', $year)
-                    ->where('month', $month)
-                    ->where(function ($q) use ($id_plan) {
-                        $q->whereNull('id_plan')->orWhere('id_plan', '<=', $id_plan);
-                    });
-            };
-
             // Realizar las consultas a todas las tablas
             $data = [
                 'news' => News::where($filters)->with('plan')->get(),
@@ -214,10 +203,10 @@ class ReportController extends Controller
                 'mag_lease_index' => $mag_lease_with_plan,
                 'mag_steer_index' => $mag_steer_with_plan,
                 'insights' => Insight::where($filters)->with('plan')->get(),
-                'price_main_active_ingredients_producers' => PriceMainActiveIngredientsProducer::where($filtersYearMonth)->with(['plan', 'segment'])->get(),
-                'producer_segment_prices' => ProducerSegmentPrice::where($filtersYearMonth)->with('plan')->get(),
-                'rainfall_records_provinces' => RainfallRecordProvince::where($filtersYearMonth)->with('plan')->get(),
-                'main_grain_prices' => MainGrainPrice::where($filtersYearMonth)->with('plan')->get(),
+                'price_main_active_ingredients_producers' => PriceMainActiveIngredientsProducer::where($majorCropsFilters)->with(['plan', 'segment'])->get(),
+                'producer_segment_prices' => ProducerSegmentPrice::where($majorCropsFilters)->with('plan')->get(),
+                'rainfall_records_provinces' => RainfallRecordProvince::where($majorCropsFilters)->with('plan')->get(),
+                'main_grain_prices' => MainGrainPrice::where($majorCropsFilters)->with('plan')->get(),
             ];
 
             // Verificar si todos los arrays están vacíos
