@@ -6,21 +6,24 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class UserProfile extends Model
+class Product extends Model
 {
     use HasFactory, SoftDeletes;
 
-    protected $table = "users_profiles";
-
-    protected $fillable = ['name', 'status_id'];
+    protected $fillable = [
+        'name',
+        'description',
+        'id_classification',
+        'status_id',
+    ];
 
     public function status()
     {
         return $this->belongsTo(Status::class, 'status_id');
     }
 
-    public function users()
+    public function classification()
     {
-        return $this->hasMany(User::class, 'id_user_profile');
+        return $this->belongsTo(Classification::class, 'id_classification');
     }
 }
