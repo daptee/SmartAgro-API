@@ -36,7 +36,9 @@ class User extends Authenticatable implements JWTSubject
         'referred_by',
         'id_plan',
         'is_debtor',
-        'grace_period_used'
+        'grace_period_used',
+        'event_id',
+        'email_confirmation'
     ];
 
     /**

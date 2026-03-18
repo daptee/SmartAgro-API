@@ -24,3 +24,7 @@ ADD COLUMN is_debtor TINYINT(1) NOT NULL DEFAULT 0;
 
 ALTER TABLE users
 ADD COLUMN grace_period_used TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'Indica si el usuario ya usó su período de gracia (1 vez por usuario)';
+
+ALTER TABLE users
+ADD COLUMN event_id BIGINT NULL,
+ADD CONSTRAINT fk_users_event FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE SET NULL;

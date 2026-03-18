@@ -11,6 +11,8 @@ use App\Http\Controllers\CompanyPlanController;
 use App\Http\Controllers\CompanyPlanPublicitiesReportController;
 use App\Http\Controllers\CropController;
 use App\Http\Controllers\ActiveIngredientController;
+use App\Http\Controllers\EventController;
+use App\Http\Controllers\EventImportController;
 use App\Http\Controllers\FaqController;
 use App\Http\Controllers\IconController;
 use App\Http\Controllers\ImageController;
@@ -184,6 +186,17 @@ Route::prefix('admin')
         Route::controller(StatusController::class)->group(function () {
             Route::get('status', 'index');
         });
+
+        // Events
+        Route::controller(EventController::class)->group(function () {
+            Route::get('events', 'index');
+            Route::post('events', 'store');
+            Route::put('events/{id}', 'update');
+            Route::delete('events/{id}', 'destroy');
+        });
+
+        // Event Import
+        Route::post('events/import-users', [EventImportController::class, 'import']);
 
         // reports
         Route::controller(ReportController::class)->group(function () {
