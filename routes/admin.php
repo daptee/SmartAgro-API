@@ -11,6 +11,8 @@ use App\Http\Controllers\CompanyPlanController;
 use App\Http\Controllers\CompanyPlanPublicitiesReportController;
 use App\Http\Controllers\CropController;
 use App\Http\Controllers\ActiveIngredientController;
+use App\Http\Controllers\EventController;
+use App\Http\Controllers\EventImportController;
 use App\Http\Controllers\FaqController;
 use App\Http\Controllers\IconController;
 use App\Http\Controllers\ImageController;
@@ -26,6 +28,7 @@ use App\Http\Controllers\PlanController;
 use App\Http\Controllers\PriceMainActiveIngredientsProducerController;
 use App\Http\Controllers\GrossMarginController;
 use App\Http\Controllers\GrossMarginsTrendController;
+use App\Http\Controllers\PitIndicatorController;
 use App\Http\Controllers\ProducerSegmentPriceController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\RainfallRecordController;
@@ -184,6 +187,17 @@ Route::prefix('admin')
             Route::get('status', 'index');
         });
 
+        // Events
+        Route::controller(EventController::class)->group(function () {
+            Route::get('events', 'index');
+            Route::post('events', 'store');
+            Route::put('events/{id}', 'update');
+            Route::delete('events/{id}', 'destroy');
+        });
+
+        // Event Import
+        Route::post('events/import-users', [EventImportController::class, 'import']);
+
         // reports
         Route::controller(ReportController::class)->group(function () {
             Route::get('status-report', 'statusReport');
@@ -270,6 +284,15 @@ Route::prefix('admin')
             Route::put('producer-segment-prices/{id}', 'update');
             Route::put('producer-segment-prices/{id}/status', 'changeStatus');
             Route::delete('producer-segment-prices/{id}', 'destroy');
+        });
+
+        // PIT Indicators (Indicadores PIT)
+        Route::controller(PitIndicatorController::class)->group(function () {
+            Route::get('pit-indicators', 'index');
+            Route::post('pit-indicators', 'store');
+            Route::put('pit-indicators/{id}', 'update');
+            Route::put('pit-indicators/{id}/status', 'changeStatus');
+            Route::delete('pit-indicators/{id}', 'destroy');
         });
 
         // Gross Margins (Márgenes Brutos)
