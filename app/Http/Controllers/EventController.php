@@ -24,7 +24,7 @@ class EventController extends Controller
             $search = $request->get('search', '');
             $date = $request->get('date', null);
 
-            $query = Event::with(['users', 'province', 'locality']);
+            $query = Event::with(['users', 'province', 'locality'])->withCount('users');
 
             if ($search) {
                 $query->where('name', 'like', '%' . $search . '%');
