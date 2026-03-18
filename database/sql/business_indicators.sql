@@ -63,3 +63,34 @@ SET status_id = 1
 WHERE id > 0;
 
 SET SQL_SAFE_UPDATES = 1;
+
+-- ============================================================
+-- pit_indicators
+-- ============================================================
+-- Las columnas "date" e "icon" pasan a formar parte del JSON (data).
+-- Se agregan "month", "year", "status_id", "id_user" y "deleted_at".
+-- ============================================================
+
+ALTER TABLE pit_indicators
+ADD COLUMN month      INT NULL AFTER data,
+ADD COLUMN year       INT NULL AFTER month,
+ADD COLUMN status_id  INT NULL AFTER id_plan,
+ADD COLUMN id_user    INT NULL AFTER status_id,
+ADD COLUMN deleted_at TIMESTAMP NULL AFTER updated_at,
+ADD CONSTRAINT fk_pit_indicators_status
+    FOREIGN KEY (status_id) REFERENCES statuses_reports(id);
+
+SET SQL_SAFE_UPDATES = 0;
+
+-- Poblar month y year desde date
+UPDATE pit_indicators
+SET month = MONTH(date),
+    year  = YEAR(date)
+WHERE id > 0 AND date IS NOT NULL;
+
+-- Todos los registros existentes quedan como publicados
+UPDATE pit_indicators
+SET status_id = 1
+WHERE id > 0;
+
+SET SQL_SAFE_UPDATES = 1;

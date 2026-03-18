@@ -26,6 +26,7 @@ use App\Http\Controllers\PlanController;
 use App\Http\Controllers\PriceMainActiveIngredientsProducerController;
 use App\Http\Controllers\GrossMarginController;
 use App\Http\Controllers\GrossMarginsTrendController;
+use App\Http\Controllers\PitIndicatorController;
 use App\Http\Controllers\ProducerSegmentPriceController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\RainfallRecordController;
@@ -270,6 +271,15 @@ Route::prefix('admin')
             Route::put('producer-segment-prices/{id}', 'update');
             Route::put('producer-segment-prices/{id}/status', 'changeStatus');
             Route::delete('producer-segment-prices/{id}', 'destroy');
+        });
+
+        // PIT Indicators (Indicadores PIT)
+        Route::controller(PitIndicatorController::class)->group(function () {
+            Route::get('pit-indicators', 'index');
+            Route::post('pit-indicators', 'store');
+            Route::put('pit-indicators/{id}', 'update');
+            Route::put('pit-indicators/{id}/status', 'changeStatus');
+            Route::delete('pit-indicators/{id}', 'destroy');
         });
 
         // Gross Margins (Márgenes Brutos)
