@@ -190,6 +190,7 @@ Route::prefix('admin')
         // Events
         Route::controller(EventController::class)->group(function () {
             Route::get('events', 'index');
+            Route::get('events/{id}', 'show');
             Route::post('events', 'store');
             Route::put('events/{id}', 'update');
             Route::delete('events/{id}', 'destroy');

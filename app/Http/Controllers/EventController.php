@@ -24,7 +24,7 @@ class EventController extends Controller
             $search = $request->get('search', '');
             $date = $request->get('date', null);
 
-            $query = Event::with(['users', 'province', 'locality'])->withCount('users');
+            $query = Event::with(['province', 'locality'])->withCount('users');
 
             if ($search) {
                 $query->where('name', 'like', '%' . $search . '%');
@@ -58,6 +58,28 @@ class EventController extends Controller
 
         if ($meta) {
             return response(compact("data", "meta"));
+        }
+
+        return response(compact("data"));
+    }
+
+    // GET BY ID - Detalle de evento con todos sus usuarios
+    public function show(Request $request, $id)
+    {
+        $message = "Error al obtener evento";
+        $action = "Detalle de evento";
+        $data = null;
+
+        try {
+            $data = Event::with(['users', 'province', 'locality'])
+                ->withCount('users')
+                ->findOrFail($id);
+
+            Audith::new(null, $action, ['event_id' => $id], 200, compact("data"));
+
+        } catch (Exception $e) {
+            Audith::new(null, $action, ['event_id' => $id], 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage()], 500);
         }
 
         return response(compact("data"));
