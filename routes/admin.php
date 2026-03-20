@@ -31,6 +31,7 @@ use App\Http\Controllers\GrossMarginController;
 use App\Http\Controllers\GrossMarginsTrendController;
 use App\Http\Controllers\LivestockInputOutputRatioController;
 use App\Http\Controllers\PitIndicatorController;
+use App\Http\Controllers\ProductPriceController;
 use App\Http\Controllers\ProducerSegmentPriceController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\RainfallRecordController;
@@ -332,6 +333,15 @@ Route::prefix('admin')
             Route::put('gross-margins-trend/{id}', 'update');
             Route::put('gross-margins-trend/{id}/status', 'changeStatus');
             Route::delete('gross-margins-trend/{id}', 'destroy');
+        });
+
+        // Product Prices (Precios de productos)
+        Route::controller(ProductPriceController::class)->group(function () {
+            Route::get('product-prices', 'index');
+            Route::post('product-prices', 'store');
+            Route::put('product-prices/{id}', 'update');
+            Route::put('product-prices/{id}/status', 'changeStatus');
+            Route::delete('product-prices/{id}', 'destroy');
         });
 
         // Market Data Transfer (Exportar/Importar datos de mercado entre entornos)

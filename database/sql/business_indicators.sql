@@ -162,3 +162,35 @@ SET status_id = 1
 WHERE id > 0;
 
 SET SQL_SAFE_UPDATES = 1;
+
+-- ============================================================
+-- products_prices
+-- ============================================================
+-- Se agregan columnas "month", "year", "status_id", "id_user"
+-- y "deleted_at" a la tabla products_prices.
+-- La columna "date" pasa a formar parte del JSON (data).
+-- ============================================================
+
+ALTER TABLE products_prices
+ADD COLUMN month      INT NULL AFTER data,
+ADD COLUMN year       INT NULL AFTER month,
+ADD COLUMN status_id  INT NULL AFTER id_plan,
+ADD COLUMN id_user    INT NULL AFTER status_id,
+ADD COLUMN deleted_at TIMESTAMP NULL AFTER updated_at,
+ADD CONSTRAINT fk_products_prices_status
+    FOREIGN KEY (status_id) REFERENCES statuses_reports(id);
+
+SET SQL_SAFE_UPDATES = 0;
+
+-- Poblar month y year desde date
+UPDATE products_prices
+SET month = MONTH(date),
+    year  = YEAR(date)
+WHERE id > 0 AND date IS NOT NULL;
+
+-- Todos los registros existentes quedan como publicados
+UPDATE products_prices
+SET status_id = 1
+WHERE id > 0;
+
+SET SQL_SAFE_UPDATES = 1;
