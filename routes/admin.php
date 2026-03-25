@@ -26,9 +26,12 @@ use App\Http\Controllers\InsightController;
 use App\Http\Controllers\MainGrainPriceController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\PriceMainActiveIngredientsProducerController;
+use App\Http\Controllers\AgriculturalInputOutputRelationshipController;
 use App\Http\Controllers\GrossMarginController;
 use App\Http\Controllers\GrossMarginsTrendController;
+use App\Http\Controllers\LivestockInputOutputRatioController;
 use App\Http\Controllers\PitIndicatorController;
+use App\Http\Controllers\ProductPriceController;
 use App\Http\Controllers\ProducerSegmentPriceController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\RainfallRecordController;
@@ -190,6 +193,7 @@ Route::prefix('admin')
         // Events
         Route::controller(EventController::class)->group(function () {
             Route::get('events', 'index');
+            Route::get('events/{id}', 'show');
             Route::post('events', 'store');
             Route::put('events/{id}', 'update');
             Route::delete('events/{id}', 'destroy');
@@ -286,6 +290,24 @@ Route::prefix('admin')
             Route::delete('producer-segment-prices/{id}', 'destroy');
         });
 
+        // Livestock Input/Output Ratios (Relaciones insumo/producto ganaderas)
+        Route::controller(LivestockInputOutputRatioController::class)->group(function () {
+            Route::get('livestock-input-output-ratios', 'index');
+            Route::post('livestock-input-output-ratios', 'store');
+            Route::put('livestock-input-output-ratios/{id}', 'update');
+            Route::put('livestock-input-output-ratios/{id}/status', 'changeStatus');
+            Route::delete('livestock-input-output-ratios/{id}', 'destroy');
+        });
+
+        // Agricultural Input/Output Relationships (Relaciones insumo/producto agrícolas)
+        Route::controller(AgriculturalInputOutputRelationshipController::class)->group(function () {
+            Route::get('agricultural-input-output-relationships', 'index');
+            Route::post('agricultural-input-output-relationships', 'store');
+            Route::put('agricultural-input-output-relationships/{id}', 'update');
+            Route::put('agricultural-input-output-relationships/{id}/status', 'changeStatus');
+            Route::delete('agricultural-input-output-relationships/{id}', 'destroy');
+        });
+
         // PIT Indicators (Indicadores PIT)
         Route::controller(PitIndicatorController::class)->group(function () {
             Route::get('pit-indicators', 'index');
@@ -311,6 +333,15 @@ Route::prefix('admin')
             Route::put('gross-margins-trend/{id}', 'update');
             Route::put('gross-margins-trend/{id}/status', 'changeStatus');
             Route::delete('gross-margins-trend/{id}', 'destroy');
+        });
+
+        // Product Prices (Precios de productos)
+        Route::controller(ProductPriceController::class)->group(function () {
+            Route::get('product-prices', 'index');
+            Route::post('product-prices', 'store');
+            Route::put('product-prices/{id}', 'update');
+            Route::put('product-prices/{id}/status', 'changeStatus');
+            Route::delete('product-prices/{id}', 'destroy');
         });
 
         // Market Data Transfer (Exportar/Importar datos de mercado entre entornos)

@@ -94,3 +94,103 @@ SET status_id = 1
 WHERE id > 0;
 
 SET SQL_SAFE_UPDATES = 1;
+
+-- ============================================================
+-- livestock_input_output_ratio
+-- ============================================================
+-- La columna "month" actual almacena "YYYY-MM" (mes y año juntos).
+-- Se renombra a "month_label" para conservar el dato histórico
+-- y se agregan las nuevas columnas "month" (INT) y "year" (INT).
+-- La columna "date" pasa a formar parte del JSON (data).
+-- ============================================================
+
+ALTER TABLE livestock_input_output_ratio
+CHANGE COLUMN month month_label VARCHAR(7) NULL,
+ADD COLUMN month      INT NULL AFTER month_label,
+ADD COLUMN year       INT NULL AFTER month,
+ADD COLUMN status_id  INT NULL AFTER id_plan,
+ADD COLUMN id_user    INT NULL AFTER status_id,
+ADD COLUMN deleted_at TIMESTAMP NULL AFTER updated_at,
+ADD CONSTRAINT fk_livestock_input_output_ratio_status
+    FOREIGN KEY (status_id) REFERENCES statuses_reports(id);
+
+SET SQL_SAFE_UPDATES = 0;
+
+-- Poblar month y year desde month_label (formato "YYYY-MM")
+UPDATE livestock_input_output_ratio
+SET month = CAST(SUBSTRING(month_label, 6, 2) AS UNSIGNED),
+    year  = CAST(SUBSTRING(month_label, 1, 4) AS UNSIGNED)
+WHERE id > 0 AND month_label IS NOT NULL;
+
+-- Todos los registros existentes quedan como publicados
+UPDATE livestock_input_output_ratio
+SET status_id = 1
+WHERE id > 0;
+
+SET SQL_SAFE_UPDATES = 1;
+
+-- ============================================================
+-- agricultural_input_output_relationship
+-- ============================================================
+-- La columna "month" actual almacena "YYYY-MM" (mes y año juntos).
+-- Se renombra a "month_label" para conservar el dato histórico
+-- y se agregan las nuevas columnas "month" (INT) y "year" (INT).
+-- La columna "date" pasa a formar parte del JSON (data).
+-- ============================================================
+
+ALTER TABLE agricultural_input_output_relationship
+CHANGE COLUMN month month_label VARCHAR(7) NULL,
+ADD COLUMN month      INT NULL AFTER month_label,
+ADD COLUMN year       INT NULL AFTER month,
+ADD COLUMN status_id  INT NULL AFTER id_plan,
+ADD COLUMN id_user    INT NULL AFTER status_id,
+ADD COLUMN deleted_at TIMESTAMP NULL AFTER updated_at,
+ADD CONSTRAINT fk_agricultural_input_output_relationship_status
+    FOREIGN KEY (status_id) REFERENCES statuses_reports(id);
+
+SET SQL_SAFE_UPDATES = 0;
+
+-- Poblar month y year desde month_label (formato "YYYY-MM")
+UPDATE agricultural_input_output_relationship
+SET month = CAST(SUBSTRING(month_label, 6, 2) AS UNSIGNED),
+    year  = CAST(SUBSTRING(month_label, 1, 4) AS UNSIGNED)
+WHERE id > 0 AND month_label IS NOT NULL;
+
+-- Todos los registros existentes quedan como publicados
+UPDATE agricultural_input_output_relationship
+SET status_id = 1
+WHERE id > 0;
+
+SET SQL_SAFE_UPDATES = 1;
+
+-- ============================================================
+-- products_prices
+-- ============================================================
+-- Se agregan columnas "month", "year", "status_id", "id_user"
+-- y "deleted_at" a la tabla products_prices.
+-- La columna "date" pasa a formar parte del JSON (data).
+-- ============================================================
+
+ALTER TABLE products_prices
+ADD COLUMN month      INT NULL AFTER data,
+ADD COLUMN year       INT NULL AFTER month,
+ADD COLUMN status_id  INT NULL AFTER id_plan,
+ADD COLUMN id_user    INT NULL AFTER status_id,
+ADD COLUMN deleted_at TIMESTAMP NULL AFTER updated_at,
+ADD CONSTRAINT fk_products_prices_status
+    FOREIGN KEY (status_id) REFERENCES statuses_reports(id);
+
+SET SQL_SAFE_UPDATES = 0;
+
+-- Poblar month y year desde date
+UPDATE products_prices
+SET month = MONTH(date),
+    year  = YEAR(date)
+WHERE id > 0 AND date IS NOT NULL;
+
+-- Todos los registros existentes quedan como publicados
+UPDATE products_prices
+SET status_id = 1
+WHERE id > 0;
+
+SET SQL_SAFE_UPDATES = 1;

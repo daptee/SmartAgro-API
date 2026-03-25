@@ -51,10 +51,11 @@ class UserController extends Controller
             $userProfileId = $request->input('id_user_profile');
             $statusId = $request->input('id_status');
             $referredBy = $request->input('referred_by'); // Filtro de usuario referidor
+            $eventId = $request->input('event_id');
             $perPage = $request->input('per_page');
 
             // Query base
-            $query = User::with(['status', 'plan', 'locality'])
+            $query = User::with(['status', 'plan', 'locality', 'event'])
                 ->orderBy('name', 'asc');
 
             // Buscador
@@ -92,6 +93,9 @@ class UserController extends Controller
             }
             if (!empty($referredBy)) {
                 $query->where('referred_by', $referredBy);
+            }
+            if (!empty($eventId)) {
+                $query->where('event_id', $eventId);
             }
 
             // Paginado o listado completo
