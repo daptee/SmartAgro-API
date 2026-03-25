@@ -4,28 +4,6 @@ use Illuminate\Http\Request;
 
 define('LARAVEL_START', microtime(true));
 
-// ============================================================================
-// CORS Headers - Agregar a todas las respuestas
-// ============================================================================
-$allowed_origin = 'https://app.smartagro.io';
-$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-
-if ($origin === $allowed_origin) {
-    header('Access-Control-Allow-Origin: ' . $allowed_origin);
-    header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD');
-    header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept, Origin, X-API-KEY, Accept-Language, Content-Language');
-    header('Access-Control-Expose-Headers: Content-Length, Content-Type, X-JSON-Response, Authorization');
-    header('Access-Control-Max-Age: 86400');
-    header('Access-Control-Allow-Credentials: true');
-}
-
-// Responder a peticiones OPTIONS
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit;
-}
-// ============================================================================
-
 require __DIR__.'/../vendor/autoload.php';
 
 // Bootstrap Laravel and handle the request...
