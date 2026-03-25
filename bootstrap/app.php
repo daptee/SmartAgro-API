@@ -30,16 +30,20 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions) {
         // Loguear TODAS las excepciones
         $exceptions->reportable(function (Throwable $e) {
-            Log::error('Exception caught', [
-                'message' => $e->getMessage(),
-                'code' => $e->getCode(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString(),
-                'url' => request()->fullUrl(),
-                'method' => request()->method(),
-                'ip' => request()->ip(),
-            ]);
+            try {
+                Log::error('Exception caught', [
+                    'message' => $e->getMessage(),
+                    'code' => $e->getCode(),
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
+                    'trace' => $e->getTraceAsString(),
+                    'url' => request()->fullUrl(),
+                    'method' => request()->method(),
+                    'ip' => request()->ip(),
+                ]);
+            } catch (Throwable) {
+                // Si el logger falla (ej: caché corrupto), ignorar silenciosamente
+            }
         });
 
         $exceptions->render(function (AuthenticationException $e, Request $request) {
