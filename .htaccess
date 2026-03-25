@@ -1,29 +1,6 @@
 RewriteEngine On
 RewriteBase /
 
-# Responder a peticiones OPTIONS (preflight) PRIMERO
-RewriteCond %{REQUEST_METHOD} OPTIONS
-RewriteRule ^(.*)$ - [L]
-
-<IfModule mod_headers.c>
-    # CORS Headers para TODO (aplica a /api/*, /admin/*, etc)
-    SetEnvIf Origin "^https?://(app\.smartagro\.io)$" CORS_MATCH=1
-    
-    Header set Access-Control-Allow-Origin "https://app.smartagro.io" env=CORS_MATCH
-    Header set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD" env=CORS_MATCH
-    Header set Access-Control-Allow-Headers "*, Content-Type, Authorization, X-Requested-With, Accept, Origin, X-API-KEY" env=CORS_MATCH
-    Header set Access-Control-Expose-Headers "Content-Length, Content-Type, X-JSON-Response" env=CORS_MATCH
-    Header set Access-Control-Max-Age "86400" env=CORS_MATCH
-    Header set Access-Control-Allow-Credentials "true" env=CORS_MATCH
-    
-    # Headers para imágenes
-    <FilesMatch "\.(jpg|jpeg|png|gif|webp|svg|bmp)$">
-        Header set Access-Control-Allow-Origin "*"
-        Header set Access-Control-Allow-Methods "GET"
-        Header set Access-Control-Allow-Headers "Content-Type"
-    </FilesMatch>
-</IfModule>
-
 # Redirect a /public/
 RewriteCond %{REQUEST_URI} !^/public/
 RewriteRule ^(.*)$ /public/$1 [L]

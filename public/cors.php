@@ -1,15 +1,16 @@
 <?php
+/**
+ * Manejador CORS - Intercepta peticiones OPTIONS y agrega headers CORS
+ * Este archivo se ejecuta desde .htaccess para manejar peticiones preflight
+ */
 
-use Illuminate\Http\Request;
-
-define('LARAVEL_START', microtime(true));
-
-// ============================================================================
-// CORS Headers - Agregar a todas las respuestas
-// ============================================================================
+// Origen permitido
 $allowed_origin = 'https://app.smartagro.io';
+
+// Obtener el origen de la petición
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 
+// Verificar si el origen es permitido
 if ($origin === $allowed_origin) {
     header('Access-Control-Allow-Origin: ' . $allowed_origin);
     header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD');
@@ -19,15 +20,13 @@ if ($origin === $allowed_origin) {
     header('Access-Control-Allow-Credentials: true');
 }
 
-// Responder a peticiones OPTIONS
+// Si es una petición OPTIONS, responde 200 y termina
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit;
 }
-// ============================================================================
 
-require __DIR__.'/../vendor/autoload.php';
+// Para cualquier otra petición, también agregag los headers y continúa normalmente
+exit;
+?>
 
-// Bootstrap Laravel and handle the request...
-(require_once __DIR__.'/../bootstrap/app.php')
-    ->handleRequest(Request::capture());
