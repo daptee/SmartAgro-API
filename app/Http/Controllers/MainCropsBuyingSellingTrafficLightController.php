@@ -2,20 +2,20 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\PitIndicator;
+use App\Models\MainCropsBuyingSellingTrafficLight;
 use App\Models\Audith;
 use App\Http\Controllers\BusinessIndicatorControlController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Exception;
 
-class PitIndicatorController extends Controller
+class MainCropsBuyingSellingTrafficLightController extends Controller
 {
     // GET ALL
     public function index(Request $request)
     {
-        $message = "Error al obtener indicadores PIT";
-        $action = "Listado de indicadores PIT";
+        $message = "Error al obtener semáforo de compra/venta de cultivos";
+        $action = "Listado de semáforo de compra/venta de cultivos";
         $data = null;
         $meta = null;
 
@@ -23,7 +23,7 @@ class PitIndicatorController extends Controller
             $perPage = $request->query('per_page');
             $page = $request->query('page', 1);
 
-            $query = PitIndicator::query();
+            $query = MainCropsBuyingSellingTrafficLight::query();
 
             if ($request->has('month') && $request->month) {
                 $query->where('month', $request->month);
@@ -69,8 +69,8 @@ class PitIndicatorController extends Controller
     // POST
     public function store(Request $request)
     {
-        $message = "Error al crear indicador PIT";
-        $action = "Crear indicador PIT";
+        $message = "Error al crear semáforo de compra/venta de cultivos";
+        $action = "Crear semáforo de compra/venta de cultivos";
         $id_user = Auth::user()->id ?? null;
         $data = null;
 
@@ -83,7 +83,7 @@ class PitIndicatorController extends Controller
                 'data'      => 'required|array',
             ]);
 
-            $data = PitIndicator::create([
+            $data = MainCropsBuyingSellingTrafficLight::create([
                 'month'     => $request->month,
                 'year'      => $request->year,
                 'status_id' => $request->status_id,
@@ -93,8 +93,7 @@ class PitIndicatorController extends Controller
             ]);
 
             $data->load(['plan', 'status', 'user']);
-
-            BusinessIndicatorControlController::syncBlockStatus($request->month, $request->year, 'pit_indicators', $request->status_id == 1);
+            BusinessIndicatorControlController::syncBlockStatus($request->month, $request->year, 'main_crops_buying_selling_traffic_light', $request->status_id == 1);
 
             Audith::new($id_user, $action, $request->all(), 201, compact("data"));
 
@@ -109,13 +108,13 @@ class PitIndicatorController extends Controller
     // PUT
     public function update(Request $request, $id)
     {
-        $message = "Error al actualizar indicador PIT";
-        $action = "Actualizar indicador PIT";
+        $message = "Error al actualizar semáforo de compra/venta de cultivos";
+        $action = "Actualizar semáforo de compra/venta de cultivos";
         $id_user = Auth::user()->id ?? null;
         $data = null;
 
         try {
-            $record = PitIndicator::findOrFail($id);
+            $record = MainCropsBuyingSellingTrafficLight::findOrFail($id);
 
             $request->validate([
                 'month'     => 'required|integer|min:1|max:12',
@@ -135,8 +134,7 @@ class PitIndicatorController extends Controller
             ]);
 
             $data = $record->fresh(['plan', 'status', 'user']);
-
-            BusinessIndicatorControlController::syncBlockStatus($request->month, $request->year, 'pit_indicators', $request->status_id == 1);
+            BusinessIndicatorControlController::syncBlockStatus($request->month, $request->year, 'main_crops_buying_selling_traffic_light', $request->status_id == 1);
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
 
@@ -151,13 +149,13 @@ class PitIndicatorController extends Controller
     // PUT STATUS
     public function changeStatus(Request $request, $id)
     {
-        $message = "Error al cambiar estado de indicador PIT";
-        $action = "Cambiar estado de indicador PIT";
+        $message = "Error al cambiar estado de semáforo de compra/venta de cultivos";
+        $action = "Cambiar estado de semáforo de compra/venta de cultivos";
         $id_user = Auth::user()->id ?? null;
         $data = null;
 
         try {
-            $record = PitIndicator::findOrFail($id);
+            $record = MainCropsBuyingSellingTrafficLight::findOrFail($id);
 
             $request->validate([
                 'status_id' => 'required|in:1,2',
@@ -174,8 +172,7 @@ class PitIndicatorController extends Controller
             $record->update(['status_id' => $request->status_id]);
 
             $data = $record->fresh(['plan', 'status', 'user']);
-
-            BusinessIndicatorControlController::syncBlockStatus($data->month, $data->year, 'pit_indicators', $request->status_id == 1);
+            BusinessIndicatorControlController::syncBlockStatus($data->month, $data->year, 'main_crops_buying_selling_traffic_light', $request->status_id == 1);
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
 
@@ -190,12 +187,12 @@ class PitIndicatorController extends Controller
     // DELETE
     public function destroy(Request $request, $id)
     {
-        $message = "Error al eliminar indicador PIT";
-        $action = "Eliminar indicador PIT";
+        $message = "Error al eliminar semáforo de compra/venta de cultivos";
+        $action = "Eliminar semáforo de compra/venta de cultivos";
         $id_user = Auth::user()->id ?? null;
 
         try {
-            $record = PitIndicator::findOrFail($id);
+            $record = MainCropsBuyingSellingTrafficLight::findOrFail($id);
             $record->delete();
 
             Audith::new($id_user, $action, $request->all(), 200, ['deleted_id' => $id]);
@@ -205,6 +202,6 @@ class PitIndicatorController extends Controller
             return response(["message" => $message, "error" => $e->getMessage()], 500);
         }
 
-        return response(["message" => "Indicador PIT eliminado correctamente"]);
+        return response(["message" => "Semáforo de compra/venta de cultivos eliminado correctamente"]);
     }
 }
