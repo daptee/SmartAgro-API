@@ -4,14 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use Illuminate\Database\Eloquent\SoftDeletes;
 
 class MainCropsBuyingSellingTrafficLight extends Model
 {
-    use HasFactory, SoftDeletes;
-
+    use HasFactory;
+    
     protected $table = "main_crops_buying_selling_traffic_light";
 
     protected $fillable = [
@@ -20,13 +18,7 @@ class MainCropsBuyingSellingTrafficLight extends Model
         'input',
         'variable',
         'data',
-        'month',
-        'year',
-        'status_id',
-        'id_user',
     ];
-
-    protected $dates = ['deleted_at'];
 
     protected function casts(): array
     {
@@ -43,15 +35,5 @@ class MainCropsBuyingSellingTrafficLight extends Model
     public function inputs(): HasOne
     {
         return $this->hasOne(Input::class, 'id', 'input');
-    }
-
-    public function status(): BelongsTo
-    {
-        return $this->belongsTo(StatusReport::class, 'status_id', 'id');
-    }
-
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'id_user', 'id');
     }
 }
