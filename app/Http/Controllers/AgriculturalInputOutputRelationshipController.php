@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AgriculturalInputOutputRelationship;
 use App\Models\Audith;
+use App\Http\Controllers\BusinessIndicatorControlController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Exception;
@@ -92,6 +93,7 @@ class AgriculturalInputOutputRelationshipController extends Controller
             ]);
 
             $data->load(['plan', 'status', 'user']);
+            BusinessIndicatorControlController::syncBlockStatus($request->month, $request->year, 'agricultural_input_output_relationship', $request->status_id == 1);
 
             Audith::new($id_user, $action, $request->all(), 201, compact("data"));
 
@@ -132,6 +134,7 @@ class AgriculturalInputOutputRelationshipController extends Controller
             ]);
 
             $data = $record->fresh(['plan', 'status', 'user']);
+            BusinessIndicatorControlController::syncBlockStatus($request->month, $request->year, 'agricultural_input_output_relationship', $request->status_id == 1);
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
 
@@ -169,6 +172,7 @@ class AgriculturalInputOutputRelationshipController extends Controller
             $record->update(['status_id' => $request->status_id]);
 
             $data = $record->fresh(['plan', 'status', 'user']);
+            BusinessIndicatorControlController::syncBlockStatus($data->month, $data->year, 'agricultural_input_output_relationship', $request->status_id == 1);
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
 

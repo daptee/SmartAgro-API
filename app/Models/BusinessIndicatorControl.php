@@ -5,23 +5,18 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class MainCropsBuyingSellingTrafficLight extends Model
+class BusinessIndicatorControl extends Model
 {
     use HasFactory, SoftDeletes;
 
-    protected $table = "main_crops_buying_selling_traffic_light";
+    protected $table = 'business_indicator_controls';
 
     protected $fillable = [
-        'id_plan',
-        'date',
-        'input',
-        'variable',
-        'data',
         'month',
         'year',
+        'data',
         'status_id',
         'id_user',
     ];
@@ -35,16 +30,6 @@ class MainCropsBuyingSellingTrafficLight extends Model
         ];
     }
 
-    public function plan(): HasOne
-    {
-        return $this->hasOne(Plan::class, 'id', 'id_plan');
-    }
-
-    public function inputs(): HasOne
-    {
-        return $this->hasOne(Input::class, 'id', 'input');
-    }
-
     public function status(): BelongsTo
     {
         return $this->belongsTo(StatusReport::class, 'status_id', 'id');
@@ -53,5 +38,10 @@ class MainCropsBuyingSellingTrafficLight extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'id_user', 'id');
+    }
+
+    public function scopePublished($query)
+    {
+        return $query->where('status_id', 1);
     }
 }
