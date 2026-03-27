@@ -27,10 +27,7 @@ use App\Http\Controllers\MainGrainPriceController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\PriceMainActiveIngredientsProducerController;
 use App\Http\Controllers\AgriculturalInputOutputRelationshipController;
-use App\Http\Controllers\BusinessIndicatorControlController;
 use App\Http\Controllers\GrossMarginController;
-use App\Http\Controllers\HarvestPricesController;
-use App\Http\Controllers\MainCropsBuyingSellingTrafficLightController;
 use App\Http\Controllers\GrossMarginsTrendController;
 use App\Http\Controllers\LivestockInputOutputRatioController;
 use App\Http\Controllers\PitIndicatorController;
@@ -293,17 +290,6 @@ Route::prefix('admin')
             Route::delete('producer-segment-prices/{id}', 'destroy');
         });
 
-        // Business Indicator Controls (Control general de indicadores comerciales)
-        Route::controller(BusinessIndicatorControlController::class)->group(function () {
-            Route::get('business-indicator-controls', 'index');
-            Route::get('business-indicator-controls/{id}', 'show');
-            Route::post('business-indicator-controls', 'store');
-            Route::put('business-indicator-controls/{id}', 'update');
-            Route::put('business-indicator-controls/{id}/data', 'updateData');
-            Route::put('business-indicator-controls/{id}/status', 'changeStatus');
-            Route::delete('business-indicator-controls/{id}', 'destroy');
-        });
-
         // Livestock Input/Output Ratios (Relaciones insumo/producto ganaderas)
         Route::controller(LivestockInputOutputRatioController::class)->group(function () {
             Route::get('livestock-input-output-ratios', 'index');
@@ -356,24 +342,6 @@ Route::prefix('admin')
             Route::put('product-prices/{id}', 'update');
             Route::put('product-prices/{id}/status', 'changeStatus');
             Route::delete('product-prices/{id}', 'destroy');
-        });
-
-        // Harvest Prices (Precios de cosecha)
-        Route::controller(HarvestPricesController::class)->group(function () {
-            Route::get('harvest-prices', 'index');
-            Route::post('harvest-prices', 'store');
-            Route::put('harvest-prices/{id}', 'update');
-            Route::put('harvest-prices/{id}/status', 'changeStatus');
-            Route::delete('harvest-prices/{id}', 'destroy');
-        });
-
-        // Main Crops Buying/Selling Traffic Light (Semáforo de compra/venta de cultivos)
-        Route::controller(MainCropsBuyingSellingTrafficLightController::class)->group(function () {
-            Route::get('main-crops-buying-selling-traffic-light', 'index');
-            Route::post('main-crops-buying-selling-traffic-light', 'store');
-            Route::put('main-crops-buying-selling-traffic-light/{id}', 'update');
-            Route::put('main-crops-buying-selling-traffic-light/{id}/status', 'changeStatus');
-            Route::delete('main-crops-buying-selling-traffic-light/{id}', 'destroy');
         });
 
         // Market Data Transfer (Exportar/Importar datos de mercado entre entornos)

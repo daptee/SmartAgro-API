@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\PitIndicator;
 use App\Models\Audith;
-use App\Http\Controllers\BusinessIndicatorControlController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Exception;
@@ -94,8 +93,6 @@ class PitIndicatorController extends Controller
 
             $data->load(['plan', 'status', 'user']);
 
-            BusinessIndicatorControlController::syncBlockStatus($request->month, $request->year, 'pit_indicators', $request->status_id == 1);
-
             Audith::new($id_user, $action, $request->all(), 201, compact("data"));
 
         } catch (Exception $e) {
@@ -136,8 +133,6 @@ class PitIndicatorController extends Controller
 
             $data = $record->fresh(['plan', 'status', 'user']);
 
-            BusinessIndicatorControlController::syncBlockStatus($request->month, $request->year, 'pit_indicators', $request->status_id == 1);
-
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
 
         } catch (Exception $e) {
@@ -174,8 +169,6 @@ class PitIndicatorController extends Controller
             $record->update(['status_id' => $request->status_id]);
 
             $data = $record->fresh(['plan', 'status', 'user']);
-
-            BusinessIndicatorControlController::syncBlockStatus($data->month, $data->year, 'pit_indicators', $request->status_id == 1);
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
 
