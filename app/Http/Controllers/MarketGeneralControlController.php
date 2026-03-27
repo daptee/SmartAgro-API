@@ -310,22 +310,27 @@ class MarketGeneralControlController extends Controller
      */
     public static function syncBlockStatus($month, $year, $blockName, $isPublished)
     {
-        $control = MarketGeneralControl::where('month', $month)
-            ->where('year', $year)
-            ->first();
+        $control = MarketGeneralControl::firstOrCreate(
+            ['month' => $month, 'year' => $year],
+            ['data' => self::calculateBlockStatuses($month, $year), 'status_id' => 2]
+        );
 
-        if ($control) {
-            $currentData = $control->data ?? [];
+        $currentData = $control->data ?? [];
 
-            if ($isPublished) {
-                $currentData[$blockName] = true;
-            } else {
-                // Recalcular: verificar si quedan otros registros publicados de ese bloque
-                $allStatuses = self::calculateBlockStatuses($month, $year);
-                $currentData[$blockName] = $allStatuses[$blockName] ?? false;
-            }
-
-            $control->update(['data' => $currentData]);
+        if ($isPublished) {
+            $currentData[$blockName] = true;
+        } else {
+            $allStatuses = self::calculateBlockStatuses($month, $year);
+            $currentData[$blockName] = $allStatuses[$blockName] ?? false;
         }
+
+        $updates = ['data' => $currentData];
+
+        // Solo forzar borrador si ningún bloque está publicado
+        if (!in_array(true, $currentData, true)) {
+            $updates['status_id'] = 2;
+        }
+
+        $control->update($updates);
     }
 }
