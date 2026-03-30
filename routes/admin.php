@@ -3,6 +3,7 @@
 use App\Http\Controllers\AdvertisingReportController;
 use App\Http\Controllers\AdvertisingSpaceController;
 use App\Http\Controllers\AudithController;
+use App\Http\Controllers\BusinessIndicatorDataTransferController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ClassificationController;
 use App\Http\Controllers\CompaniesAdvertisingController;
@@ -381,6 +382,10 @@ Route::prefix('admin')
         // Market Data Transfer (Exportar/Importar datos de mercado entre entornos)
         Route::get('export-market-data', [MarketDataTransferController::class, 'export']);
         Route::post('import-market-data', [MarketDataTransferController::class, 'import']);
+
+        // Business Indicator Data Transfer (Exportar/Importar datos de indicadores comerciales entre entornos)
+        Route::get('export-business-indicator-data', [BusinessIndicatorDataTransferController::class, 'export']);
+        Route::post('import-business-indicator-data', [BusinessIndicatorDataTransferController::class, 'import']);
 
         // Market General Controls (Control General de Mercado)
         Route::controller(MarketGeneralControlController::class)->group(function () {
