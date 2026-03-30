@@ -312,22 +312,17 @@ class MarketGeneralControlController extends Controller
     {
         $control = MarketGeneralControl::firstOrCreate(
             ['month' => $month, 'year' => $year],
-            ['data' => self::calculateBlockStatuses($month, $year), 'status_id' => 2]
+            ['status_id' => 2]
         );
 
-        $currentData = $control->data ?? [];
+        // Recalcular todos los bloques desde BD y forzar el bloque actual
+        $newData = self::calculateBlockStatuses($month, $year);
+        $newData[$blockName] = $isPublished;
 
-        if ($isPublished) {
-            $currentData[$blockName] = true;
-        } else {
-            $allStatuses = self::calculateBlockStatuses($month, $year);
-            $currentData[$blockName] = $allStatuses[$blockName] ?? false;
-        }
-
-        $updates = ['data' => $currentData];
+        $updates = ['data' => $newData];
 
         // Solo forzar borrador si ningún bloque está publicado
-        if (!in_array(true, $currentData, true)) {
+        if (!in_array(true, $newData, true)) {
             $updates['status_id'] = 2;
         }
 
