@@ -44,6 +44,7 @@ use App\Http\Controllers\StatusController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\UserCompanyController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\EconomicVariableController;
 use App\Http\Controllers\UnitOfMeasureController;
 use App\Http\Controllers\UserProfileController;
 use Illuminate\Support\Facades\Route;
@@ -415,6 +416,15 @@ Route::prefix('admin')
             Route::put('unit-of-measures/{id}', 'update');
             Route::put('unit-of-measures/{id}/status', 'changeStatus');
             Route::delete('unit-of-measures/{id}', 'destroy');
+        });
+
+        // Economic Variables (Variables económicas)
+        Route::controller(EconomicVariableController::class)->group(function () {
+            Route::get('economic-variables', 'index');
+            Route::post('economic-variables', 'store');
+            Route::put('economic-variables/{id}', 'update');
+            Route::put('economic-variables/{id}/status', 'changeStatus');
+            Route::delete('economic-variables/{id}', 'destroy');
         });
     }
 );
