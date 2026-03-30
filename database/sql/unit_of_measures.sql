@@ -1,0 +1,10 @@
+CREATE TABLE unit_of_measures (
+    id         INT AUTO_INCREMENT PRIMARY KEY,
+    name       VARCHAR(100) NOT NULL,
+    status_id  INT NOT NULL DEFAULT 1,
+    created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL,
+    CONSTRAINT fk_unit_of_measures_status
+        FOREIGN KEY (status_id) REFERENCES status(id) ON DELETE RESTRICT
+);

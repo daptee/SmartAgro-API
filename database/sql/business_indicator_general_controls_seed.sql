@@ -51,7 +51,17 @@ SELECT
                 WHERE month = t.month AND year = t.year AND status_id = 1 AND deleted_at IS NULL
             ), CAST(TRUE AS JSON), CAST(FALSE AS JSON))
     ) AS data,
-    2 AS status_id,
+    IF(
+        EXISTS(SELECT 1 FROM pit_indicators                         WHERE month = t.month AND year = t.year AND status_id = 1 AND deleted_at IS NULL) OR
+        EXISTS(SELECT 1 FROM gross_margin                           WHERE month = t.month AND year = t.year AND status_id = 1 AND deleted_at IS NULL) OR
+        EXISTS(SELECT 1 FROM gross_margins_trend                    WHERE month = t.month AND year = t.year AND status_id = 1 AND deleted_at IS NULL) OR
+        EXISTS(SELECT 1 FROM livestock_input_output_ratio           WHERE month = t.month AND year = t.year AND status_id = 1 AND deleted_at IS NULL) OR
+        EXISTS(SELECT 1 FROM agricultural_input_output_relationship  WHERE month = t.month AND year = t.year AND status_id = 1 AND deleted_at IS NULL) OR
+        EXISTS(SELECT 1 FROM products_prices                        WHERE month = t.month AND year = t.year AND status_id = 1 AND deleted_at IS NULL) OR
+        EXISTS(SELECT 1 FROM harvest_prices                         WHERE month = t.month AND year = t.year AND status_id = 1 AND deleted_at IS NULL) OR
+        EXISTS(SELECT 1 FROM main_crops_buying_selling_traffic_light WHERE month = t.month AND year = t.year AND status_id = 1 AND deleted_at IS NULL),
+        1, 2
+    ) AS status_id,
     NULL AS id_user,
     NOW() AS created_at,
     NOW() AS updated_at

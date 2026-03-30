@@ -44,6 +44,7 @@ use App\Http\Controllers\StatusController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\UserCompanyController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\UnitOfMeasureController;
 use App\Http\Controllers\UserProfileController;
 use Illuminate\Support\Facades\Route;
 
@@ -405,6 +406,15 @@ Route::prefix('admin')
             Route::post('active-ingredients', 'store');
             Route::put('active-ingredients/{id}', 'update');
             Route::delete('active-ingredients/{id}', 'destroy');
+        });
+
+        // Unit of Measures (Unidades de medida)
+        Route::controller(UnitOfMeasureController::class)->group(function () {
+            Route::get('unit-of-measures', 'index');
+            Route::post('unit-of-measures', 'store');
+            Route::put('unit-of-measures/{id}', 'update');
+            Route::put('unit-of-measures/{id}/status', 'changeStatus');
+            Route::delete('unit-of-measures/{id}', 'destroy');
         });
     }
 );
