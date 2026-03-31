@@ -306,8 +306,8 @@ class ReportController extends Controller
                     }
                 })->where('id_plan', '<=', $id_plan)
                   ->where('status_id', 1)
-                  ->orderBy('year', 'asc')
-                  ->orderBy('month', 'asc');
+                  ->orderBy('year', 'desc')
+                  ->orderBy('month', 'desc');
 
                 if (!empty($with)) {
                     $query->with($with);
