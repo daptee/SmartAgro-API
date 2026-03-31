@@ -313,7 +313,18 @@ class ReportController extends Controller
                     $query->with($with);
                 }
                 $results = $query->get();
-                return $results->isEmpty() ? null : $results;
+
+                if ($results->isEmpty()) {
+                    return null;
+                }
+
+                // Deduplicar por (region, year, month), conservando el de mayor id_plan
+                $unique = $results
+                    ->groupBy(fn($item) => ($item->region ?? '') . '|' . $item->year . '|' . $item->month)
+                    ->map(fn($group) => $group->sortByDesc('id_plan')->first())
+                    ->values();
+
+                return $unique->isEmpty() ? null : $unique;
             }
 
             // Consultas a las nuevas tablas
