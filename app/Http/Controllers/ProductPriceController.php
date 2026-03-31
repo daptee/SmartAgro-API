@@ -162,7 +162,7 @@ class ProductPriceController extends Controller
             ]);
 
             if ($request->status_id == 1) {
-                if (empty($record->month) || empty($record->year) || empty($record->data) || empty($record->id_plan) || empty($record->segment_id)) {
+                if (empty($record->month) || empty($record->year) || empty($record->data) || empty($record->id_plan)) {
                     return response([
                         "message" => "No se puede publicar el registro. Todos los campos deben estar completos (month, year, data, plan y segment)."
                     ], 400);

@@ -265,8 +265,8 @@ class ReportController extends Controller
 
         try {
             $filters = function ($query) use ($id_plan, $month, $year) {
-                $query->whereYear('date', $year)
-                    ->whereMonth('date', $month)
+                $query->where('year', $year)
+                    ->where('month', $month)
                     ->where('id_plan', '<=', $id_plan);
             };
 
