@@ -260,8 +260,8 @@ class ReportController extends Controller
         $message = "Error al obtener indicadores comerciales";
         $id_plan = Auth::user()->id_plan ?? null;
 
-        $month = $request->input('month');
-        $year = $request->input('year');
+        $month = (int) $request->input('month');
+        $year  = (int) $request->input('year');
 
         try {
             $filters = function ($query) use ($id_plan, $month, $year) {
@@ -269,6 +269,22 @@ class ReportController extends Controller
                     ->where('month', $month)
                     ->where('id_plan', '<=', $id_plan);
             };
+
+            // Genera pares (year, month) anteriores al mes/año dado (inclusive)
+            $buildPeriods = function (int $months) use ($month, $year): array {
+                $periods = [];
+                $m = $month;
+                $y = $year;
+                for ($i = 0; $i < $months; $i++) {
+                    $periods[] = [$y, $m];
+                    $m--;
+                    if ($m < 1) { $m = 12; $y--; }
+                }
+                return $periods;
+            };
+
+            $periods12 = $buildPeriods(12);
+            $periods36 = $buildPeriods(36);
 
             function getDataOrNull($modelClass, $filters, $with = [])
             {
@@ -280,12 +296,32 @@ class ReportController extends Controller
                 return $results->isEmpty() ? null : $results;
             }
 
+            function getHistoryOrNull($modelClass, $periods, $id_plan, $with = [])
+            {
+                $query = $modelClass::where(function ($q) use ($periods) {
+                    foreach ($periods as [$y, $m]) {
+                        $q->orWhere(function ($q2) use ($y, $m) {
+                            $q2->where('year', $y)->where('month', $m);
+                        });
+                    }
+                })->where('id_plan', '<=', $id_plan)
+                  ->where('status_id', 1)
+                  ->orderBy('year', 'asc')
+                  ->orderBy('month', 'asc');
+
+                if (!empty($with)) {
+                    $query->with($with);
+                }
+                $results = $query->get();
+                return $results->isEmpty() ? null : $results;
+            }
+
             // Consultas a las nuevas tablas
             $data = [
                 'pit_indicators' => getDataOrNull(PitIndicator::class, $filters),
-                'livestock_input_output_ratios' => getDataOrNull(LivestockInputOutputRatio::class, $filters, ['regionData']),
-                'agricultural_input_output_relationships' => getDataOrNull(AgriculturalInputOutputRelationship::class, $filters, ['regionData']),
-                'gross_margins_trend' => getDataOrNull(GrossMarginsTrend::class, $filters),
+                'livestock_input_output_ratios' => getHistoryOrNull(LivestockInputOutputRatio::class, $periods36, $id_plan, ['regionData']),
+                'agricultural_input_output_relationships' => getHistoryOrNull(AgriculturalInputOutputRelationship::class, $periods12, $id_plan, ['regionData']),
+                'gross_margins_trend' => getHistoryOrNull(GrossMarginsTrend::class, $periods36, $id_plan),
                 'harvest_prices' => getDataOrNull(HarvestPrices::class, $filters),
                 'product_prices' => getDataOrNull(ProductPrice::class, $filters, ['segment']),
                 'gross_margins' => getDataOrNull(GrossMargin::class, $filters),
