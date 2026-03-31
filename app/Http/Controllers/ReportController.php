@@ -289,7 +289,7 @@ class ReportController extends Controller
                 'harvest_prices' => getDataOrNull(HarvestPrices::class, $filters),
                 'product_prices' => getDataOrNull(ProductPrice::class, $filters, ['segment']),
                 'gross_margins' => getDataOrNull(GrossMargin::class, $filters),
-                'main_crops_buying_selling_traffic_light' => getDataOrNull(MainCropsBuyingSellingTrafficLight::class, $filters, ['inputs']),
+                'main_crops_buying_selling_traffic_light' => getDataOrNull(MainCropsBuyingSellingTrafficLight::class, $filters),
             ];
 
 
@@ -304,7 +304,7 @@ class ReportController extends Controller
 
             if ($trafficLights) {
                 foreach ($trafficLights as $item) {
-                    $inputName = $item->inputs->name;
+                    $inputName = $item->input;
                     $variable = $item->variable;
                     $cultivos = $item->data;
 
