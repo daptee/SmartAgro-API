@@ -314,6 +314,7 @@ Route::prefix('admin')
             Route::put('livestock-input-output-ratios/{id}', 'update');
             Route::put('livestock-input-output-ratios/{id}/status', 'changeStatus');
             Route::delete('livestock-input-output-ratios/{id}', 'destroy');
+            Route::delete('livestock-input-output-ratios/duplicates/delete', 'deleteDuplicates');
         });
 
         // Agricultural Input/Output Relationships (Relaciones insumo/producto agrícolas)
@@ -323,6 +324,7 @@ Route::prefix('admin')
             Route::put('agricultural-input-output-relationships/{id}', 'update');
             Route::put('agricultural-input-output-relationships/{id}/status', 'changeStatus');
             Route::delete('agricultural-input-output-relationships/{id}', 'destroy');
+            Route::delete('agricultural-input-output-relationships/duplicates/delete', 'deleteDuplicates');
         });
 
         // PIT Indicators (Indicadores PIT)
@@ -350,6 +352,7 @@ Route::prefix('admin')
             Route::put('gross-margins-trend/{id}', 'update');
             Route::put('gross-margins-trend/{id}/status', 'changeStatus');
             Route::delete('gross-margins-trend/{id}', 'destroy');
+            Route::delete('gross-margins-trend/duplicates/delete', 'deleteDuplicates');
         });
 
         // Product Prices (Precios de productos)
@@ -368,6 +371,7 @@ Route::prefix('admin')
             Route::put('harvest-prices/{id}', 'update');
             Route::put('harvest-prices/{id}/status', 'changeStatus');
             Route::delete('harvest-prices/{id}', 'destroy');
+            Route::delete('harvest-prices/duplicates/delete', 'deleteDuplicates');
         });
 
         // Main Crops Buying/Selling Traffic Light (Semáforo de compra/venta de cultivos)

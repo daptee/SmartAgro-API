@@ -204,4 +204,41 @@ class LivestockInputOutputRatioController extends Controller
 
         return response(["message" => "Relación insumo/producto ganadera eliminada correctamente"]);
     }
+
+    // DELETE DUPLICATES
+    public function deleteDuplicates(Request $request)
+    {
+        $message = "Error al eliminar duplicados";
+        $action = "Eliminar duplicados de relaciones insumo/producto ganaderas";
+        $id_user = Auth::user()->id ?? null;
+        $deleted = 0;
+
+        try {
+            $groups = LivestockInputOutputRatio::selectRaw('region, year, month')
+                ->groupBy('region', 'year', 'month')
+                ->havingRaw('COUNT(*) > 1')
+                ->get();
+
+            foreach ($groups as $group) {
+                $records = LivestockInputOutputRatio::where('region', $group->region)
+                    ->where('year', $group->year)
+                    ->where('month', $group->month)
+                    ->orderBy('id_plan', 'desc')
+                    ->get();
+
+                foreach ($records->skip(1) as $duplicate) {
+                    $duplicate->delete();
+                    $deleted++;
+                }
+            }
+
+            Audith::new($id_user, $action, $request->all(), 200, ['deleted' => $deleted]);
+
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage()], 500);
+        }
+
+        return response(["message" => "Duplicados eliminados correctamente", "deleted" => $deleted]);
+    }
 }
