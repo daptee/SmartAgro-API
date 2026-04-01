@@ -26,7 +26,7 @@ class GrossMarginsTrendController extends Controller
             $query = GrossMarginsTrend::query();
 
             if ($request->has('month') && $request->month) {
-                $query->where('month', $request->month);
+                $query->where('month', str_pad($request->month, 2, '0', STR_PAD_LEFT));
             }
 
             if ($request->has('year') && $request->year) {
