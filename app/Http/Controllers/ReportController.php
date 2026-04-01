@@ -267,7 +267,10 @@ class ReportController extends Controller
             $filters = function ($query) use ($id_plan, $month, $year) {
                 $query->where('year', $year)
                     ->where('month', $month)
-                    ->where('id_plan', '<=', $id_plan);
+                    ->where('status_id', 1)
+                    ->where(function ($q) use ($id_plan) {
+                        $q->whereNull('id_plan')->orWhere('id_plan', '<=', $id_plan);
+                    });
             };
 
             // Genera pares (year, month) anteriores al mes/año dado (inclusive)
