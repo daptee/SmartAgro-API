@@ -220,10 +220,11 @@ class AgriculturalInputOutputRelationshipController extends Controller
                 ->get();
 
             foreach ($groups as $group) {
-                $records = AgriculturalInputOutputRelationship::where('region', $group->region)
+                $records = AgriculturalInputOutputRelationship::whereRaw('region <=> ?', [$group->region])
                     ->where('year', $group->year)
                     ->where('month', $group->month)
                     ->orderBy('id_plan', 'desc')
+                    ->orderBy('id', 'desc')
                     ->get();
 
                 foreach ($records->skip(1) as $duplicate) {

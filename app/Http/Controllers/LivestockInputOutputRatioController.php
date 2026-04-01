@@ -220,10 +220,11 @@ class LivestockInputOutputRatioController extends Controller
                 ->get();
 
             foreach ($groups as $group) {
-                $records = LivestockInputOutputRatio::where('region', $group->region)
+                $records = LivestockInputOutputRatio::whereRaw('region <=> ?', [$group->region])
                     ->where('year', $group->year)
                     ->where('month', $group->month)
                     ->orderBy('id_plan', 'desc')
+                    ->orderBy('id', 'desc')
                     ->get();
 
                 foreach ($records->skip(1) as $duplicate) {

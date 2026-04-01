@@ -220,10 +220,11 @@ class GrossMarginsTrendController extends Controller
                 ->get();
 
             foreach ($groups as $group) {
-                $records = GrossMarginsTrend::where('region', $group->region)
+                $records = GrossMarginsTrend::whereRaw('region <=> ?', [$group->region])
                     ->where('year', $group->year)
                     ->where('month', $group->month)
                     ->orderBy('id_plan', 'desc')
+                    ->orderBy('id', 'desc')
                     ->get();
 
                 foreach ($records->skip(1) as $duplicate) {
