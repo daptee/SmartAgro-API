@@ -228,7 +228,7 @@ class HarvestPricesController extends Controller
                     ->get();
 
                 foreach ($records->skip(1) as $duplicate) {
-                    $duplicate->delete();
+                    $duplicate->forceDelete();
                     $deleted++;
                 }
             }

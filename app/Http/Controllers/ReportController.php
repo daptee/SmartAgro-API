@@ -383,7 +383,7 @@ class ReportController extends Controller
                 $transformed = null;
             }
 
-            $data['main_crops_buying_selling_traffic_light'] = $transformed;
+            /* $data['main_crops_buying_selling_traffic_light'] = $transformed; */
 
 
             if ($allEmpty) {
