@@ -260,7 +260,7 @@ class ReportController extends Controller
         $message = "Error al obtener indicadores comerciales";
         $id_plan = Auth::user()->id_plan ?? null;
 
-        $month = str_pad((int) $request->input('month'), 2, '0', STR_PAD_LEFT);
+        $month = (int) $request->input('month');
         $year  = (int) $request->input('year');
 
         try {
@@ -273,10 +273,10 @@ class ReportController extends Controller
             // Genera pares (year, month) anteriores al mes/año dado (inclusive)
             $buildPeriods = function (int $months) use ($month, $year): array {
                 $periods = [];
-                $m = (int) $month;
+                $m = $month;
                 $y = $year;
                 for ($i = 0; $i < $months; $i++) {
-                    $periods[] = [$y, str_pad($m, 2, '0', STR_PAD_LEFT)];
+                    $periods[] = [$y, $m];
                     $m--;
                     if ($m < 1) { $m = 12; $y--; }
                 }
