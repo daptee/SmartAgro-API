@@ -260,7 +260,7 @@ class ReportController extends Controller
         $message = "Error al obtener indicadores comerciales";
         $id_plan = Auth::user()->id_plan ?? null;
 
-        $month = str_pad((int) $request->input('month'), 2, '0', STR_PAD_LEFT);
+        $month = (int) $request->input('month');
         $year  = (int) $request->input('year');
 
         try {
