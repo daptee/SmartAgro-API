@@ -416,7 +416,6 @@ Route::prefix('admin')
 
         // Unit of Measures (Unidades de medida)
         Route::controller(UnitOfMeasureController::class)->group(function () {
-            Route::get('unit-of-measures', 'index');
             Route::post('unit-of-measures', 'store');
             Route::put('unit-of-measures/{id}', 'update');
             Route::put('unit-of-measures/{id}/status', 'changeStatus');
@@ -425,7 +424,6 @@ Route::prefix('admin')
 
         // Economic Variables (Variables económicas)
         Route::controller(EconomicVariableController::class)->group(function () {
-            Route::get('economic-variables', 'index');
             Route::post('economic-variables', 'store');
             Route::put('economic-variables/{id}', 'update');
             Route::put('economic-variables/{id}/status', 'changeStatus');
@@ -433,6 +431,12 @@ Route::prefix('admin')
         });
     }
 );
+// Unit of Measures - Public route
+Route::get('admin/unit-of-measures', [UnitOfMeasureController::class, 'index']);
+
+// Economic Variables - Public route
+Route::get('admin/economic-variables', [EconomicVariableController::class, 'index']);
+
 // Public FAQ route
 Route::get('admin/faqs', [FaqController::class, 'index']);
 

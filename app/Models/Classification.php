@@ -14,12 +14,18 @@ class Classification extends Model
         'name',
         'description',
         'id_parent_classification',
+        'id_icon',
         'status_id',
     ];
 
     public function status()
     {
         return $this->belongsTo(Status::class, 'status_id');
+    }
+
+    public function icon()
+    {
+        return $this->belongsTo(Icon::class, 'id_icon');
     }
 
     public function parent()
