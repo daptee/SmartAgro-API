@@ -284,6 +284,7 @@ class ReportController extends Controller
             };
 
             $periods12 = $buildPeriods(12);
+            $periods24 = $buildPeriods(24);
             $periods36 = $buildPeriods(36);
 
             function getDataOrNull($modelClass, $filters, $with = [])
@@ -298,6 +299,18 @@ class ReportController extends Controller
 
             function getHistoryOrNull($modelClass, $periods, $id_plan, $with = [])
             {
+                // Si no hay datos para el mes/año buscado, no retornar historial
+                [$targetYear, $targetMonth] = $periods[0];
+                $exists = $modelClass::where('year', $targetYear)
+                    ->where('month', $targetMonth)
+                    ->where('id_plan', '<=', $id_plan)
+                    ->where('status_id', 1)
+                    ->exists();
+
+                if (!$exists) {
+                    return null;
+                }
+
                 $query = $modelClass::where(function ($q) use ($periods) {
                     foreach ($periods as [$y, $m]) {
                         $q->orWhere(function ($q2) use ($y, $m) {
@@ -333,7 +346,7 @@ class ReportController extends Controller
                 'livestock_input_output_ratios' => getHistoryOrNull(LivestockInputOutputRatio::class, $periods36, $id_plan, ['regionData']),
                 'agricultural_input_output_relationships' => getHistoryOrNull(AgriculturalInputOutputRelationship::class, $periods12, $id_plan, ['regionData']),
                 'gross_margins_trend' => getHistoryOrNull(GrossMarginsTrend::class, $periods36, $id_plan),
-                'harvest_prices' => getDataOrNull(HarvestPrices::class, $filters),
+                'harvest_prices' => getHistoryOrNull(HarvestPrices::class, $periods24, $id_plan),
                 'product_prices' => getDataOrNull(ProductPrice::class, $filters, ['segment']),
                 'gross_margins' => getDataOrNull(GrossMargin::class, $filters),
                 'main_crops_buying_selling_traffic_light' => getDataOrNull(MainCropsBuyingSellingTrafficLight::class, $filters),
