@@ -15,6 +15,7 @@ class Crop extends Model
     protected $fillable = [
         'name',
         'icon',
+        'color',
     ];
 
     protected $dates = ['deleted_at'];

@@ -72,12 +72,14 @@ class CropController extends Controller
         try {
             $request->validate([
                 'name' => 'required|string|max:255',
-                'icon' => 'required|string|max:255'
+                'icon' => 'required|string|max:255',
+                'color' => 'nullable|string|max:7',
             ]);
 
             $data = Crop::create([
                 'name' => $request->name,
                 'icon' => $request->icon,
+                'color' => $request->color,
             ]);
 
             Audith::new($id_user, $action, $request->all(), 201, compact("data"));
@@ -104,11 +106,13 @@ class CropController extends Controller
             $request->validate([
                 'name' => 'required|string|max:255',
                 'icon' => 'required|string|max:255',
+                'color' => 'nullable|string|max:7',
             ]);
 
             $crop->update([
                 'name' => $request->name,
                 'icon' => $request->icon,
+                'color' => $request->color,
             ]);
 
             $data = $crop;
