@@ -24,6 +24,7 @@ use App\Models\HarvestPrices;
 use App\Models\LivestockInputOutputRatio;
 use App\Models\PitIndicator;
 use App\Models\ProductPrice;
+use App\Models\BusinessIndicatorControl;
 use App\Models\MarketGeneralControl;
 use App\Models\StatusReport;
 use App\Models\User;
@@ -264,6 +265,32 @@ class ReportController extends Controller
         $year  = (int) $request->input('year');
 
         try {
+            // Verificar que el control general esté publicado
+            $control = BusinessIndicatorControl::where('month', $month)->where('year', $year)->first();
+
+            if (!$control || $control->status_id !== 1) {
+                $response = [
+                    'message' => 'No hay datos para el mes seleccionado. Por favor, cambie el mes de filtro.',
+                    'error_code' => 600
+                ];
+                Audith::new($id_user, $action, $request->all(), 422, $response);
+                return response()->json($response, 422);
+            }
+
+            $controlModules = $control->data ?? [];
+
+            // Mapeo entre claves del control y claves del response
+            $moduleMap = [
+                'pit_indicators'                          => 'pit_indicators',
+                'gross_margin'                            => 'gross_margins',
+                'gross_margins_trend'                     => 'gross_margins_trend',
+                'livestock_input_output_ratio'            => 'livestock_input_output_ratios',
+                'agricultural_input_output_relationship'  => 'agricultural_input_output_relationships',
+                'products_prices'                         => 'product_prices',
+                'harvest_prices'                          => 'harvest_prices',
+                'main_crops_buying_selling_traffic_light' => 'main_crops_buying_selling_traffic_light',
+            ];
+
             $filters = function ($query) use ($id_plan, $month, $year) {
                 $query->where('year', $year)
                     ->where('month', $month)
@@ -355,6 +382,13 @@ class ReportController extends Controller
                 'main_crops_buying_selling_traffic_light' => getDataOrNull(MainCropsBuyingSellingTrafficLight::class, $filters),
             ];
 
+
+            // Ocultar módulos que el control general tiene en false
+            foreach ($moduleMap as $controlKey => $dataKey) {
+                if (empty($controlModules[$controlKey])) {
+                    $data[$dataKey] = null;
+                }
+            }
 
             // Verificar si todos los arrays están vacíos
             $allEmpty = collect($data)->every(function ($items) {
