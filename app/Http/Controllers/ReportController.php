@@ -347,7 +347,7 @@ class ReportController extends Controller
             $data = [
                 'pit_indicators' => getDataOrNull(PitIndicator::class, $filters),
                 'livestock_input_output_ratios' => getHistoryOrNull(LivestockInputOutputRatio::class, $periods36, $id_plan, ['regionData']),
-                'agricultural_input_output_relationships' => getHistoryOrNull(AgriculturalInputOutputRelationship::class, $periods24, $id_plan, ['regionData']),
+                'agricultural_input_output_relationships' => getHistoryOrNull(AgriculturalInputOutputRelationship::class, $periods36, $id_plan, ['regionData']),
                 'gross_margins_trend' => getHistoryOrNull(GrossMarginsTrend::class, $periods36, $id_plan),
                 'harvest_prices' => getHistoryOrNull(HarvestPrices::class, $periods24, $id_plan),
                 'product_prices' => getDataOrNull(ProductPrice::class, $filters, ['segment']),
