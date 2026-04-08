@@ -227,6 +227,34 @@ class MarketGeneralControlController extends Controller
                 'id_user' => $id_user,
             ]);
 
+            // Si se marca como no cargado, poner en borrador los registros del módulo
+            if (!$request->loaded) {
+                $blockModelMap = [
+                    'major_crops'                             => ['model' => MajorCrop::class,                        'filter' => 'month_year'],
+                    'insights'                                => ['model' => Insight::class,                          'filter' => 'date'],
+                    'news'                                    => ['model' => News::class,                             'filter' => 'date'],
+                    'rainfall_records'                        => ['model' => RainfallRecordProvince::class,           'filter' => 'month_year'],
+                    'main_grain_prices'                       => ['model' => MainGrainPrice::class,                   'filter' => 'month_year'],
+                    'price_main_active_ingredients_producers' => ['model' => PriceMainActiveIngredientsProducer::class,'filter' => 'month_year'],
+                    'producer_segment_prices'                 => ['model' => ProducerSegmentPrice::class,             'filter' => 'month_year'],
+                    'mag_lease_index'                         => ['model' => MagLeaseIndex::class,                    'filter' => 'date'],
+                    'mag_steer_index'                         => ['model' => MagSteerIndex::class,                    'filter' => 'date'],
+                ];
+
+                if (isset($blockModelMap[$request->block])) {
+                    $map = $blockModelMap[$request->block];
+                    $query = $map['model']::where('status_id', 1);
+
+                    if ($map['filter'] === 'date') {
+                        $query->whereMonth('date', $control->month)->whereYear('date', $control->year);
+                    } else {
+                        $query->where('month', $control->month)->where('year', $control->year);
+                    }
+
+                    $query->update(['status_id' => 2]);
+                }
+            }
+
             $data = $control;
             $data->load(['status', 'user']);
 
