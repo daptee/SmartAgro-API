@@ -461,8 +461,8 @@ class ReportController extends Controller
             return response()->json($response, $status);
         }
 
-        $month = $request->input('month');
-        $year = $request->input('year');
+        $month = (int)$request->input('month');
+        $year = (int)$request->input('year');
 
         try {
             DB::beginTransaction(); // Iniciar una transacción para garantizar integridad

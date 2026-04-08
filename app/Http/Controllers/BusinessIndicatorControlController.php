@@ -33,7 +33,7 @@ class BusinessIndicatorControlController extends Controller
             $query = BusinessIndicatorControl::query();
 
             if ($request->has('month') && $request->month) {
-                $query->where('month', $request->month);
+                $query->where('month', (int)$request->month);
             }
 
             if ($request->has('year') && $request->year) {
@@ -125,7 +125,7 @@ class BusinessIndicatorControlController extends Controller
             ]);
 
             $exists = BusinessIndicatorControl::where('year', $request->year)
-                ->where('month', $request->month)
+                ->where('month', (int)$request->month)
                 ->exists();
 
             if ($exists) {
@@ -134,10 +134,10 @@ class BusinessIndicatorControlController extends Controller
                 ], 400);
             }
 
-            $initialData = self::calculateBlockStatuses($request->month, $request->year);
+            $initialData = self::calculateBlockStatuses((int)$request->month, $request->year);
 
             $data = BusinessIndicatorControl::create([
-                'month'     => $request->month,
+                'month'     => (int)$request->month,
                 'year'      => $request->year,
                 'data'      => $initialData,
                 'status_id' => 2,
@@ -173,7 +173,7 @@ class BusinessIndicatorControlController extends Controller
             ]);
 
             $exists = BusinessIndicatorControl::where('year', $request->year)
-                ->where('month', $request->month)
+                ->where('month', (int)$request->month)
                 ->where('id', '!=', $id)
                 ->exists();
 
@@ -183,10 +183,10 @@ class BusinessIndicatorControlController extends Controller
                 ], 400);
             }
 
-            $newData = self::calculateBlockStatuses($request->month, $request->year);
+            $newData = self::calculateBlockStatuses((int)$request->month, $request->year);
 
             $control->update([
-                'month'   => $request->month,
+                'month'   => (int)$request->month,
                 'year'    => $request->year,
                 'data'    => $newData,
                 'id_user' => $id_user,

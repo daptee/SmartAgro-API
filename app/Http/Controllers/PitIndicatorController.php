@@ -26,7 +26,7 @@ class PitIndicatorController extends Controller
             $query = PitIndicator::query();
 
             if ($request->has('month') && $request->month) {
-                $query->where('month', $request->month);
+                $query->where('month', (int)$request->month);
             }
 
             if ($request->has('year') && $request->year) {
@@ -84,7 +84,7 @@ class PitIndicatorController extends Controller
             ]);
 
             $data = PitIndicator::create([
-                'month'     => $request->month,
+                'month'     => (int)$request->month,
                 'year'      => $request->year,
                 'status_id' => $request->status_id,
                 'id_plan'   => $request->id_plan,
@@ -94,7 +94,7 @@ class PitIndicatorController extends Controller
 
             $data->load(['plan', 'status', 'user']);
 
-            BusinessIndicatorControlController::syncBlockStatus($request->month, $request->year, 'pit_indicators', $request->status_id == 1);
+            BusinessIndicatorControlController::syncBlockStatus((int)$request->month, $request->year, 'pit_indicators', $request->status_id == 1);
 
             Audith::new($id_user, $action, $request->all(), 201, compact("data"));
 
@@ -126,7 +126,7 @@ class PitIndicatorController extends Controller
             ]);
 
             $record->update([
-                'month'     => $request->month,
+                'month'     => (int)$request->month,
                 'year'      => $request->year,
                 'status_id' => $request->status_id,
                 'id_plan'   => $request->id_plan,
@@ -136,7 +136,7 @@ class PitIndicatorController extends Controller
 
             $data = $record->fresh(['plan', 'status', 'user']);
 
-            BusinessIndicatorControlController::syncBlockStatus($request->month, $request->year, 'pit_indicators', $request->status_id == 1);
+            BusinessIndicatorControlController::syncBlockStatus((int)$request->month, $request->year, 'pit_indicators', $request->status_id == 1);
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
 
