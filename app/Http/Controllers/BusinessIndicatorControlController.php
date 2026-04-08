@@ -67,6 +67,14 @@ class BusinessIndicatorControlController extends Controller
 
             $query->orderBy('year', 'desc')->orderBy('month', 'desc');
 
+            // Recalcular estado de cada módulo desde sus tablas y sincronizar el JSON data
+            BusinessIndicatorControl::get()->each(function ($control) {
+                $realData = self::calculateBlockStatuses($control->month, $control->year);
+                if ($realData !== ($control->data ?? [])) {
+                    $control->update(['data' => $realData]);
+                }
+            });
+
             if (is_null($perPage)) {
                 $data = $query->with(['status', 'user'])->get();
             } else {

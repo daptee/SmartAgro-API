@@ -51,6 +51,14 @@ class MarketGeneralControlController extends Controller
             // Orden por defecto (por año y mes descendente)
             $query->orderBy('year', 'desc')->orderBy('month', 'desc');
 
+            // Recalcular estado de cada módulo desde sus tablas y sincronizar el JSON data
+            MarketGeneralControl::get()->each(function ($control) {
+                $realData = self::calculateBlockStatuses($control->month, $control->year);
+                if ($realData !== ($control->data ?? [])) {
+                    $control->update(['data' => $realData]);
+                }
+            });
+
             // Si no se pasa per_page => devolver todo
             if (is_null($perPage)) {
                 $controls = $query->with(['status', 'user'])->get();
