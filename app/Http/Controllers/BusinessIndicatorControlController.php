@@ -236,25 +236,26 @@ class BusinessIndicatorControlController extends Controller
                 'id_user' => $id_user,
             ]);
 
-            // Si se marca como no cargado, poner en borrador los registros del módulo
-            if (!$request->loaded) {
-                $blockModelMap = [
-                    'pit_indicators'                          => PitIndicator::class,
-                    'gross_margin'                            => GrossMargin::class,
-                    'gross_margins_trend'                     => GrossMarginsTrend::class,
-                    'livestock_input_output_ratio'            => LivestockInputOutputRatio::class,
-                    'agricultural_input_output_relationship'  => AgriculturalInputOutputRelationship::class,
-                    'products_prices'                         => ProductPrice::class,
-                    'harvest_prices'                          => HarvestPrices::class,
-                    'main_crops_buying_selling_traffic_light' => MainCropsBuyingSellingTrafficLight::class,
-                ];
+            // Sincronizar status de los registros del módulo según loaded
+            $blockModelMap = [
+                'pit_indicators'                          => PitIndicator::class,
+                'gross_margin'                            => GrossMargin::class,
+                'gross_margins_trend'                     => GrossMarginsTrend::class,
+                'livestock_input_output_ratio'            => LivestockInputOutputRatio::class,
+                'agricultural_input_output_relationship'  => AgriculturalInputOutputRelationship::class,
+                'products_prices'                         => ProductPrice::class,
+                'harvest_prices'                          => HarvestPrices::class,
+                'main_crops_buying_selling_traffic_light' => MainCropsBuyingSellingTrafficLight::class,
+            ];
 
-                if (isset($blockModelMap[$request->block])) {
-                    $blockModelMap[$request->block]::where('month', $control->month)
-                        ->where('year', $control->year)
-                        ->where('status_id', 1)
-                        ->update(['status_id' => 2]);
-                }
+            if (isset($blockModelMap[$request->block])) {
+                $newStatus = $request->loaded ? 1 : 2;
+                $currentStatus = $request->loaded ? 2 : 1;
+
+                $blockModelMap[$request->block]::where('month', $control->month)
+                    ->where('year', $control->year)
+                    ->where('status_id', $currentStatus)
+                    ->update(['status_id' => $newStatus]);
             }
 
             $data = $control->fresh(['status', 'user']);
