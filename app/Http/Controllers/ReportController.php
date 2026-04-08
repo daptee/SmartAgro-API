@@ -97,6 +97,21 @@ class ReportController extends Controller
                 return response()->json($response, 422);
             }
 
+            $controlModules = $control->data ?? [];
+
+            // Mapeo entre claves del control y claves del response
+            $moduleMap = [
+                'major_crops'                             => 'major_crops',
+                'insights'                                => 'insights',
+                'news'                                    => 'news',
+                'rainfall_records'                        => 'rainfall_records_provinces',
+                'main_grain_prices'                       => 'main_grain_prices',
+                'price_main_active_ingredients_producers' => 'price_main_active_ingredients_producers',
+                'producer_segment_prices'                 => 'producer_segment_prices',
+                'mag_lease_index'                         => 'mag_lease_index',
+                'mag_steer_index'                         => 'mag_steer_index',
+            ];
+
             $filters = function ($query) use ($id_plan, $month, $year) {
                 $query->where('status_id', 1)
                     ->whereYear('date', $year)
@@ -210,9 +225,16 @@ class ReportController extends Controller
                 'main_grain_prices' => MainGrainPrice::where($majorCropsFilters)->with('plan')->get(),
             ];
 
+            // Ocultar módulos que el control general tiene en false
+            foreach ($moduleMap as $controlKey => $dataKey) {
+                if (empty($controlModules[$controlKey])) {
+                    $data[$dataKey] = null;
+                }
+            }
+
             // Verificar si todos los arrays están vacíos
             $allEmpty = collect($data)->every(function ($items) {
-                return $items->isEmpty();
+                return $items === null || $items->isEmpty();
             });
 
             if ($allEmpty) {
