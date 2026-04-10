@@ -67,8 +67,8 @@ class IconController extends Controller
             $extension = $file->getClientOriginalExtension();
             $fileName = time() . '_' . uniqid() . '.' . $extension;
 
-            $file->move(public_path('storage/Iconos'), $fileName);
-            $publicPath = 'public/storage/Iconos/' . $fileName;
+            $file->move(public_path('storage/iconos'), $fileName);
+            $publicPath = 'public/storage/iconos/' . $fileName;
 
             $icon = Icon::create([
                 'name' => $request->name,
@@ -128,7 +128,7 @@ class IconController extends Controller
 
             if ($request->hasFile('icon')) {
                 if ($icon->file_name) {
-                    $oldPath = public_path('storage/Iconos/' . $icon->file_name);
+                    $oldPath = public_path('storage/iconos/' . $icon->file_name);
                     if (File::exists($oldPath)) {
                         File::delete($oldPath);
                     }
@@ -138,8 +138,8 @@ class IconController extends Controller
                 $extension = $file->getClientOriginalExtension();
                 $fileName = time() . '_' . uniqid() . '.' . $extension;
 
-                $file->move(public_path('storage/Iconos'), $fileName);
-                $publicPath = 'public/storage/Iconos/' . $fileName;
+                $file->move(public_path('storage/iconos'), $fileName);
+                $publicPath = 'public/storage/iconos/' . $fileName;
 
                 $icon->file_path = $publicPath;
                 $icon->file_name = $fileName;
@@ -172,7 +172,7 @@ class IconController extends Controller
             $icon = Icon::findOrFail($id);
 
             if ($icon->file_name) {
-                $path = public_path('storage/Iconos/' . $icon->file_name);
+                $path = public_path('storage/iconos/' . $icon->file_name);
                 if (File::exists($path)) {
                     File::delete($path);
                 }
