@@ -328,7 +328,7 @@ class ReportController extends Controller
                 $m = (int) $month;
                 $y = $year;
                 for ($i = 0; $i < $months; $i++) {
-                    $periods[] = [$y, str_pad($m, 2, '0', STR_PAD_LEFT)];
+                    $periods[] = [$y, $m];
                     $m--;
                     if ($m < 1) { $m = 12; $y--; }
                 }
