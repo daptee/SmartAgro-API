@@ -24,6 +24,7 @@ use App\Models\HarvestPrices;
 use App\Models\LivestockInputOutputRatio;
 use App\Models\PitIndicator;
 use App\Models\ProductPrice;
+use App\Models\BusinessIndicatorControl;
 use App\Models\MarketGeneralControl;
 use App\Models\StatusReport;
 use App\Models\User;
@@ -95,6 +96,21 @@ class ReportController extends Controller
                 Audith::new($id_user, $action, $request->all(), 422, $response);
                 return response()->json($response, 422);
             }
+
+            $controlModules = $control->data ?? [];
+
+            // Mapeo entre claves del control y claves del response
+            $moduleMap = [
+                'major_crops'                             => 'major_crops',
+                'insights'                                => 'insights',
+                'news'                                    => 'news',
+                'rainfall_records'                        => 'rainfall_records_provinces',
+                'main_grain_prices'                       => 'main_grain_prices',
+                'price_main_active_ingredients_producers' => 'price_main_active_ingredients_producers',
+                'producer_segment_prices'                 => 'producer_segment_prices',
+                'mag_lease_index'                         => 'mag_lease_index',
+                'mag_steer_index'                         => 'mag_steer_index',
+            ];
 
             $filters = function ($query) use ($id_plan, $month, $year) {
                 $query->where('status_id', 1)
@@ -209,9 +225,16 @@ class ReportController extends Controller
                 'main_grain_prices' => MainGrainPrice::where($majorCropsFilters)->with('plan')->get(),
             ];
 
+            // Ocultar módulos que el control general tiene en false
+            foreach ($moduleMap as $controlKey => $dataKey) {
+                if (empty($controlModules[$controlKey])) {
+                    $data[$dataKey] = null;
+                }
+            }
+
             // Verificar si todos los arrays están vacíos
             $allEmpty = collect($data)->every(function ($items) {
-                return $items->isEmpty();
+                return $items === null || $items->isEmpty();
             });
 
             if ($allEmpty) {
@@ -260,15 +283,61 @@ class ReportController extends Controller
         $message = "Error al obtener indicadores comerciales";
         $id_plan = Auth::user()->id_plan ?? null;
 
-        $month = $request->input('month');
-        $year = $request->input('year');
+        $month = (int) $request->input('month');
+        $year  = (int) $request->input('year');
 
         try {
+            // Verificar que el control general esté publicado
+            $control = BusinessIndicatorControl::where('month', $month)->where('year', $year)->first();
+
+            if (!$control || $control->status_id !== 1) {
+                $response = [
+                    'message' => 'No hay datos para el mes seleccionado. Por favor, cambie el mes de filtro.',
+                    'error_code' => 600
+                ];
+                Audith::new($id_user, $action, $request->all(), 422, $response);
+                return response()->json($response, 422);
+            }
+
+            $controlModules = $control->data ?? [];
+
+            // Mapeo entre claves del control y claves del response
+            $moduleMap = [
+                'pit_indicators'                          => 'pit_indicators',
+                'gross_margin'                            => 'gross_margins',
+                'gross_margins_trend'                     => 'gross_margins_trend',
+                'livestock_input_output_ratio'            => 'livestock_input_output_ratios',
+                'agricultural_input_output_relationship'  => 'agricultural_input_output_relationships',
+                'products_prices'                         => 'product_prices',
+                'harvest_prices'                          => 'harvest_prices',
+                'main_crops_buying_selling_traffic_light' => 'main_crops_buying_selling_traffic_light',
+            ];
+
             $filters = function ($query) use ($id_plan, $month, $year) {
-                $query->whereYear('date', $year)
-                    ->whereMonth('date', $month)
-                    ->where('id_plan', '<=', $id_plan);
+                $query->where('year', $year)
+                    ->where('month', $month)
+                    ->where('status_id', 1)
+                    ->where(function ($q) use ($id_plan) {
+                        $q->whereNull('id_plan')->orWhere('id_plan', '<=', $id_plan);
+                    });
             };
+
+            // Genera pares (year, month) anteriores al mes/año dado (inclusive)
+            $buildPeriods = function (int $months) use ($month, $year): array {
+                $periods = [];
+                $m = (int) $month;
+                $y = $year;
+                for ($i = 0; $i < $months; $i++) {
+                    $periods[] = [$y, $m];
+                    $m--;
+                    if ($m < 1) { $m = 12; $y--; }
+                }
+                return $periods;
+            };
+
+            $periods12 = $buildPeriods(12);
+            $periods24 = $buildPeriods(24);
+            $periods36 = $buildPeriods(36);
 
             function getDataOrNull($modelClass, $filters, $with = [])
             {
@@ -280,18 +349,68 @@ class ReportController extends Controller
                 return $results->isEmpty() ? null : $results;
             }
 
+            function getHistoryOrNull($modelClass, $periods, $id_plan, $with = [])
+            {
+                // Si no hay datos para el mes/año buscado, no retornar historial
+                [$targetYear, $targetMonth] = $periods[0];
+                $exists = $modelClass::where('year', $targetYear)
+                    ->where('month', $targetMonth)
+                    ->where('id_plan', '<=', $id_plan)
+                    ->where('status_id', 1)
+                    ->exists();
+
+                if (!$exists) {
+                    return null;
+                }
+
+                $query = $modelClass::where(function ($q) use ($periods) {
+                    foreach ($periods as [$y, $m]) {
+                        $q->orWhere(function ($q2) use ($y, $m) {
+                            $q2->where('year', $y)->where('month', $m);
+                        });
+                    }
+                })->where('id_plan', '<=', $id_plan)
+                  ->where('status_id', 1)
+                  ->orderBy('year', 'desc')
+                  ->orderBy('month', 'desc');
+
+                if (!empty($with)) {
+                    $query->with($with);
+                }
+                $results = $query->get();
+
+                if ($results->isEmpty()) {
+                    return null;
+                }
+
+                // Deduplicar por (region, year, month), conservando el de mayor id_plan
+                $unique = $results
+                    ->groupBy(fn($item) => ($item->region ?? '') . '|' . $item->year . '|' . $item->month)
+                    ->map(fn($group) => $group->sortByDesc('id_plan')->first())
+                    ->values();
+
+                return $unique->isEmpty() ? null : $unique;
+            }
+
             // Consultas a las nuevas tablas
             $data = [
                 'pit_indicators' => getDataOrNull(PitIndicator::class, $filters),
-                'livestock_input_output_ratios' => getDataOrNull(LivestockInputOutputRatio::class, $filters, ['regionData']),
-                'agricultural_input_output_relationships' => getDataOrNull(AgriculturalInputOutputRelationship::class, $filters, ['regionData']),
-                'gross_margins_trend' => getDataOrNull(GrossMarginsTrend::class, $filters),
-                'harvest_prices' => getDataOrNull(HarvestPrices::class, $filters),
+                'livestock_input_output_ratios' => getHistoryOrNull(LivestockInputOutputRatio::class, $periods36, $id_plan, ['regionData']),
+                'agricultural_input_output_relationships' => getHistoryOrNull(AgriculturalInputOutputRelationship::class, $periods36, $id_plan, ['regionData']),
+                'gross_margins_trend' => getHistoryOrNull(GrossMarginsTrend::class, $periods36, $id_plan),
+                'harvest_prices' => getHistoryOrNull(HarvestPrices::class, $periods24, $id_plan),
                 'product_prices' => getDataOrNull(ProductPrice::class, $filters, ['segment']),
                 'gross_margins' => getDataOrNull(GrossMargin::class, $filters),
-                'main_crops_buying_selling_traffic_light' => getDataOrNull(MainCropsBuyingSellingTrafficLight::class, $filters, ['inputs']),
+                'main_crops_buying_selling_traffic_light' => getDataOrNull(MainCropsBuyingSellingTrafficLight::class, $filters),
             ];
 
+
+            // Ocultar módulos que el control general tiene en false
+            foreach ($moduleMap as $controlKey => $dataKey) {
+                if (empty($controlModules[$controlKey])) {
+                    $data[$dataKey] = null;
+                }
+            }
 
             // Verificar si todos los arrays están vacíos
             $allEmpty = collect($data)->every(function ($items) {
@@ -304,7 +423,7 @@ class ReportController extends Controller
 
             if ($trafficLights) {
                 foreach ($trafficLights as $item) {
-                    $inputName = $item->inputs->name;
+                    $inputName = $item->input;
                     $variable = $item->variable;
                     $cultivos = $item->data;
 
@@ -323,7 +442,7 @@ class ReportController extends Controller
                 $transformed = null;
             }
 
-            $data['main_crops_buying_selling_traffic_light'] = $transformed;
+            /* $data['main_crops_buying_selling_traffic_light'] = $transformed; */
 
 
             if ($allEmpty) {
@@ -398,8 +517,8 @@ class ReportController extends Controller
             return response()->json($response, $status);
         }
 
-        $month = $request->input('month');
-        $year = $request->input('year');
+        $month = (int)$request->input('month');
+        $year = (int)$request->input('year');
 
         try {
             DB::beginTransaction(); // Iniciar una transacción para garantizar integridad

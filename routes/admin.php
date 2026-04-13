@@ -3,6 +3,7 @@
 use App\Http\Controllers\AdvertisingReportController;
 use App\Http\Controllers\AdvertisingSpaceController;
 use App\Http\Controllers\AudithController;
+use App\Http\Controllers\BusinessIndicatorDataTransferController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ClassificationController;
 use App\Http\Controllers\CompaniesAdvertisingController;
@@ -44,6 +45,8 @@ use App\Http\Controllers\StatusController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\UserCompanyController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\EconomicVariableController;
+use App\Http\Controllers\UnitOfMeasureController;
 use App\Http\Controllers\UserProfileController;
 use Illuminate\Support\Facades\Route;
 
@@ -311,6 +314,7 @@ Route::prefix('admin')
             Route::put('livestock-input-output-ratios/{id}', 'update');
             Route::put('livestock-input-output-ratios/{id}/status', 'changeStatus');
             Route::delete('livestock-input-output-ratios/{id}', 'destroy');
+            Route::delete('livestock-input-output-ratios/duplicates/delete', 'deleteDuplicates');
         });
 
         // Agricultural Input/Output Relationships (Relaciones insumo/producto agrícolas)
@@ -320,6 +324,7 @@ Route::prefix('admin')
             Route::put('agricultural-input-output-relationships/{id}', 'update');
             Route::put('agricultural-input-output-relationships/{id}/status', 'changeStatus');
             Route::delete('agricultural-input-output-relationships/{id}', 'destroy');
+            Route::delete('agricultural-input-output-relationships/duplicates/delete', 'deleteDuplicates');
         });
 
         // PIT Indicators (Indicadores PIT)
@@ -347,6 +352,7 @@ Route::prefix('admin')
             Route::put('gross-margins-trend/{id}', 'update');
             Route::put('gross-margins-trend/{id}/status', 'changeStatus');
             Route::delete('gross-margins-trend/{id}', 'destroy');
+            Route::delete('gross-margins-trend/duplicates/delete', 'deleteDuplicates');
         });
 
         // Product Prices (Precios de productos)
@@ -365,6 +371,7 @@ Route::prefix('admin')
             Route::put('harvest-prices/{id}', 'update');
             Route::put('harvest-prices/{id}/status', 'changeStatus');
             Route::delete('harvest-prices/{id}', 'destroy');
+            Route::delete('harvest-prices/duplicates/delete', 'deleteDuplicates');
         });
 
         // Main Crops Buying/Selling Traffic Light (Semáforo de compra/venta de cultivos)
@@ -379,6 +386,10 @@ Route::prefix('admin')
         // Market Data Transfer (Exportar/Importar datos de mercado entre entornos)
         Route::get('export-market-data', [MarketDataTransferController::class, 'export']);
         Route::post('import-market-data', [MarketDataTransferController::class, 'import']);
+
+        // Business Indicator Data Transfer (Exportar/Importar datos de indicadores comerciales entre entornos)
+        Route::get('export-business-indicator-data', [BusinessIndicatorDataTransferController::class, 'export']);
+        Route::post('import-business-indicator-data', [BusinessIndicatorDataTransferController::class, 'import']);
 
         // Market General Controls (Control General de Mercado)
         Route::controller(MarketGeneralControlController::class)->group(function () {
@@ -406,8 +417,30 @@ Route::prefix('admin')
             Route::put('active-ingredients/{id}', 'update');
             Route::delete('active-ingredients/{id}', 'destroy');
         });
+
+        // Unit of Measures (Unidades de medida)
+        Route::controller(UnitOfMeasureController::class)->group(function () {
+            Route::post('unit-of-measures', 'store');
+            Route::put('unit-of-measures/{id}', 'update');
+            Route::put('unit-of-measures/{id}/status', 'changeStatus');
+            Route::delete('unit-of-measures/{id}', 'destroy');
+        });
+
+        // Economic Variables (Variables económicas)
+        Route::controller(EconomicVariableController::class)->group(function () {
+            Route::post('economic-variables', 'store');
+            Route::put('economic-variables/{id}', 'update');
+            Route::put('economic-variables/{id}/status', 'changeStatus');
+            Route::delete('economic-variables/{id}', 'destroy');
+        });
     }
 );
+// Unit of Measures - Public route
+Route::get('admin/unit-of-measures', [UnitOfMeasureController::class, 'index']);
+
+// Economic Variables - Public route
+Route::get('admin/economic-variables', [EconomicVariableController::class, 'index']);
+
 // Public FAQ route
 Route::get('admin/faqs', [FaqController::class, 'index']);
 

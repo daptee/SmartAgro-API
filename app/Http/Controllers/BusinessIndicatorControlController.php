@@ -33,7 +33,7 @@ class BusinessIndicatorControlController extends Controller
             $query = BusinessIndicatorControl::query();
 
             if ($request->has('month') && $request->month) {
-                $query->where('month', $request->month);
+                $query->where('month', (int)$request->month);
             }
 
             if ($request->has('year') && $request->year) {
@@ -66,6 +66,14 @@ class BusinessIndicatorControlController extends Controller
             }
 
             $query->orderBy('year', 'desc')->orderBy('month', 'desc');
+
+            // Recalcular estado de cada módulo desde sus tablas y sincronizar el JSON data
+            BusinessIndicatorControl::get()->each(function ($control) {
+                $realData = self::calculateBlockStatuses($control->month, $control->year);
+                if ($realData !== ($control->data ?? [])) {
+                    $control->update(['data' => $realData]);
+                }
+            });
 
             if (is_null($perPage)) {
                 $data = $query->with(['status', 'user'])->get();
@@ -125,7 +133,7 @@ class BusinessIndicatorControlController extends Controller
             ]);
 
             $exists = BusinessIndicatorControl::where('year', $request->year)
-                ->where('month', $request->month)
+                ->where('month', (int)$request->month)
                 ->exists();
 
             if ($exists) {
@@ -134,10 +142,10 @@ class BusinessIndicatorControlController extends Controller
                 ], 400);
             }
 
-            $initialData = self::calculateBlockStatuses($request->month, $request->year);
+            $initialData = self::calculateBlockStatuses((int)$request->month, $request->year);
 
             $data = BusinessIndicatorControl::create([
-                'month'     => $request->month,
+                'month'     => (int)$request->month,
                 'year'      => $request->year,
                 'data'      => $initialData,
                 'status_id' => 2,
@@ -173,7 +181,7 @@ class BusinessIndicatorControlController extends Controller
             ]);
 
             $exists = BusinessIndicatorControl::where('year', $request->year)
-                ->where('month', $request->month)
+                ->where('month', (int)$request->month)
                 ->where('id', '!=', $id)
                 ->exists();
 
@@ -183,10 +191,10 @@ class BusinessIndicatorControlController extends Controller
                 ], 400);
             }
 
-            $newData = self::calculateBlockStatuses($request->month, $request->year);
+            $newData = self::calculateBlockStatuses((int)$request->month, $request->year);
 
             $control->update([
-                'month'   => $request->month,
+                'month'   => (int)$request->month,
                 'year'    => $request->year,
                 'data'    => $newData,
                 'id_user' => $id_user,
@@ -227,6 +235,28 @@ class BusinessIndicatorControlController extends Controller
                 'data'    => $currentData,
                 'id_user' => $id_user,
             ]);
+
+            // Sincronizar status de los registros del módulo según loaded
+            $blockModelMap = [
+                'pit_indicators'                          => PitIndicator::class,
+                'gross_margin'                            => GrossMargin::class,
+                'gross_margins_trend'                     => GrossMarginsTrend::class,
+                'livestock_input_output_ratio'            => LivestockInputOutputRatio::class,
+                'agricultural_input_output_relationship'  => AgriculturalInputOutputRelationship::class,
+                'products_prices'                         => ProductPrice::class,
+                'harvest_prices'                          => HarvestPrices::class,
+                'main_crops_buying_selling_traffic_light' => MainCropsBuyingSellingTrafficLight::class,
+            ];
+
+            if (isset($blockModelMap[$request->block])) {
+                $newStatus = $request->loaded ? 1 : 2;
+                $currentStatus = $request->loaded ? 2 : 1;
+
+                $blockModelMap[$request->block]::where('month', $control->month)
+                    ->where('year', $control->year)
+                    ->where('status_id', $currentStatus)
+                    ->update(['status_id' => $newStatus]);
+            }
 
             $data = $control->fresh(['status', 'user']);
 
@@ -314,22 +344,17 @@ class BusinessIndicatorControlController extends Controller
     {
         $control = BusinessIndicatorControl::firstOrCreate(
             ['month' => $month, 'year' => $year],
-            ['data' => self::calculateBlockStatuses($month, $year), 'status_id' => 2]
+            ['status_id' => 2]
         );
 
-        $currentData = $control->data ?? [];
+        // Recalcular todos los bloques desde BD y forzar el bloque actual
+        $newData = self::calculateBlockStatuses($month, $year);
+        $newData[$blockName] = $isPublished;
 
-        if ($isPublished) {
-            $currentData[$blockName] = true;
-        } else {
-            $allStatuses = self::calculateBlockStatuses($month, $year);
-            $currentData[$blockName] = $allStatuses[$blockName] ?? false;
-        }
-
-        $updates = ['data' => $currentData];
+        $updates = ['data' => $newData];
 
         // Solo forzar borrador si ningún bloque está publicado
-        if (!in_array(true, $currentData, true)) {
+        if (!in_array(true, $newData, true)) {
             $updates['status_id'] = 2;
         }
 

@@ -51,6 +51,14 @@ class MarketGeneralControlController extends Controller
             // Orden por defecto (por año y mes descendente)
             $query->orderBy('year', 'desc')->orderBy('month', 'desc');
 
+            // Recalcular estado de cada módulo desde sus tablas y sincronizar el JSON data
+            MarketGeneralControl::get()->each(function ($control) {
+                $realData = self::calculateBlockStatuses($control->month, $control->year);
+                if ($realData !== ($control->data ?? [])) {
+                    $control->update(['data' => $realData]);
+                }
+            });
+
             // Si no se pasa per_page => devolver todo
             if (is_null($perPage)) {
                 $controls = $query->with(['status', 'user'])->get();
@@ -219,6 +227,35 @@ class MarketGeneralControlController extends Controller
                 'id_user' => $id_user,
             ]);
 
+            // Sincronizar status de los registros del módulo según loaded
+            $blockModelMap = [
+                'major_crops'                             => ['model' => MajorCrop::class,                         'filter' => 'month_year'],
+                'insights'                                => ['model' => Insight::class,                           'filter' => 'date'],
+                'news'                                    => ['model' => News::class,                              'filter' => 'date'],
+                'rainfall_records'                        => ['model' => RainfallRecordProvince::class,            'filter' => 'month_year'],
+                'main_grain_prices'                       => ['model' => MainGrainPrice::class,                    'filter' => 'month_year'],
+                'price_main_active_ingredients_producers' => ['model' => PriceMainActiveIngredientsProducer::class, 'filter' => 'month_year'],
+                'producer_segment_prices'                 => ['model' => ProducerSegmentPrice::class,              'filter' => 'month_year'],
+                'mag_lease_index'                         => ['model' => MagLeaseIndex::class,                     'filter' => 'date'],
+                'mag_steer_index'                         => ['model' => MagSteerIndex::class,                     'filter' => 'date'],
+            ];
+
+            if (isset($blockModelMap[$request->block])) {
+                $map = $blockModelMap[$request->block];
+                $newStatus = $request->loaded ? 1 : 2;
+                $currentStatus = $request->loaded ? 2 : 1;
+
+                $query = $map['model']::where('status_id', $currentStatus);
+
+                if ($map['filter'] === 'date') {
+                    $query->whereMonth('date', $control->month)->whereYear('date', $control->year);
+                } else {
+                    $query->where('month', $control->month)->where('year', $control->year);
+                }
+
+                $query->update(['status_id' => $newStatus]);
+            }
+
             $data = $control;
             $data->load(['status', 'user']);
 
@@ -312,22 +349,17 @@ class MarketGeneralControlController extends Controller
     {
         $control = MarketGeneralControl::firstOrCreate(
             ['month' => $month, 'year' => $year],
-            ['data' => self::calculateBlockStatuses($month, $year), 'status_id' => 2]
+            ['status_id' => 2]
         );
 
-        $currentData = $control->data ?? [];
+        // Recalcular todos los bloques desde BD y forzar el bloque actual
+        $newData = self::calculateBlockStatuses($month, $year);
+        $newData[$blockName] = $isPublished;
 
-        if ($isPublished) {
-            $currentData[$blockName] = true;
-        } else {
-            $allStatuses = self::calculateBlockStatuses($month, $year);
-            $currentData[$blockName] = $allStatuses[$blockName] ?? false;
-        }
-
-        $updates = ['data' => $currentData];
+        $updates = ['data' => $newData];
 
         // Solo forzar borrador si ningún bloque está publicado
-        if (!in_array(true, $currentData, true)) {
+        if (!in_array(true, $newData, true)) {
             $updates['status_id'] = 2;
         }
 

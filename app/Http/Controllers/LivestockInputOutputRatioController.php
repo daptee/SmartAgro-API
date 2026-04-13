@@ -26,7 +26,7 @@ class LivestockInputOutputRatioController extends Controller
             $query = LivestockInputOutputRatio::query();
 
             if ($request->has('month') && $request->month) {
-                $query->where('month', $request->month);
+                $query->where('month', (int)$request->month);
             }
 
             if ($request->has('year') && $request->year) {
@@ -84,7 +84,7 @@ class LivestockInputOutputRatioController extends Controller
             ]);
 
             $data = LivestockInputOutputRatio::create([
-                'month'     => $request->month,
+                'month'     => (int)$request->month,
                 'year'      => $request->year,
                 'status_id' => $request->status_id,
                 'id_plan'   => $request->id_plan,
@@ -93,7 +93,7 @@ class LivestockInputOutputRatioController extends Controller
             ]);
 
             $data->load(['plan', 'status', 'user']);
-            BusinessIndicatorControlController::syncBlockStatus($request->month, $request->year, 'livestock_input_output_ratio', $request->status_id == 1);
+            BusinessIndicatorControlController::syncBlockStatus((int)$request->month, $request->year, 'livestock_input_output_ratio', $request->status_id == 1);
 
             Audith::new($id_user, $action, $request->all(), 201, compact("data"));
 
@@ -125,7 +125,7 @@ class LivestockInputOutputRatioController extends Controller
             ]);
 
             $record->update([
-                'month'     => $request->month,
+                'month'     => (int)$request->month,
                 'year'      => $request->year,
                 'status_id' => $request->status_id,
                 'id_plan'   => $request->id_plan,
@@ -134,7 +134,7 @@ class LivestockInputOutputRatioController extends Controller
             ]);
 
             $data = $record->fresh(['plan', 'status', 'user']);
-            BusinessIndicatorControlController::syncBlockStatus($request->month, $request->year, 'livestock_input_output_ratio', $request->status_id == 1);
+            BusinessIndicatorControlController::syncBlockStatus((int)$request->month, $request->year, 'livestock_input_output_ratio', $request->status_id == 1);
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
 
@@ -203,5 +203,43 @@ class LivestockInputOutputRatioController extends Controller
         }
 
         return response(["message" => "Relación insumo/producto ganadera eliminada correctamente"]);
+    }
+
+    // DELETE DUPLICATES
+    public function deleteDuplicates(Request $request)
+    {
+        $message = "Error al eliminar duplicados";
+        $action = "Eliminar duplicados de relaciones insumo/producto ganaderas";
+        $id_user = Auth::user()->id ?? null;
+        $deleted = 0;
+
+        try {
+            $groups = LivestockInputOutputRatio::selectRaw('region, year, month')
+                ->groupBy('region', 'year', 'month')
+                ->havingRaw('COUNT(*) > 1')
+                ->get();
+
+            foreach ($groups as $group) {
+                $records = LivestockInputOutputRatio::whereRaw('region <=> ?', [$group->region])
+                    ->where('year', $group->year)
+                    ->where('month', $group->month)
+                    ->orderBy('id_plan', 'desc')
+                    ->orderBy('id', 'desc')
+                    ->get();
+
+                foreach ($records->skip(1) as $duplicate) {
+                    $duplicate->forceDelete();
+                    $deleted++;
+                }
+            }
+
+            Audith::new($id_user, $action, $request->all(), 200, ['deleted' => $deleted]);
+
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage()], 500);
+        }
+
+        return response(["message" => "Duplicados eliminados correctamente", "deleted" => $deleted]);
     }
 }

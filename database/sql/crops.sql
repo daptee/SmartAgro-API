@@ -6,3 +6,10 @@ CREATE TABLE crops (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE crops ADD COLUMN color VARCHAR(7) NULL AFTER icon;
+
+UPDATE crops SET color = '#42A867' WHERE id = 1; -- Maíz
+UPDATE crops SET color = '#008C44' WHERE id = 2; -- Soja
+UPDATE crops SET color = '#F5B945' WHERE id = 3; -- Trigo
+UPDATE crops SET color = '#805421' WHERE id = 4; -- Girasol

@@ -2,44 +2,39 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Insight;
-use App\Models\MagLeaseIndex;
-use App\Models\MagSteerIndex;
-use App\Models\MainGrainPrice;
-use App\Models\MajorCrop;
-use App\Models\MarketGeneralControl;
-use App\Models\News;
-use App\Models\PriceMainActiveIngredientsProducer;
-use App\Models\ProducerSegmentPrice;
-use App\Models\RainfallRecordProvince;
+use App\Http\Controllers\BusinessIndicatorControlController;
+use App\Models\AgriculturalInputOutputRelationship;
+use App\Models\BusinessIndicatorControl;
+use App\Models\GrossMargin;
+use App\Models\GrossMarginsTrend;
+use App\Models\HarvestPrices;
+use App\Models\LivestockInputOutputRatio;
+use App\Models\MainCropsBuyingSellingTrafficLight;
+use App\Models\PitIndicator;
+use App\Models\ProductPrice;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
-class MarketDataTransferController extends Controller
+class BusinessIndicatorDataTransferController extends Controller
 {
     /**
-     * Modelos que usan columna 'date' para filtrar por mes/año.
-     * Modelos que usan columnas 'month' y 'year' directas.
+     * Todos los modelos usan columnas 'month' y 'year' directas.
      */
-    private array $dateModels = [
-        'insights'    => Insight::class,
-        'news'        => News::class,
-        'mag_lease_index' => MagLeaseIndex::class,
-        'mag_steer_index' => MagSteerIndex::class,
-    ];
-
     private array $monthYearModels = [
-        'major_crops'                            => MajorCrop::class,
-        'main_grain_prices'                      => MainGrainPrice::class,
-        'rainfall_record_provinces'              => RainfallRecordProvince::class,
-        'producer_segment_prices'                => ProducerSegmentPrice::class,
-        'prices_main_active_ingredients_producers' => PriceMainActiveIngredientsProducer::class,
+        'pit_indicators'                         => PitIndicator::class,
+        'gross_margin'                           => GrossMargin::class,
+        'gross_margins_trend'                    => GrossMarginsTrend::class,
+        'livestock_input_output_ratio'           => LivestockInputOutputRatio::class,
+        'agricultural_input_output_relationship' => AgriculturalInputOutputRelationship::class,
+        'products_prices'                        => ProductPrice::class,
+        'harvest_prices'                         => HarvestPrices::class,
+        'main_crops_buying_selling_traffic_light' => MainCropsBuyingSellingTrafficLight::class,
     ];
 
     /**
-     * GET /export-market-data?month=1&year=2025
-     * Exporta todos los datos de mercado de un mes/año como archivo JSON descargable.
+     * GET /export-business-indicator-data?month=1&year=2025
+     * Exporta todos los datos de indicadores comerciales de un mes/año como archivo JSON descargable.
      */
     public function export(Request $request)
     {
@@ -54,21 +49,13 @@ class MarketDataTransferController extends Controller
         try {
             $blocks = [];
 
-            // market_general_controls (solo usa month/year)
-            $blocks['market_general_controls'] = MarketGeneralControl::where('month', $month)
+            // business_indicator_controls
+            $blocks['business_indicator_controls'] = BusinessIndicatorControl::where('month', $month)
                 ->where('year', $year)
                 ->get()
                 ->toArray();
 
-            // Modelos con columna 'date'
-            foreach ($this->dateModels as $key => $model) {
-                $blocks[$key] = $model::whereMonth('date', $month)
-                    ->whereYear('date', $year)
-                    ->get()
-                    ->toArray();
-            }
-
-            // Modelos con columnas 'month' y 'year'
+            // Todos los bloques usan month/year
             foreach ($this->monthYearModels as $key => $model) {
                 $blocks[$key] = $model::where('month', $month)
                     ->where('year', $year)
@@ -83,7 +70,7 @@ class MarketDataTransferController extends Controller
                 'blocks'      => $blocks,
             ];
 
-            $filename = "market_data_{$year}_" . str_pad($month, 2, '0', STR_PAD_LEFT) . ".json";
+            $filename = "business_indicator_data_{$year}_" . str_pad($month, 2, '0', STR_PAD_LEFT) . ".json";
             $json = json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
 
             return response()->streamDownload(function () use ($json) {
@@ -92,7 +79,7 @@ class MarketDataTransferController extends Controller
                 'Content-Type' => 'application/json',
             ]);
         } catch (Exception $e) {
-            Log::error('Error en exportación de datos de mercado', [
+            Log::error('Error en exportación de datos de indicadores comerciales', [
                 'error' => $e->getMessage(),
                 'line'  => $e->getLine(),
             ]);
@@ -101,8 +88,8 @@ class MarketDataTransferController extends Controller
     }
 
     /**
-     * POST /import-market-data
-     * Importa datos de mercado desde un archivo JSON exportado previamente.
+     * POST /import-business-indicator-data
+     * Importa datos de indicadores comerciales desde un archivo JSON exportado previamente.
      * Solo inserta los bloques que NO tengan datos para ese mes/año.
      */
     public function import(Request $request)
@@ -125,27 +112,16 @@ class MarketDataTransferController extends Controller
             $now    = now()->toDateTimeString();
             $results = [];
 
-            // market_general_controls
-            $results['market_general_controls'] = $this->importBlock(
-                'market_general_controls',
-                $blocks['market_general_controls'] ?? [],
-                MarketGeneralControl::class,
+            // business_indicator_controls
+            $results['business_indicator_controls'] = $this->importBlock(
+                'business_indicator_controls',
+                $blocks['business_indicator_controls'] ?? [],
+                BusinessIndicatorControl::class,
                 fn($m) => $m::where('month', $month)->where('year', $year)->exists(),
                 $now
             );
 
-            // Modelos con columna 'date'
-            foreach ($this->dateModels as $key => $model) {
-                $results[$key] = $this->importBlock(
-                    $key,
-                    $blocks[$key] ?? [],
-                    $model,
-                    fn($m) => $m::whereMonth('date', $month)->whereYear('date', $year)->exists(),
-                    $now
-                );
-            }
-
-            // Modelos con columnas 'month' y 'year'
+            // Todos los bloques usan month/year
             foreach ($this->monthYearModels as $key => $model) {
                 $results[$key] = $this->importBlock(
                     $key,
@@ -157,8 +133,8 @@ class MarketDataTransferController extends Controller
             }
 
             // Recalcular y sincronizar el control general tras la importación
-            $newData = MarketGeneralControlController::calculateBlockStatuses($month, $year);
-            $control = MarketGeneralControl::firstOrCreate(
+            $newData = BusinessIndicatorControlController::calculateBlockStatuses($month, $year);
+            $control = BusinessIndicatorControl::firstOrCreate(
                 ['month' => $month, 'year' => $year],
                 ['status_id' => 2]
             );
@@ -175,7 +151,7 @@ class MarketDataTransferController extends Controller
                 'results' => $results,
             ], 200);
         } catch (Exception $e) {
-            Log::error('Error en importación de datos de mercado', [
+            Log::error('Error en importación de datos de indicadores comerciales', [
                 'error' => $e->getMessage(),
                 'line'  => $e->getLine(),
             ]);
@@ -196,20 +172,17 @@ class MarketDataTransferController extends Controller
             return 'skipped (already exists)';
         }
 
-        // Limpiar campos autogenerados y preparar para inserción masiva
         $toInsert = array_map(function ($record) use ($now) {
             unset($record['id']);
 
-            // FIX: Convertimos el formato ISO (con T y Z) al formato estándar de MySQL
             if (!empty($record['created_at'])) {
                 $record['created_at'] = date('Y-m-d H:i:s', strtotime($record['created_at']));
             } else {
                 $record['created_at'] = $now;
             }
 
-            // Forzamos updated_at al momento actual de la importación
             $record['updated_at'] = $now;
-            // Convertir arrays/json a string para insert()
+
             foreach ($record as $k => $v) {
                 if (is_array($v)) {
                     $record[$k] = json_encode($v);

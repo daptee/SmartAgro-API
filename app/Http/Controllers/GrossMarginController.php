@@ -26,7 +26,7 @@ class GrossMarginController extends Controller
             $query = GrossMargin::query();
 
             if ($request->has('month') && $request->month) {
-                $query->where('month', $request->month);
+                $query->where('month', (int)$request->month);
             }
 
             if ($request->has('year') && $request->year) {
@@ -86,7 +86,7 @@ class GrossMarginController extends Controller
             $request->validate($rules);
 
             $data = GrossMargin::create([
-                'month'     => $request->month,
+                'month'     => (int)$request->month,
                 'year'      => $request->year,
                 'status_id' => $request->status_id,
                 'id_plan'   => $request->id_plan,
@@ -96,7 +96,7 @@ class GrossMarginController extends Controller
 
             $data->load(['plan', 'status', 'user']);
 
-            BusinessIndicatorControlController::syncBlockStatus($request->month, $request->year, 'gross_margin', $request->status_id == 1);
+            BusinessIndicatorControlController::syncBlockStatus((int)$request->month, $request->year, 'gross_margin', $request->status_id == 1);
 
             Audith::new($id_user, $action, $request->all(), 201, compact("data"));
 
@@ -130,7 +130,7 @@ class GrossMarginController extends Controller
             $request->validate($rules);
 
             $record->update([
-                'month'     => $request->month,
+                'month'     => (int)$request->month,
                 'year'      => $request->year,
                 'status_id' => $request->status_id,
                 'id_plan'   => $request->id_plan,
@@ -140,7 +140,7 @@ class GrossMarginController extends Controller
 
             $data = $record->fresh(['plan', 'status', 'user']);
 
-            BusinessIndicatorControlController::syncBlockStatus($request->month, $request->year, 'gross_margin', $request->status_id == 1);
+            BusinessIndicatorControlController::syncBlockStatus((int)$request->month, $request->year, 'gross_margin', $request->status_id == 1);
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
 

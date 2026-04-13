@@ -26,7 +26,7 @@ class ProductPriceController extends Controller
             $query = ProductPrice::query();
 
             if ($request->has('month') && $request->month) {
-                $query->where('month', $request->month);
+                $query->where('month', (int)$request->month);
             }
 
             if ($request->has('year') && $request->year) {
@@ -41,16 +41,12 @@ class ProductPriceController extends Controller
                 $query->where('id_plan', $request->id_plan);
             }
 
-            if ($request->has('segment_id') && $request->segment_id) {
-                $query->where('segment_id', $request->segment_id);
-            }
-
             $query->orderBy('year', 'desc')->orderBy('month', 'desc');
 
             if (is_null($perPage)) {
-                $data = $query->with(['plan', 'segment', 'status', 'user'])->get();
+                $data = $query->with(['plan', 'status', 'user'])->get();
             } else {
-                $records = $query->with(['plan', 'segment', 'status', 'user'])->paginate($perPage, ['*'], 'page', $page);
+                $records = $query->with(['plan', 'status', 'user'])->paginate($perPage, ['*'], 'page', $page);
                 $data = $records->items();
                 $meta = [
                     'page'      => $records->currentPage(),
@@ -84,22 +80,20 @@ class ProductPriceController extends Controller
                 'year'       => 'required|integer|digits:4',
                 'status_id'  => 'required|in:1,2',
                 'id_plan'    => 'required|exists:plans,id',
-                'segment_id' => 'required|exists:segments,id',
                 'data'       => 'required|array',
             ]);
 
             $data = ProductPrice::create([
-                'month'      => $request->month,
+                'month'      => (int)$request->month,
                 'year'       => $request->year,
                 'status_id'  => $request->status_id,
                 'id_plan'    => $request->id_plan,
-                'segment_id' => $request->segment_id,
                 'data'       => $request->input('data'),
                 'id_user'    => $id_user,
             ]);
 
-            $data->load(['plan', 'segment', 'status', 'user']);
-            BusinessIndicatorControlController::syncBlockStatus($request->month, $request->year, 'products_prices', $request->status_id == 1);
+            $data->load(['plan', 'status', 'user']);
+            BusinessIndicatorControlController::syncBlockStatus((int)$request->month, $request->year, 'products_prices', $request->status_id == 1);
 
             Audith::new($id_user, $action, $request->all(), 201, compact("data"));
 
@@ -127,22 +121,20 @@ class ProductPriceController extends Controller
                 'year'       => 'required|integer|digits:4',
                 'status_id'  => 'required|in:1,2',
                 'id_plan'    => 'required|exists:plans,id',
-                'segment_id' => 'required|exists:segments,id',
                 'data'       => 'required|array',
             ]);
 
             $record->update([
-                'month'      => $request->month,
+                'month'      => (int)$request->month,
                 'year'       => $request->year,
                 'status_id'  => $request->status_id,
                 'id_plan'    => $request->id_plan,
-                'segment_id' => $request->segment_id,
                 'data'       => $request->input('data'),
                 'id_user'    => $id_user,
             ]);
 
-            $data = $record->fresh(['plan', 'segment', 'status', 'user']);
-            BusinessIndicatorControlController::syncBlockStatus($request->month, $request->year, 'products_prices', $request->status_id == 1);
+            $data = $record->fresh(['plan', 'status', 'user']);
+            BusinessIndicatorControlController::syncBlockStatus((int)$request->month, $request->year, 'products_prices', $request->status_id == 1);
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
 
@@ -170,7 +162,7 @@ class ProductPriceController extends Controller
             ]);
 
             if ($request->status_id == 1) {
-                if (empty($record->month) || empty($record->year) || empty($record->data) || empty($record->id_plan) || empty($record->segment_id)) {
+                if (empty($record->month) || empty($record->year) || empty($record->data) || empty($record->id_plan)) {
                     return response([
                         "message" => "No se puede publicar el registro. Todos los campos deben estar completos (month, year, data, plan y segment)."
                     ], 400);
@@ -179,7 +171,7 @@ class ProductPriceController extends Controller
 
             $record->update(['status_id' => $request->status_id]);
 
-            $data = $record->fresh(['plan', 'segment', 'status', 'user']);
+            $data = $record->fresh(['plan', 'status', 'user']);
             BusinessIndicatorControlController::syncBlockStatus($data->month, $data->year, 'products_prices', $request->status_id == 1);
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));

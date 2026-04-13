@@ -26,7 +26,7 @@ class AgriculturalInputOutputRelationshipController extends Controller
             $query = AgriculturalInputOutputRelationship::query();
 
             if ($request->has('month') && $request->month) {
-                $query->where('month', $request->month);
+                $query->where('month', (int)$request->month);
             }
 
             if ($request->has('year') && $request->year) {
@@ -84,7 +84,7 @@ class AgriculturalInputOutputRelationshipController extends Controller
             ]);
 
             $data = AgriculturalInputOutputRelationship::create([
-                'month'     => $request->month,
+                'month'     => (int)$request->month,
                 'year'      => $request->year,
                 'status_id' => $request->status_id,
                 'id_plan'   => $request->id_plan,
@@ -93,7 +93,7 @@ class AgriculturalInputOutputRelationshipController extends Controller
             ]);
 
             $data->load(['plan', 'status', 'user']);
-            BusinessIndicatorControlController::syncBlockStatus($request->month, $request->year, 'agricultural_input_output_relationship', $request->status_id == 1);
+            BusinessIndicatorControlController::syncBlockStatus((int)$request->month, $request->year, 'agricultural_input_output_relationship', $request->status_id == 1);
 
             Audith::new($id_user, $action, $request->all(), 201, compact("data"));
 
@@ -125,7 +125,7 @@ class AgriculturalInputOutputRelationshipController extends Controller
             ]);
 
             $record->update([
-                'month'     => $request->month,
+                'month'     => (int)$request->month,
                 'year'      => $request->year,
                 'status_id' => $request->status_id,
                 'id_plan'   => $request->id_plan,
@@ -134,7 +134,7 @@ class AgriculturalInputOutputRelationshipController extends Controller
             ]);
 
             $data = $record->fresh(['plan', 'status', 'user']);
-            BusinessIndicatorControlController::syncBlockStatus($request->month, $request->year, 'agricultural_input_output_relationship', $request->status_id == 1);
+            BusinessIndicatorControlController::syncBlockStatus((int)$request->month, $request->year, 'agricultural_input_output_relationship', $request->status_id == 1);
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
 
@@ -203,5 +203,43 @@ class AgriculturalInputOutputRelationshipController extends Controller
         }
 
         return response(["message" => "Relación insumo/producto agrícola eliminada correctamente"]);
+    }
+
+    // DELETE DUPLICATES
+    public function deleteDuplicates(Request $request)
+    {
+        $message = "Error al eliminar duplicados";
+        $action = "Eliminar duplicados de relaciones insumo/producto agrícolas";
+        $id_user = Auth::user()->id ?? null;
+        $deleted = 0;
+
+        try {
+            $groups = AgriculturalInputOutputRelationship::selectRaw('region, year, month')
+                ->groupBy('region', 'year', 'month')
+                ->havingRaw('COUNT(*) > 1')
+                ->get();
+
+            foreach ($groups as $group) {
+                $records = AgriculturalInputOutputRelationship::whereRaw('region <=> ?', [$group->region])
+                    ->where('year', $group->year)
+                    ->where('month', $group->month)
+                    ->orderBy('id_plan', 'desc')
+                    ->orderBy('id', 'desc')
+                    ->get();
+
+                foreach ($records->skip(1) as $duplicate) {
+                    $duplicate->forceDelete();
+                    $deleted++;
+                }
+            }
+
+            Audith::new($id_user, $action, $request->all(), 200, ['deleted' => $deleted]);
+
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage()], 500);
+        }
+
+        return response(["message" => "Duplicados eliminados correctamente", "deleted" => $deleted]);
     }
 }

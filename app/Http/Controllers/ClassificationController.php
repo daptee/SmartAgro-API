@@ -22,7 +22,7 @@ class ClassificationController extends Controller
             $perPage = $request->input('per_page', null);
             $search = $request->input('search', '');
 
-            $query = Classification::with(['parent', 'status'])->orderBy('name', 'asc');
+            $query = Classification::with(['parent', 'status', 'icon'])->orderBy('name', 'asc');
 
             if ($search) {
                 $query->where(function ($q) use ($search) {
@@ -56,7 +56,7 @@ class ClassificationController extends Controller
         $data = null;
 
         try {
-            $data = Classification::with(['parent', 'children', 'status'])->findOrFail($id);
+            $data = Classification::with(['parent', 'children', 'status', 'icon'])->findOrFail($id);
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
 
@@ -81,16 +81,18 @@ class ClassificationController extends Controller
                 'name'                     => 'required|string|max:255',
                 'description'              => 'nullable|string',
                 'id_parent_classification' => 'nullable|exists:classifications,id',
+                'id_icon'                  => 'nullable|exists:icons,id',
             ]);
 
             $data = Classification::create([
                 'name'                     => $request->name,
                 'description'              => $request->description,
                 'id_parent_classification' => $request->id_parent_classification,
+                'id_icon'                  => $request->input('id_icon'),
                 'status_id'                => 1,
             ]);
 
-            $data->load(['parent', 'status']);
+            $data->load(['parent', 'status', 'icon']);
 
             Audith::new($id_user, $action, $request->all(), 201, compact("data"));
 
@@ -125,16 +127,18 @@ class ClassificationController extends Controller
                         }
                     },
                 ],
+                'id_icon'                  => 'nullable|exists:icons,id',
             ]);
 
             $classification->update([
                 'name'                     => $request->name,
                 'description'              => $request->description,
-                'id_parent_classification' => $request->id_parent_classification,
+                'id_parent_classification' => $request->input('id_parent_classification'),
+                'id_icon'                  => $request->input('id_icon'),
             ]);
 
             $data = $classification;
-            $data->load(['parent', 'status']);
+            $data->load(['parent', 'status', 'icon']);
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
 
@@ -164,7 +168,7 @@ class ClassificationController extends Controller
             $classification->update(['status_id' => $request->status_id]);
 
             $data = $classification;
-            $data->load(['parent', 'status']);
+            $data->load(['parent', 'status', 'icon']);
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
 
