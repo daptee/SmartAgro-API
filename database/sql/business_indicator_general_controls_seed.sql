@@ -83,4 +83,8 @@ FROM (
     UNION
     SELECT DISTINCT month, year FROM main_crops_buying_selling_traffic_light WHERE deleted_at IS NULL AND month IS NOT NULL AND year IS NOT NULL
 ) t
-ORDER BY t.year, t.month;
+ORDER BY t.year, t.month
+ON DUPLICATE KEY UPDATE
+    data       = VALUES(data),
+    status_id  = VALUES(status_id),
+    updated_at = NOW();

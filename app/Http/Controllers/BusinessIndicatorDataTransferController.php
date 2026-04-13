@@ -95,7 +95,7 @@ class BusinessIndicatorDataTransferController extends Controller
     public function import(Request $request)
     {
         $request->validate([
-            'file' => 'required|file|mimes:json',
+            'file' => 'required|file|mimes:json,txt',
         ]);
 
         try {
