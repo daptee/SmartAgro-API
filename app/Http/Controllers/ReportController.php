@@ -349,48 +349,56 @@ class ReportController extends Controller
                 return $results->isEmpty() ? null : $results;
             }
 
-            function getHistoryOrNull($modelClass, $periods, $id_plan, $with = [])
-            {
-                // Si no hay datos para el mes/año buscado, no retornar historial
-                [$targetYear, $targetMonth] = $periods[0];
-                $exists = $modelClass::where('year', $targetYear)
-                    ->where('month', $targetMonth)
-                    ->where('id_plan', '<=', $id_plan)
-                    ->where('status_id', 1)
-                    ->exists();
+            public function getHistoryOrNull($modelClass, $periods, $id_plan, $with = [])
+{
+    // 1. Verificar existencia para el periodo objetivo
+    [$targetYear, $targetMonth] = $periods[0];
+    $exists = $modelClass::where('year', $targetYear)
+        ->where('month', $targetMonth)
+        ->where('id_plan', '<=', $id_plan)
+        ->where('status_id', 1)
+        ->exists();
 
-                if (!$exists) {
-                    return null;
-                }
+    if (!$exists) {
+        return null;
+    }
 
-                $query = $modelClass::where(function ($q) use ($periods) {
-                    foreach ($periods as [$y, $m]) {
-                        $q->orWhere(function ($q2) use ($y, $m) {
-                            $q2->where('year', $y)->where('month', $m);
-                        });
-                    }
-                })->where('id_plan', '<=', $id_plan)
-                  ->where('status_id', 1)
-                  ->orderBy('year', 'desc')
-                  ->orderBy('month', 'desc');
+    // 2. Construir la consulta
+    $query = $modelClass::where(function ($q) use ($periods) {
+        foreach ($periods as [$y, $m]) {
+            $q->orWhere(function ($q2) use ($y, $m) {
+                $q2->where('year', $y)->where('month', $m);
+            });
+        }
+    })
+    ->where('id_plan', '<=', $id_plan)
+    ->where('status_id', 1)
+    /* SOLUCIÓN: Ordenar convirtiendo el mes a número. 
+       Usamos orderByRaw para que la base de datos trate '01' y '1' como el número 1.
+    */
+    ->orderBy('year', 'desc')
+    ->orderByRaw('CAST(month AS UNSIGNED) DESC'); // Para MySQL/MariaDB. Si usas PostgreSQL usa: CAST(month AS INTEGER)
 
-                if (!empty($with)) {
-                    $query->with($with);
-                }
-                $results = $query->get();
+    if (!empty($with)) {
+        $query->with($with);
+    }
+    
+    $results = $query->get();
 
-                if ($results->isEmpty()) {
-                    return null;
-                }
+    if ($results->isEmpty()) {
+        return null;
+    }
 
-                // Deduplicar por (region, year, month), conservando el de mayor id_plan
-                $unique = $results
-                    ->groupBy(fn($item) => ($item->region ?? '') . '|' . $item->year . '|' . $item->month)
-                    ->map(fn($group) => $group->sortByDesc('id_plan')->first())
-                    ->values();
+    // 3. Deduplicar por (region, year, month)
+    // Nota: Aseguramos que la llave del grupo use el mes formateado consistentemente
+    $unique = $results
+        ->groupBy(fn($item) => ($item->region ?? '') . '|' . $item->year . '|' . (int)$item->month)
+        ->map(fn($group) => $group->sortByDesc('id_plan')->first())
+        ->values();
 
-                return $unique->isEmpty() ? null : $unique;
-            }
+    return $unique->isEmpty() ? null : $unique;
+}
+
 
             // Consultas a las nuevas tablas
             $data = [
