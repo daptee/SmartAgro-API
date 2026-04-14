@@ -13,58 +13,63 @@ class GrossMarginsTrendController extends Controller
 {
     // GET ALL
     public function index(Request $request)
-    {
-        $message = "Error al obtener tendencia de márgenes brutos";
-        $action = "Listado de tendencia de márgenes brutos";
-        $data = null;
-        $meta = null;
+{
+    $message = "Error al obtener tendencia de márgenes brutos";
+    $action = "Listado de tendencia de márgenes brutos";
+    $data = null;
+    $meta = null;
 
-        try {
-            $perPage = $request->query('per_page');
-            $page = $request->query('page', 1);
+    try {
+        $perPage = $request->query('per_page');
+        $page = $request->query('page', 1);
 
-            $query = GrossMarginsTrend::query();
+        $query = GrossMarginsTrend::query();
 
-            if ($request->has('month') && $request->month) {
-                $query->where('month', (int)$request->month);
-            }
-
-            if ($request->has('year') && $request->year) {
-                $query->where('year', $request->year);
-            }
-
-            if ($request->has('status_id') && $request->status_id) {
-                $query->where('status_id', $request->status_id);
-            }
-
-            if ($request->has('id_plan') && $request->id_plan) {
-                $query->where('id_plan', $request->id_plan);
-            }
-
-            $query->orderBy('year', 'desc')->orderBy('month', 'desc');
-
-            if (is_null($perPage)) {
-                $data = $query->with(['plan', 'status', 'user'])->get();
-            } else {
-                $records = $query->with(['plan', 'status', 'user'])->paginate($perPage, ['*'], 'page', $page);
-                $data = $records->items();
-                $meta = [
-                    'page'      => $records->currentPage(),
-                    'per_page'  => $records->perPage(),
-                    'total'     => $records->total(),
-                    'last_page' => $records->lastPage(),
-                ];
-            }
-
-            Audith::new(Auth::user()->id ?? null, $action, $request->all(), 200, compact("data", "meta"));
-
-        } catch (Exception $e) {
-            Audith::new(Auth::user()->id ?? null, $action, $request->all(), 500, $e->getMessage());
-            return response(["message" => $message, "error" => $e->getMessage()], 500);
+        if ($request->has('month') && $request->month) {
+            $query->where('month', (int)$request->month);
         }
 
-        return response(compact("data", "meta"));
+        if ($request->has('year') && $request->year) {
+            $query->where('year', $request->year);
+        }
+
+        if ($request->has('status_id') && $request->status_id) {
+            $query->where('status_id', $request->status_id);
+        }
+
+        if ($request->has('id_plan') && $request->id_plan) {
+            $query->where('id_plan', $request->id_plan);
+        }
+
+        // --- CAMBIO AQUÍ ---
+        // Ordenamos por año y luego convertimos el mes a número para el ordenamiento
+        $query->orderBy('year', 'desc')
+              ->orderByRaw('CAST(month AS UNSIGNED) DESC'); 
+        // -------------------
+
+        if (is_null($perPage)) {
+            $data = $query->with(['plan', 'status', 'user'])->get();
+        } else {
+            $records = $query->with(['plan', 'status', 'user'])->paginate($perPage, ['*'], 'page', $page);
+            $data = $records->items();
+            $meta = [
+                'page'      => $records->currentPage(),
+                'per_page'  => $records->perPage(),
+                'total'     => $records->total(),
+                'last_page' => $records->lastPage(),
+            ];
+        }
+
+        Audith::new(Auth::user()->id ?? null, $action, $request->all(), 200, compact("data", "meta"));
+
+    } catch (Exception $e) {
+        Audith::new(Auth::user()->id ?? null, $action, $request->all(), 500, $e->getMessage());
+        return response(["message" => $message, "error" => $e->getMessage()], 500);
     }
+
+    return response(compact("data", "meta"));
+}
+
 
     // POST
     public function store(Request $request)
