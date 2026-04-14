@@ -49,7 +49,7 @@ class MarketGeneralControlController extends Controller
             }
 
             // Orden por defecto (por año y mes descendente)
-            $query->orderBy('year', 'desc')->orderBy('month', 'desc');
+            $query->orderBy('year', 'desc')->orderByRaw('CAST(month AS UNSIGNED) DESC');
 
             // Recalcular estado de cada módulo desde sus tablas y sincronizar el JSON data
             MarketGeneralControl::get()->each(function ($control) {

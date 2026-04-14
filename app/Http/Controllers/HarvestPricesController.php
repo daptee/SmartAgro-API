@@ -41,7 +41,7 @@ class HarvestPricesController extends Controller
                 $query->where('id_plan', $request->id_plan);
             }
 
-            $query->orderBy('year', 'desc')->orderBy('month', 'desc');
+            $query->orderBy('year', 'desc')->orderByRaw('CAST(month AS UNSIGNED) DESC');
 
             if (is_null($perPage)) {
                 $data = $query->with(['plan', 'status', 'user'])->get();
