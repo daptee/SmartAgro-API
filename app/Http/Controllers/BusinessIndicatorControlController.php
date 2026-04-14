@@ -65,7 +65,7 @@ class BusinessIndicatorControlController extends Controller
                 $query->where('status_id', $request->status_id);
             }
 
-            $query->orderBy('year', 'desc')->orderBy('month', 'desc');
+            $query->orderBy('year', 'desc')->orderByRaw('CAST(month AS UNSIGNED) DESC');
 
             // Recalcular estado de cada módulo desde sus tablas y sincronizar el JSON data
             BusinessIndicatorControl::get()->each(function ($control) {

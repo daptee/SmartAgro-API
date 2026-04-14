@@ -66,7 +66,7 @@ class MajorCropController extends Controller
             }
 
             // Orden por defecto (por año y mes descendente)
-            $query->orderBy('year', 'desc')->orderBy('month', 'desc');
+            $query->orderBy('year', 'desc')->orderByRaw('CAST(month AS UNSIGNED) DESC');
 
             // Si no se pasa per_page => devolver todo
             if (is_null($perPage)) {
