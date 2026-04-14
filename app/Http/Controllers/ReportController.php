@@ -349,7 +349,7 @@ class ReportController extends Controller
                 return $results->isEmpty() ? null : $results;
             }
 
-            public function getHistoryOrNull($modelClass, $periods, $id_plan, $with = [])
+            function getHistoryOrNull($modelClass, $periods, $id_plan, $with = [])
 {
     // 1. Verificar existencia para el periodo objetivo
     [$targetYear, $targetMonth] = $periods[0];
