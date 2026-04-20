@@ -22,6 +22,7 @@ class HarvestPrices extends Model
         'month',
         'year',
         'data',
+        'additional_info',
         'status_id',
         'id_user',
     ];
@@ -31,7 +32,8 @@ class HarvestPrices extends Model
     protected function casts(): array
     {
         return [
-            'data' => 'json',
+            'data'            => 'json',
+            'additional_info' => 'json',
         ];
     }
 

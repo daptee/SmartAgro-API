@@ -114,8 +114,9 @@ class MarketGeneralControlController extends Controller
 
         try {
             $request->validate([
-                'month' => 'required|integer|min:1|max:12',
-                'year' => 'required|integer|min:2000|max:2100',
+                'month'           => 'required|integer|min:1|max:12',
+                'year'            => 'required|integer|min:2000|max:2100',
+                'additional_info' => 'nullable|array',
             ]);
 
             // Validar que no exista un registro con el mismo mes y año
@@ -133,11 +134,12 @@ class MarketGeneralControlController extends Controller
             $initialData = self::calculateBlockStatuses($request->month, $request->year);
 
             $data = MarketGeneralControl::create([
-                'month' => $request->month,
-                'year' => $request->year,
-                'data' => $initialData,
-                'status_id' => 2, // Siempre inicia como borrador
-                'id_user' => $id_user,
+                'month'           => $request->month,
+                'year'            => $request->year,
+                'data'            => $initialData,
+                'additional_info' => $request->input('additional_info'),
+                'status_id'       => 2, // Siempre inicia como borrador
+                'id_user'         => $id_user,
             ]);
 
             $data->load(['status', 'user']);
@@ -164,8 +166,9 @@ class MarketGeneralControlController extends Controller
             $control = MarketGeneralControl::findOrFail($id);
 
             $request->validate([
-                'month' => 'required|integer|min:1|max:12',
-                'year' => 'required|integer|min:2000|max:2100',
+                'month'           => 'required|integer|min:1|max:12',
+                'year'            => 'required|integer|min:2000|max:2100',
+                'additional_info' => 'nullable|array',
             ]);
 
             // Validar que no exista otro registro con el mismo mes y año
@@ -184,10 +187,11 @@ class MarketGeneralControlController extends Controller
             $newData = self::calculateBlockStatuses($request->month, $request->year);
 
             $control->update([
-                'month' => $request->month,
-                'year' => $request->year,
-                'data' => $newData,
-                'id_user' => $id_user,
+                'month'           => $request->month,
+                'year'            => $request->year,
+                'data'            => $newData,
+                'additional_info' => $request->input('additional_info'),
+                'id_user'         => $id_user,
             ]);
 
             $data = $control;

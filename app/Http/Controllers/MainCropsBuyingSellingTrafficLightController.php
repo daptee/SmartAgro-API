@@ -76,20 +76,22 @@ class MainCropsBuyingSellingTrafficLightController extends Controller
 
         try {
             $request->validate([
-                'month'     => 'required|integer|min:1|max:12',
-                'year'      => 'required|integer|digits:4',
-                'status_id' => 'required|in:1,2',
-                'id_plan'   => 'required|exists:plans,id',
-                'data'      => 'required|array',
+                'month'           => 'required|integer|min:1|max:12',
+                'year'            => 'required|integer|digits:4',
+                'status_id'       => 'required|in:1,2',
+                'id_plan'         => 'required|exists:plans,id',
+                'data'            => 'required|array',
+                'additional_info' => 'nullable|array',
             ]);
 
             $data = MainCropsBuyingSellingTrafficLight::create([
-                'month'     => (int)$request->month,
-                'year'      => $request->year,
-                'status_id' => $request->status_id,
-                'id_plan'   => $request->id_plan,
-                'data'      => $request->input('data'),
-                'id_user'   => $id_user,
+                'month'           => (int)$request->month,
+                'year'            => $request->year,
+                'status_id'       => $request->status_id,
+                'id_plan'         => $request->id_plan,
+                'data'            => $request->input('data'),
+                'additional_info' => $request->input('additional_info'),
+                'id_user'         => $id_user,
             ]);
 
             $data->load(['plan', 'status', 'user']);
@@ -117,20 +119,22 @@ class MainCropsBuyingSellingTrafficLightController extends Controller
             $record = MainCropsBuyingSellingTrafficLight::findOrFail($id);
 
             $request->validate([
-                'month'     => 'required|integer|min:1|max:12',
-                'year'      => 'required|integer|digits:4',
-                'status_id' => 'required|in:1,2',
-                'id_plan'   => 'required|exists:plans,id',
-                'data'      => 'required|array',
+                'month'           => 'required|integer|min:1|max:12',
+                'year'            => 'required|integer|digits:4',
+                'status_id'       => 'required|in:1,2',
+                'id_plan'         => 'required|exists:plans,id',
+                'data'            => 'required|array',
+                'additional_info' => 'nullable|array',
             ]);
 
             $record->update([
-                'month'     => (int)$request->month,
-                'year'      => $request->year,
-                'status_id' => $request->status_id,
-                'id_plan'   => $request->id_plan,
-                'data'      => $request->input('data'),
-                'id_user'   => $id_user,
+                'month'           => (int)$request->month,
+                'year'            => $request->year,
+                'status_id'       => $request->status_id,
+                'id_plan'         => $request->id_plan,
+                'data'            => $request->input('data'),
+                'additional_info' => $request->input('additional_info'),
+                'id_user'         => $id_user,
             ]);
 
             $data = $record->fresh(['plan', 'status', 'user']);

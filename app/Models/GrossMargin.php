@@ -18,6 +18,7 @@ class GrossMargin extends Model
         'id_plan',
         'region',
         'data',
+        'additional_info',
         'month',
         'year',
         'status_id',
@@ -29,7 +30,8 @@ class GrossMargin extends Model
     protected function casts(): array
     {
         return [
-            'data' => 'json',
+            'data'            => 'json',
+            'additional_info' => 'json',
         ];
     }
 

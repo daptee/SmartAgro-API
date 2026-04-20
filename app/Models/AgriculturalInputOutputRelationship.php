@@ -21,6 +21,7 @@ class AgriculturalInputOutputRelationship extends Model
         'month',
         'region',
         'data',
+        'additional_info',
         'year',
         'status_id',
         'id_user',
@@ -31,7 +32,8 @@ class AgriculturalInputOutputRelationship extends Model
     protected function casts(): array
     {
         return [
-            'data' => 'json',
+            'data'            => 'json',
+            'additional_info' => 'json',
         ];
     }
 

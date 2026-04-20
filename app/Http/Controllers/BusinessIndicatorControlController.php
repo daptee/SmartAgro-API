@@ -128,8 +128,9 @@ class BusinessIndicatorControlController extends Controller
 
         try {
             $request->validate([
-                'month' => 'required|integer|min:1|max:12',
-                'year'  => 'required|integer|min:2000|max:2100',
+                'month'           => 'required|integer|min:1|max:12',
+                'year'            => 'required|integer|min:2000|max:2100',
+                'additional_info' => 'nullable|array',
             ]);
 
             $exists = BusinessIndicatorControl::where('year', $request->year)
@@ -145,11 +146,12 @@ class BusinessIndicatorControlController extends Controller
             $initialData = self::calculateBlockStatuses((int)$request->month, $request->year);
 
             $data = BusinessIndicatorControl::create([
-                'month'     => (int)$request->month,
-                'year'      => $request->year,
-                'data'      => $initialData,
-                'status_id' => 2,
-                'id_user'   => $id_user,
+                'month'           => (int)$request->month,
+                'year'            => $request->year,
+                'data'            => $initialData,
+                'additional_info' => $request->input('additional_info'),
+                'status_id'       => 2,
+                'id_user'         => $id_user,
             ]);
 
             $data->load(['status', 'user']);
@@ -176,8 +178,9 @@ class BusinessIndicatorControlController extends Controller
             $control = BusinessIndicatorControl::findOrFail($id);
 
             $request->validate([
-                'month' => 'required|integer|min:1|max:12',
-                'year'  => 'required|integer|min:2000|max:2100',
+                'month'           => 'required|integer|min:1|max:12',
+                'year'            => 'required|integer|min:2000|max:2100',
+                'additional_info' => 'nullable|array',
             ]);
 
             $exists = BusinessIndicatorControl::where('year', $request->year)
@@ -194,10 +197,11 @@ class BusinessIndicatorControlController extends Controller
             $newData = self::calculateBlockStatuses((int)$request->month, $request->year);
 
             $control->update([
-                'month'   => (int)$request->month,
-                'year'    => $request->year,
-                'data'    => $newData,
-                'id_user' => $id_user,
+                'month'           => (int)$request->month,
+                'year'            => $request->year,
+                'data'            => $newData,
+                'additional_info' => $request->input('additional_info'),
+                'id_user'         => $id_user,
             ]);
 
             $data = $control->fresh(['status', 'user']);
