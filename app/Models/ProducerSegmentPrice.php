@@ -16,6 +16,7 @@ class ProducerSegmentPrice extends Model
     protected $fillable = [
         'id_plan',
         'data',
+        'additional_info',
         'month',
         'year',
         'status_id',
@@ -28,6 +29,7 @@ class ProducerSegmentPrice extends Model
     {
         return [
             'data' => 'json',
+            'additional_info' => 'json',
         ];
     }
 
