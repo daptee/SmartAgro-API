@@ -58,10 +58,10 @@ class InsightController extends Controller
 
             // Si no se pasa per_page => devolver todo
             if (is_null($perPage)) {
-                $insights = $query->with(['plan', 'status', 'user'])->get();
+                $insights = $query->with(['plan', 'status', 'user', 'iconData'])->get();
                 $data = $insights;
             } else {
-                $insights = $query->with(['plan', 'status', 'user'])->paginate($perPage, ['*'], 'page', $page);
+                $insights = $query->with(['plan', 'status', 'user', 'iconData'])->paginate($perPage, ['*'], 'page', $page);
                 $data = $insights->items();
                 $meta = [
                     'page' => $insights->currentPage(),
@@ -121,7 +121,7 @@ class InsightController extends Controller
                 'id_user' => $id_user,
             ]);
 
-            $data->load(['plan', 'status', 'user']);
+            $data->load(['plan', 'status', 'user', 'iconData']);
 
             // Sincronizar con control general de mercado
             $insightMonth = (int) date('m', strtotime($data->date));
@@ -190,7 +190,7 @@ class InsightController extends Controller
             ]);
 
             $data = $insight;
-            $data->load(['plan', 'status', 'user']);
+            $data->load(['plan', 'status', 'user', 'iconData']);
 
             // Sincronizar con control general de mercado
             $insightMonth = (int) date('m', strtotime($data->date));
@@ -236,7 +236,7 @@ class InsightController extends Controller
             ]);
 
             $data = $insight;
-            $data->load(['plan', 'status', 'user']);
+            $data->load(['plan', 'status', 'user', 'iconData']);
 
             // Sincronizar con control general de mercado
             $insightMonth = (int) date('m', strtotime($data->date));
