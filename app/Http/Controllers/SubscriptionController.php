@@ -1077,6 +1077,11 @@ class SubscriptionController extends Controller
         // Obtener solo el registro más reciente por usuario (evita procesar múltiples
         // preapprovals de un mismo usuario con suscripciones antiguas/fallidas en la BD)
         $userPlans = UserPlan::where('id_plan', 2)
+            // Solo usuarios que actualmente siguen en plan 2 (evita procesar
+            // registros históricos de usuarios ya dados de baja o cancelados)
+            ->whereHas('user', function($q) {
+                $q->where('id_plan', 2);
+            })
             ->where(function($query) use ($today, $tomorrow, $oneWeekAgo) {
                 // Caso 1: Fechas próximas (hoy o mañana) - procesar siempre
                 $query->where(function($q) use ($today, $tomorrow) {
@@ -1103,7 +1108,7 @@ class SubscriptionController extends Controller
                     'user_id' => $plan->id_user,
                     'preapproval_id' => $plan->preapproval_id,
                     'next_payment_date' => $plan->next_payment_date,
-                    'status' => json_decode($plan->data, true)['status'] ?? 'unknown'
+                    'status_bd' => json_decode($plan->data, true)['status'] ?? 'unknown' // status en BD, puede estar desactualizado respecto a MP
                 ];
             })->toArray()
         ]);
