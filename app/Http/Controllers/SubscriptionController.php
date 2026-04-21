@@ -306,6 +306,21 @@ class SubscriptionController extends Controller
 
         Log::channel('mercadopago')->info('Webhook recibido de Mercado Pago:', $data);
 
+        // Idempotencia: ignorar webhooks ya procesados (mismo id + version de MP)
+        // MP puede reenviar el mismo evento múltiples veces por timeouts o reintentos
+        $webhookEventId = $data['id'] ?? null;
+        $webhookVersion = $data['version'] ?? null;
+
+        if ($webhookEventId !== null) {
+            $cacheKey = "mp_webhook_{$webhookEventId}_v{$webhookVersion}";
+            if (cache()->has($cacheKey)) {
+                Log::channel('mercadopago')->info("Webhook duplicado ignorado (idempotencia): id={$webhookEventId}, version={$webhookVersion}");
+                return response()->json(['status' => 'duplicate ignored']);
+            }
+            // Marcar como procesado por 24 horas
+            cache()->put($cacheKey, true, now()->addHours(24));
+        }
+
         $accessToken = config('app.mercadopago_token');
 
         // Validación de firma deshabilitada temporalmente
@@ -568,7 +583,14 @@ class SubscriptionController extends Controller
                             Log::channel('mercadopago')->error("Usuario no encontrado para authorized_payment rechazado: $apUserId");
                         }
                     } else {
-                        Log::channel('mercadopago')->warning("authorized_payment sin payment.id y sin status rejected reconocido para id: $webhookDataId. Ignorando.", $authorizedPaymentData);
+                        // Si status es "scheduled", MP aún no intentó el cobro — es un aviso
+                        // informativo esperado en retry_attempt=0. No es un error.
+                        $apStatus = $authorizedPaymentData['status'] ?? 'unknown';
+                        if ($apStatus === 'scheduled') {
+                            Log::channel('mercadopago')->info("authorized_payment programado (aún no cobrado) para id: $webhookDataId. Se esperan webhooks posteriores cuando MP procese el cobro.");
+                        } else {
+                            Log::channel('mercadopago')->warning("authorized_payment sin payment.id y sin status manejable para id: $webhookDataId (status: $apStatus). Ignorando.");
+                        }
                     }
 
                     return response()->json(['status' => 'authorized_payment without payment_id handled']);
@@ -638,27 +660,34 @@ class SubscriptionController extends Controller
 
                     // Enviar email según el estado del pago
                     if ($status == 'approved' || $status == 'authorized') {
-                        // Pago exitoso - Marcar como NO deudor
+                        // Pago exitoso
                         if ($user) {
-                            $wasDebtor = $user->is_debtor;
-                            $user->update(['is_debtor' => false]);
+                            $wasDebtor      = $user->is_debtor;
+                            $hadGracePeriod = $user->grace_period_used;
 
-                            // Si era deudor o tenía período de gracia, enviar email de servicio regularizado
-                            if ($wasDebtor || $user->grace_period_used) {
+                            // grace_period_used NUNCA se resetea: una vez consumido queda así para siempre.
+                            $user->update([
+                                'is_debtor' => false,
+                                'id_plan'   => 2,
+                            ]);
+
+                            // Si venía de una deuda o de período de gracia → "Servicio Regularizado"
+                            // Si es un pago normal sin historial de problemas → "Nuevo Pago"
+                            if ($wasDebtor || $hadGracePeriod) {
                                 $this->sendEmailSafely($user->email, new ServiceRegularized($user), 'Servicio regularizado - usuario');
                             } else {
                                 $this->sendEmailSafely($user->email, new NewPayment($user), 'Pago exitoso - usuario');
                             }
+
+                            Log::channel('mercadopago')->info("Pago exitoso para usuario $userId. wasDebtor=$wasDebtor, hadGracePeriod=$hadGracePeriod.");
                         } else {
                             Log::channel('mercadopago')->error("Usuario no encontrado al procesar pago exitoso: $userId");
                         }
                     } else {
-                        // Pago fallido
+                        // Pago fallido durante los reintentos de MercadoPago
                         if ($user) {
-                            // Si ya usó su período de gracia, bajar inmediatamente a plan gratuito
-                            // y cancelar la suscripción para que MP no siga reintentando.
-                            // Se verifica además que el plan fue asignado por suscripción real en MP
-                            // (no manualmente desde el admin).
+                            // Se verifica que el plan fue asignado por suscripción real en MP
+                            // (no manualmente desde el admin) antes de ejecutar baja definitiva.
                             $preapprovalIdForCheck = $subscriptionData['point_of_interaction']['transaction_data']['subscription_id']
                                 ?? $subscriptionData['metadata']['preapproval_id']
                                 ?? null;
@@ -670,18 +699,12 @@ class SubscriptionController extends Controller
                                 : false;
 
                             if ($user->grace_period_used && $user->id_plan == 2 && $hasActiveSubscription) {
-                                Log::channel('mercadopago')->warning("Pago fallido para usuario $userId que ya usó período de gracia. Bajando a plan gratuito y cancelando suscripción.");
+                                // Ya usó el período de gracia y volvió a fallar: baja definitiva inmediata.
+                                Log::channel('mercadopago')->warning("Pago fallido para usuario $userId que ya usó período de gracia. Baja definitiva.");
 
-                                $user->update([
-                                    'id_plan' => 1,
-                                    'is_debtor' => false
-                                ]);
+                                $preapprovalIdToCancel = $preapprovalIdForCheck;
 
-                                // Cancelar la suscripción en MercadoPago para que no siga reintentando
-                                $preapprovalIdToCancel = $subscriptionData['point_of_interaction']['transaction_data']['subscription_id']
-                                    ?? $subscriptionData['metadata']['preapproval_id']
-                                    ?? null;
-
+                                // Cancelar en MercadoPago para que no siga reintentando
                                 if ($preapprovalIdToCancel) {
                                     Http::withToken($accessToken)->put("https://api.mercadopago.com/preapproval/{$preapprovalIdToCancel}", [
                                         'status' => 'cancelled'
@@ -689,17 +712,30 @@ class SubscriptionController extends Controller
                                     Log::channel('mercadopago')->info("Suscripción $preapprovalIdToCancel cancelada en MercadoPago para usuario $userId");
                                 }
 
-                                // Guardar en historial
-                                UserPlan::save_history($userId, 1, ['reason' => 'Pago fallido - período de gracia ya utilizado', 'is_system' => 'true'], now(), $preapprovalIdToCancel ?? 'unknown');
+                                $user->update([
+                                    'id_plan'   => 1,
+                                    'is_debtor' => false,
+                                ]);
 
-                                // Enviar emails de expiración
-                                $this->sendEmailSafely($user->email, new ExpiredSubscription($user), 'Pago fallido sin gracia - usuario');
-                                $this->sendEmailSafely(config('services.research_on_demand.email'), new NotificationExpiredSubscription($user), 'Pago fallido sin gracia - admin');
+                                UserPlan::save_history($userId, 1, ['reason' => 'Baja definitiva por impago - período de gracia ya utilizado', 'is_system' => 'true'], now(), $preapprovalIdToCancel ?? 'unknown');
+
+                                $this->sendEmailSafely($user->email, new ExpiredSubscription($user), 'Baja definitiva por impago - usuario');
+                                $this->sendEmailSafely(config('services.research_on_demand.email'), new NotificationExpiredSubscription($user), 'Baja definitiva por impago - admin');
+                            } elseif ($user->grace_period_used && $user->id_plan != 2) {
+                                // Ya fue dado de baja en un webhook previo, ignorar duplicado.
+                                Log::channel('mercadopago')->info("Pago fallido duplicado ignorado para usuario $userId: ya está en plan {$user->id_plan}.");
                             } else {
-                                // Flujo normal: marcar como deudor y esperar reintentos de MP
-                                $user->update(['is_debtor' => true]);
-                                $this->sendEmailSafely($user->email, new FailedPayment($user), 'Pago fallido - usuario');
-                                $this->sendEmailSafely(config('services.research_on_demand.email'), new NotificationFailedPayment($user), 'Pago fallido - admin');
+                                // Ciclo normal de reintentos: solo notificar en el primer aviso (cuando aún no es deudor).
+                                // Si ya es deudor (is_debtor = true) significa que ya se le avisó en un reintento anterior,
+                                // así que no se vuelve a enviar el email para no saturar al usuario.
+                                if (!$user->is_debtor) {
+                                    $user->update(['is_debtor' => true]);
+                                    $this->sendEmailSafely($user->email, new FailedPayment($user), 'Pago fallido primer aviso - usuario');
+                                    $this->sendEmailSafely(config('services.research_on_demand.email'), new NotificationFailedPayment($user), 'Pago fallido primer aviso - admin');
+                                    Log::channel('mercadopago')->info("Primer aviso de pago fallido enviado a usuario $userId.");
+                                } else {
+                                    Log::channel('mercadopago')->info("Reintento fallido ignorado para usuario $userId: ya fue notificado. MP sigue reintentando.");
+                                }
                             }
                         } else {
                             Log::channel('mercadopago')->error("Usuario no encontrado al procesar pago fallido: $userId");
@@ -1038,6 +1074,8 @@ class SubscriptionController extends Controller
             'oneWeekAgo' => $oneWeekAgo->format('Y-m-d')
         ]);
 
+        // Obtener solo el registro más reciente por usuario (evita procesar múltiples
+        // preapprovals de un mismo usuario con suscripciones antiguas/fallidas en la BD)
         $userPlans = UserPlan::where('id_plan', 2)
             ->where(function($query) use ($today, $tomorrow, $oneWeekAgo) {
                 // Caso 1: Fechas próximas (hoy o mañana) - procesar siempre
@@ -1055,7 +1093,8 @@ class SubscriptionController extends Controller
                 });
             })
             ->orderBy('id', 'desc')
-            ->get();
+            ->get()
+            ->unique('id_user'); // Quedarse solo con el registro más reciente por usuario
 
         Log::channel('mercadopago')->info("CRON Payment: Suscripciones encontradas", [
             'total' => $userPlans->count(),
