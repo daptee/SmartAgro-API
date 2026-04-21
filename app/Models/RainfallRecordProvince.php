@@ -16,6 +16,7 @@ class RainfallRecordProvince extends Model
     protected $fillable = [
         'id_plan',
         'data',
+        'additional_info',
         'month',
         'year',
         'status_id',
@@ -27,6 +28,7 @@ class RainfallRecordProvince extends Model
     protected function casts(): array
     {
         return [
+            'additional_info' => 'json',
             'data' => 'json',
         ];
     }
