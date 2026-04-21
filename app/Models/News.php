@@ -18,12 +18,20 @@ class News extends Model
         'title',
         'new',
         'date',
+        'additional_info',
         'id_plan',
         'status_id',
         'id_user',
     ];
 
     protected $dates = ['deleted_at'];
+
+    protected function casts(): array
+    {
+        return [
+            'additional_info' => 'json',
+        ];
+    }
 
     public function plan(): BelongsTo
     {
