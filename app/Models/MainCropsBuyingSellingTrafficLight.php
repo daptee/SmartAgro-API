@@ -20,6 +20,7 @@ class MainCropsBuyingSellingTrafficLight extends Model
         'input',
         'variable',
         'data',
+        'additional_info',
         'month',
         'year',
         'status_id',
@@ -31,7 +32,8 @@ class MainCropsBuyingSellingTrafficLight extends Model
     protected function casts(): array
     {
         return [
-            'data' => 'json',
+            'data'            => 'json',
+            'additional_info' => 'json',
         ];
     }
 

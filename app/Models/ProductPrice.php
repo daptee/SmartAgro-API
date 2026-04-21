@@ -18,6 +18,7 @@ class ProductPrice extends Model
         'id_plan',
         'date',
         'data',
+        'additional_info',
         'segment_id',
         'month',
         'year',
@@ -30,7 +31,8 @@ class ProductPrice extends Model
     protected function casts(): array
     {
         return [
-            'data' => 'json',
+            'data'            => 'json',
+            'additional_info' => 'json',
         ];
     }
 

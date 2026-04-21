@@ -79,6 +79,7 @@ class ClassificationController extends Controller
         try {
             $request->validate([
                 'name'                     => 'required|string|max:255',
+                'short_name'               => 'nullable|string|max:100',
                 'description'              => 'nullable|string',
                 'id_parent_classification' => 'nullable|exists:classifications,id',
                 'id_icon'                  => 'nullable|exists:icons,id',
@@ -86,6 +87,7 @@ class ClassificationController extends Controller
 
             $data = Classification::create([
                 'name'                     => $request->name,
+                'short_name'               => $request->input('short_name'),
                 'description'              => $request->description,
                 'id_parent_classification' => $request->id_parent_classification,
                 'id_icon'                  => $request->input('id_icon'),
@@ -117,6 +119,7 @@ class ClassificationController extends Controller
 
             $request->validate([
                 'name'                     => 'required|string|max:255',
+                'short_name'               => 'nullable|string|max:100',
                 'description'              => 'nullable|string',
                 'id_parent_classification' => [
                     'nullable',
@@ -132,6 +135,7 @@ class ClassificationController extends Controller
 
             $classification->update([
                 'name'                     => $request->name,
+                'short_name'               => $request->input('short_name'),
                 'description'              => $request->description,
                 'id_parent_classification' => $request->input('id_parent_classification'),
                 'id_icon'                  => $request->input('id_icon'),
