@@ -105,7 +105,7 @@ class RainfallRecordController extends Controller
                 'status_id' => 'required|in:1,2', // 1=Publicado, 2=Borrador
             ];
 
-            $rules['additional_info'] = 'nullable|array';
+            $rules['additional_info'] = 'nullable';
 
             // Si el estado es PUBLICADO (1), todos los campos son obligatorios
             if ($request->status_id == 1) {
@@ -157,7 +157,7 @@ class RainfallRecordController extends Controller
                 'id_plan' => $request->id_plan,
                 'status_id' => $request->status_id,
                 'id_user' => $id_user,
-                'additional_info' => $request->input('additional_info'),
+                'additional_info' => is_string($request->input('additional_info')) ? json_decode($request->input('additional_info'), true) : $request->input('additional_info'),
             ]);
 
             $data->load(['plan', 'status', 'user']);
@@ -245,7 +245,7 @@ class RainfallRecordController extends Controller
                 'id_plan' => $request->id_plan,
                 'status_id' => $request->status_id,
                 'id_user' => $id_user,
-                'additional_info' => $request->input('additional_info'),
+                'additional_info' => is_string($request->input('additional_info')) ? json_decode($request->input('additional_info'), true) : $request->input('additional_info'),
             ]);
 
             $data = $rainfallRecord;
