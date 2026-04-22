@@ -95,6 +95,7 @@ class MagLeaseIndexController extends Controller
             $rules = [
                 'date' => 'required|date',
                 'status_id' => 'required|in:1,2', // 1=Publicado, 2=Borrador
+                'additional_info' => 'nullable|array',
             ];
 
             // Si el estado es PUBLICADO (1), todos los campos son obligatorios
@@ -138,6 +139,7 @@ class MagLeaseIndexController extends Controller
                 'id_plan' => $request->id_plan,
                 'status_id' => $request->status_id,
                 'id_user' => $id_user,
+                'additional_info' => $request->input('additional_info'),
             ]);
 
             $data->load(['plan', 'status', 'user']);
@@ -172,6 +174,7 @@ class MagLeaseIndexController extends Controller
             $rules = [
                 'date' => 'required|date',
                 'status_id' => 'required|in:1,2',
+                'additional_info' => 'nullable|array',
             ];
 
             // Si el estado es PUBLICADO (1), todos los campos son obligatorios
@@ -214,6 +217,7 @@ class MagLeaseIndexController extends Controller
                 'id_plan' => $request->id_plan,
                 'status_id' => $request->status_id,
                 'id_user' => $id_user,
+                'additional_info' => $request->input('additional_info'),
             ]);
 
             $data = $index;
