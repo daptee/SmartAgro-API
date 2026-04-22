@@ -29,7 +29,7 @@ class PriceMainActiveIngredientsProducer extends Model
     protected function casts(): array
     {
         return [
-            'data' => 'json',p
+            'data' => 'json',
             'additional_info' => 'json',
         ];
     }
