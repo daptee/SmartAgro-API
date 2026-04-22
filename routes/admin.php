@@ -299,6 +299,7 @@ Route::prefix('admin')
         // Business Indicator Controls (Control general de indicadores comerciales)
         Route::controller(BusinessIndicatorControlController::class)->group(function () {
             Route::get('business-indicator-controls', 'index');
+            Route::put('business-indicator-controls/replicate-additional-info', 'replicateAdditionalInfo');
             Route::get('business-indicator-controls/{id}', 'show');
             Route::post('business-indicator-controls', 'store');
             Route::put('business-indicator-controls/{id}', 'update');
@@ -394,6 +395,7 @@ Route::prefix('admin')
         // Market General Controls (Control General de Mercado)
         Route::controller(MarketGeneralControlController::class)->group(function () {
             Route::get('market-general-controls', 'index');
+            Route::put('market-general-controls/replicate-additional-info', 'replicateAdditionalInfo');
             Route::get('market-general-controls/{id}', 'show');
             Route::post('market-general-controls', 'store');
             Route::put('market-general-controls/{id}', 'update');

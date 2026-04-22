@@ -324,6 +324,61 @@ class BusinessIndicatorControlController extends Controller
         return response(["message" => "Control de indicadores comerciales eliminado correctamente"]);
     }
 
+    // PUT - Replicar additional_info a todos los meses del año
+    public function replicateAdditionalInfo(Request $request)
+    {
+        $message = "Error al replicar additional_info";
+        $action  = "Replicar additional_info de indicadores comerciales";
+        $id_user = Auth::user()->id ?? null;
+
+        try {
+            $request->validate([
+                'month' => 'required|integer|min:1|max:12',
+                'year'  => 'required|integer|min:2000|max:2100',
+            ]);
+
+            $month = (int) $request->month;
+            $year  = (int) $request->year;
+
+            $blockModelMap = [
+                'pit_indicators'                          => PitIndicator::class,
+                'gross_margin'                            => GrossMargin::class,
+                'gross_margins_trend'                     => GrossMarginsTrend::class,
+                'livestock_input_output_ratio'            => LivestockInputOutputRatio::class,
+                'agricultural_input_output_relationship'  => AgriculturalInputOutputRelationship::class,
+                'products_prices'                         => ProductPrice::class,
+                'harvest_prices'                          => HarvestPrices::class,
+                'main_crops_buying_selling_traffic_light' => MainCropsBuyingSellingTrafficLight::class,
+            ];
+
+            $results = [];
+
+            foreach ($blockModelMap as $block => $modelClass) {
+                $reference = $modelClass::where('status_id', 1)
+                    ->where('month', $month)
+                    ->where('year', $year)
+                    ->first();
+
+                if (!$reference || is_null($reference->additional_info)) {
+                    $results[$block] = 0;
+                    continue;
+                }
+
+                $results[$block] = $modelClass::where('year', $year)
+                    ->where('month', '!=', $month)
+                    ->update(['additional_info' => json_encode($reference->additional_info)]);
+            }
+
+            Audith::new($id_user, $action, $request->all(), 200, $results);
+
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage()], 500);
+        }
+
+        return response(["data" => $results]);
+    }
+
     /**
      * Calcula el estado real de cada bloque para un mes/año dado
      */
