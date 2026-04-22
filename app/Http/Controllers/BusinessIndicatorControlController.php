@@ -364,9 +364,9 @@ class BusinessIndicatorControlController extends Controller
                     continue;
                 }
 
-                $results[$block] = $modelClass::where('year', $year)
-                    ->where('month', '!=', $month)
-                    ->update(['additional_info' => json_encode($reference->additional_info)]);
+                $results[$block] = $modelClass::where(function ($q) use ($month, $year) {
+                    $q->where('month', '!=', $month)->orWhere('year', '!=', $year);
+                })->update(['additional_info' => json_encode($reference->additional_info)]);
             }
 
             Audith::new($id_user, $action, $request->all(), 200, $results);

@@ -327,7 +327,7 @@ class MarketGeneralControlController extends Controller
     }
 
     // PUT - Replicar additional_info del primer registro publicado de cada módulo
-    // en el mes/año de referencia hacia los demás meses del mismo año
+    // en el mes/año de referencia hacia todos los demás registros del módulo
     public function replicateAdditionalInfo(Request $request)
     {
         $message = "Error al replicar additional_info";
@@ -377,11 +377,15 @@ class MarketGeneralControlController extends Controller
 
                 $additionalInfo = $reference->additional_info;
 
-                // Actualizar los demás meses del mismo año
+                // Actualizar todos los registros excepto el de referencia (mes/año)
                 if ($filter === 'date') {
-                    $updateQuery = $modelClass::whereYear('date', $year)->whereMonth('date', '!=', $month);
+                    $updateQuery = $modelClass::where(function ($q) use ($month, $year) {
+                        $q->whereMonth('date', '!=', $month)->orWhereYear('date', '!=', $year);
+                    });
                 } else {
-                    $updateQuery = $modelClass::where('year', $year)->where('month', '!=', $month);
+                    $updateQuery = $modelClass::where(function ($q) use ($month, $year) {
+                        $q->where('month', '!=', $month)->orWhere('year', '!=', $year);
+                    });
                 }
 
                 $results[$block] = $updateQuery->update(['additional_info' => json_encode($additionalInfo)]);
