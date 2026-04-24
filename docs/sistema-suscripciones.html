@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Sistema de Suscripciones — SmartAgro</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      font-size: 13px;
+      color: #1a1a2e;
+      background: #fff;
+      padding: 40px 50px;
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    /* COVER */
+    .cover {
+      text-align: center;
+      padding: 60px 0 50px;
+      border-bottom: 3px solid #2d6a4f;
+      margin-bottom: 40px;
+    }
+    .cover .logo {
+      font-size: 32px;
+      font-weight: 800;
+      color: #2d6a4f;
+      letter-spacing: 2px;
+      margin-bottom: 8px;
+    }
+    .cover .subtitle {
+      font-size: 18px;
+      color: #555;
+      margin-bottom: 6px;
+    }
+    .cover .version {
+      font-size: 12px;
+      color: #999;
+    }
+
+    /* SECTION HEADERS */
+    h1 {
+      font-size: 20px;
+      color: #2d6a4f;
+      border-left: 5px solid #2d6a4f;
+      padding-left: 12px;
+      margin: 36px 0 14px;
+      page-break-after: avoid;
+    }
+    h2 {
+      font-size: 15px;
+      color: #1b4332;
+      margin: 22px 0 10px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid #d8f3dc;
+      page-break-after: avoid;
+    }
+    h3 {
+      font-size: 13px;
+      color: #40916c;
+      margin: 16px 0 8px;
+      page-break-after: avoid;
+    }
+
+    p { margin-bottom: 8px; line-height: 1.6; }
+
+    /* TABLES */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0 18px;
+      font-size: 12px;
+    }
+    thead tr { background: #2d6a4f; color: #fff; }
+    thead th { padding: 8px 10px; text-align: left; font-weight: 600; }
+    tbody tr:nth-child(even) { background: #f0faf4; }
+    tbody tr:nth-child(odd) { background: #fff; }
+    tbody td { padding: 7px 10px; border-bottom: 1px solid #e0e0e0; vertical-align: top; }
+
+    /* BADGES */
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .badge-green  { background: #d8f3dc; color: #1b4332; }
+    .badge-red    { background: #ffe0e0; color: #7f1d1d; }
+    .badge-yellow { background: #fff3cd; color: #7d4e00; }
+    .badge-blue   { background: #dbeafe; color: #1e3a8a; }
+    .badge-gray   { background: #f1f1f1; color: #444; }
+
+    /* FLOW BOXES */
+    .flow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 14px 0;
+      align-items: flex-start;
+    }
+    .flow-step {
+      flex: 1;
+      min-width: 130px;
+      background: #f0faf4;
+      border: 1px solid #b7e4c7;
+      border-radius: 8px;
+      padding: 10px 12px;
+      text-align: center;
+      font-size: 12px;
+      position: relative;
+    }
+    .flow-step .step-num {
+      background: #2d6a4f;
+      color: #fff;
+      border-radius: 50%;
+      width: 22px;
+      height: 22px;
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 6px;
+    }
+    .flow-step .step-title { font-weight: 700; color: #1b4332; margin-bottom: 4px; }
+    .flow-step .step-desc { color: #555; font-size: 11px; line-height: 1.4; }
+    .flow-arrow {
+      display: flex;
+      align-items: center;
+      font-size: 18px;
+      color: #2d6a4f;
+      padding-top: 16px;
+    }
+
+    /* ALERT BOXES */
+    .alert {
+      padding: 10px 14px;
+      border-radius: 6px;
+      margin: 10px 0;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+    .alert-info    { background: #dbeafe; border-left: 4px solid #2563eb; color: #1e3a8a; }
+    .alert-success { background: #d8f3dc; border-left: 4px solid #2d6a4f; color: #1b4332; }
+    .alert-warning { background: #fff3cd; border-left: 4px solid #d97706; color: #7d4e00; }
+    .alert-danger  { background: #ffe0e0; border-left: 4px solid #dc2626; color: #7f1d1d; }
+
+    /* CODE */
+    code {
+      background: #f4f4f4;
+      border: 1px solid #ddd;
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-family: 'Consolas', monospace;
+      font-size: 11px;
+      color: #c0392b;
+    }
+
+    /* FIELD BOXES */
+    .field-box {
+      background: #f9f9f9;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 12px 16px;
+      margin: 10px 0;
+      font-size: 12px;
+    }
+    .field-box .field-name {
+      font-weight: 700;
+      color: #2d6a4f;
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+    .field-box ul { padding-left: 18px; }
+    .field-box li { margin-bottom: 3px; line-height: 1.5; }
+
+    /* DIVIDER */
+    .divider {
+      border: none;
+      border-top: 1px solid #e0e0e0;
+      margin: 28px 0;
+    }
+
+    /* PAGE BREAK */
+    .page-break { page-break-before: always; }
+
+    /* FOOTER */
+    .footer {
+      margin-top: 50px;
+      padding-top: 16px;
+      border-top: 2px solid #2d6a4f;
+      text-align: center;
+      font-size: 11px;
+      color: #999;
+    }
+
+    @media print {
+      body { padding: 20px 30px; }
+      .page-break { page-break-before: always; }
+      a { color: inherit; text-decoration: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- COVER -->
+<div class="cover">
+  <div class="logo">SmartAgro</div>
+  <div class="subtitle">Sistema de Suscripciones — Documentación Técnica</div>
+  <div class="version">Versión 3.0 &nbsp;|&nbsp; Abril 2026 &nbsp;|&nbsp; Confidencial</div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<h1>1. Resumen del Sistema</h1>
+
+<p>
+  SmartAgro utiliza <strong>MercadoPago Suscripciones</strong> (preapproval) para gestionar el cobro recurrente del <strong>Plan Siembra</strong>.
+  El sistema maneja de forma automática la autorización, el cobro, los reintentos, el período de gracia y la baja del plan.
+</p>
+
+<h2>Planes</h2>
+<table>
+  <thead><tr><th>ID</th><th>Nombre</th><th>Descripción</th></tr></thead>
+  <tbody>
+    <tr><td><strong>1</strong></td><td>Plan Gratuito</td><td>Plan base sin costo. Al que se migra ante baja o impago.</td></tr>
+    <tr><td><strong>2</strong></td><td>Plan Siembra</td><td>Plan pago con acceso completo. Cobro mensual o anual vía MercadoPago.</td></tr>
+  </tbody>
+</table>
+
+<h2>Campos clave en la tabla <code>users</code></h2>
+
+<div class="field-box">
+  <div class="field-name">is_debtor <span class="badge badge-yellow">boolean</span></div>
+  <ul>
+    <li><strong>true</strong> → cuando un pago falla (primer aviso)</li>
+    <li><strong>false</strong> → cuando paga exitosamente o cancela la suscripción</li>
+    <li><strong>Se resetea:</strong> sí, en cada ciclo de pago</li>
+    <li><strong>Uso:</strong> el CRON lo utiliza para recuperar suscripciones atrasadas hasta 7 días</li>
+  </ul>
+</div>
+
+<div class="field-box">
+  <div class="field-name">grace_period_used <span class="badge badge-red">boolean — NUNCA se resetea</span></div>
+  <ul>
+    <li><strong>true</strong> → cuando MP pausa la suscripción por primera vez</li>
+    <li><strong>false</strong> → estado inicial</li>
+    <li><strong>Se resetea:</strong> NO. Es permanente por diseño (una sola gracia por usuario en toda la vida)</li>
+    <li><strong>Uso:</strong> determina si ante una nueva pausa se otorga gracia o se baja inmediatamente</li>
+  </ul>
+</div>
+
+<div class="field-box">
+  <div class="field-name">id_plan <span class="badge badge-blue">integer</span></div>
+  <ul>
+    <li>Refleja el plan activo del usuario. Cambia por webhooks o por cancelación manual.</li>
+    <li>Siempre se actualiza junto con <code>is_debtor</code> en los cambios de estado.</li>
+  </ul>
+</div>
+
+<h2>Tabla <code>payment_history</code></h2>
+<table>
+  <thead><tr><th>Campo</th><th>Tipo</th><th>Descripción</th></tr></thead>
+  <tbody>
+    <tr><td><code>id_user</code></td><td>int</td><td>ID del usuario</td></tr>
+    <tr><td><code>type</code></td><td>string</td><td>Estado del pago: <code>approved</code>, <code>rejected</code>, <code>paused</code>, <code>free_trial</code>, etc.</td></tr>
+    <tr><td><code>data</code></td><td>JSON</td><td>Payload completo recibido de MercadoPago</td></tr>
+    <tr><td><code>preapproval_id</code></td><td>string</td><td>ID de la suscripción en MP</td></tr>
+    <tr><td><code>payment_id</code></td><td>bigint UNIQUE</td><td>ID único del pago en MP. Usado para deduplicar webhooks repetidos.</td></tr>
+    <tr><td><code>error_message</code></td><td>string</td><td>Detalle del error si el pago falló</td></tr>
+  </tbody>
+</table>
+
+<div class="alert alert-info">
+  <strong>Nota:</strong> El campo <code>payment_id</code> fue agregado en abril 2026 para resolver el problema de correos duplicados.
+  Requiere ejecutar: <code>ALTER TABLE payment_history ADD COLUMN payment_id BIGINT UNSIGNED NULL UNIQUE;</code>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h1>2. Flujo Completo de una Suscripción</h1>
+
+<h2>2.1 Alta de suscripción</h2>
+
+<div class="flow">
+  <div class="flow-step">
+    <div class="step-num">1</div>
+    <div class="step-title">Usuario inicia suscripción</div>
+    <div class="step-desc">Frontend llama <code>POST /subscription</code></div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">
+    <div class="step-num">2</div>
+    <div class="step-title">API crea preapproval en MP</div>
+    <div class="step-desc">Estado inicial: <code>pending</code></div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">
+    <div class="step-num">3</div>
+    <div class="step-title">Usuario completa pago en MP</div>
+    <div class="step-desc">MP redirige al <code>back_url</code></div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">
+    <div class="step-num">4</div>
+    <div class="step-title">MP envía webhook <code>authorized</code></div>
+    <div class="step-desc">Handler actualiza <code>id_plan = 2</code></div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">
+    <div class="step-num">5</div>
+    <div class="step-title">Emails de bienvenida</div>
+    <div class="step-desc">WelcomePlan al usuario + NotificationWelcomePlan al admin</div>
+  </div>
+</div>
+
+<h3>Opción: mes gratis (free trial)</h3>
+<p>
+  Si el plan incluye mes gratis, el <code>preapproval</code> se crea con <code>free_trial.frequency = 1 month</code>.
+  MP no cobra el primer mes. El webhook <code>authorized</code> llega igual, se registra en <code>payment_history</code>
+  con <code>type = free_trial</code> y el <code>next_payment_date</code> se setea 30 días después.
+</p>
+
+<hr class="divider">
+
+<h2>2.2 Pago mensual exitoso</h2>
+
+<div class="flow">
+  <div class="flow-step">
+    <div class="step-num">1</div>
+    <div class="step-title">MP intenta cobro en fecha de vencimiento</div>
+    <div class="step-desc">Webhook <code>subscription_authorized_payment</code> con <code>status: scheduled</code></div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">
+    <div class="step-num">2</div>
+    <div class="step-title">MP procesa el cobro</div>
+    <div class="step-desc">Webhook <code>payment</code> con <code>status: approved</code></div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">
+    <div class="step-num">3</div>
+    <div class="step-title">Sistema registra pago</div>
+    <div class="step-desc">PaymentHistory creado. <code>is_debtor = false</code>, <code>id_plan = 2</code></div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">
+    <div class="step-num">4</div>
+    <div class="step-title">Email al usuario</div>
+    <div class="step-desc">NewPayment (pago normal) o ServiceRegularized (si venía con deuda)</div>
+  </div>
+</div>
+
+<div class="alert alert-info">
+  <strong>Deduplicación:</strong> El sistema usa el campo <code>payment_id</code> de MP para evitar procesar el mismo pago más de una vez, incluso si MP reenvía el webhook múltiples veces.
+</div>
+
+<hr class="divider">
+
+<h2>2.3 Pago fallido y reintentos</h2>
+
+<div class="flow">
+  <div class="flow-step">
+    <div class="step-num">1</div>
+    <div class="step-title">Cobro rechazado</div>
+    <div class="step-desc">Fondos insuficientes, tarjeta vencida, etc.</div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">
+    <div class="step-num">2</div>
+    <div class="step-title">Primer aviso</div>
+    <div class="step-desc"><code>is_debtor = true</code>. Email FailedPayment enviado una sola vez.</div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">
+    <div class="step-num">3</div>
+    <div class="step-title">MP reintenta automáticamente</div>
+    <div class="step-desc">Hasta ~4 reintentos en ~20 días. Los reintentos fallidos se loguean pero NO re-envían email.</div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">
+    <div class="step-num">4</div>
+    <div class="step-title">MP pausa la suscripción</div>
+    <div class="step-desc">Webhook <code>paused</code>. Se evalúa período de gracia.</div>
+  </div>
+</div>
+
+<div class="alert alert-warning">
+  <strong>Importante:</strong> A partir del segundo reintento fallido del mismo ciclo, el sistema NO vuelve a enviar el correo de "pago fallido" al usuario. Esto evita el spam de correos que se reportó en producción.
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h1>3. Período de Gracia</h1>
+
+<div class="alert alert-warning">
+  <strong>Regla central:</strong> Cada usuario tiene <strong>una única gracia en toda su vida</strong>.
+  El campo <code>grace_period_used</code> nunca se resetea, ni al pagar, ni al cancelar, ni al resuscribirse.
+</div>
+
+<h2>3.1 Primera vez que la suscripción se pausa (<code>grace_period_used = false</code>)</h2>
+
+<div class="flow">
+  <div class="flow-step">
+    <div class="step-num">1</div>
+    <div class="step-title">Webhook <code>paused</code></div>
+    <div class="step-desc">MP pausó la suscripción por múltiples fallos.</div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">
+    <div class="step-num">2</div>
+    <div class="step-title">Verificar suscripción real</div>
+    <div class="step-desc">Se verifica que el <code>preapproval_id</code> exista en <code>users_plans</code>. Evita bajar usuarios con plan asignado manualmente.</div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">
+    <div class="step-num">3</div>
+    <div class="step-title">Otorgar gracia</div>
+    <div class="step-desc"><code>grace_period_used = true</code>. Plan Siembra se mantiene.</div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">
+    <div class="step-num">4</div>
+    <div class="step-title">Emails de gracia</div>
+    <div class="step-desc">GracePeriodGranted al usuario + NotificationGracePeriodGranted al admin.</div>
+  </div>
+</div>
+
+<h2>3.2 Segunda pausa o más (<code>grace_period_used = true</code>)</h2>
+
+<div class="flow">
+  <div class="flow-step">
+    <div class="step-num">1</div>
+    <div class="step-title">Webhook <code>paused</code> o pago fallido</div>
+    <div class="step-desc">El usuario ya usó su gracia.</div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">
+    <div class="step-num">2</div>
+    <div class="step-title">Verificar suscripción real</div>
+    <div class="step-desc">Misma verificación contra <code>users_plans</code>.</div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">
+    <div class="step-num">3</div>
+    <div class="step-title">Baja definitiva</div>
+    <div class="step-desc"><code>id_plan = 1</code>, <code>is_debtor = false</code>. Suscripción cancelada en MP.</td></div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">
+    <div class="step-num">4</div>
+    <div class="step-title">Emails de expiración</div>
+    <div class="step-desc">ExpiredSubscription al usuario + NotificationExpiredSubscription al admin.</div>
+  </div>
+</div>
+
+<h2>3.3 Tabla de decisión</h2>
+<table>
+  <thead>
+    <tr>
+      <th>grace_period_used</th>
+      <th>id_plan</th>
+      <th>Suscripción en users_plans</th>
+      <th>Resultado</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><span class="badge badge-green">false</span></td>
+      <td>2</td>
+      <td><span class="badge badge-green">Existe</span></td>
+      <td>✅ Gracia otorgada — mantiene Plan Siembra</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-red">true</span></td>
+      <td>2</td>
+      <td><span class="badge badge-green">Existe</span></td>
+      <td>❌ Baja definitiva a Plan Gratuito</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-red">true</span></td>
+      <td>1</td>
+      <td>cualquiera</td>
+      <td>⏭ Duplicado ignorado — ya fue dado de baja</td>
+    </tr>
+    <tr>
+      <td>cualquiera</td>
+      <td>2</td>
+      <td><span class="badge badge-red">No existe</span></td>
+      <td>⚠️ Webhook ignorado — plan asignado manualmente desde admin</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ═══════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h1>4. Cancelación de Suscripción</h1>
+
+<h2>4.1 Cancelación manual por el usuario</h2>
+
+<div class="flow">
+  <div class="flow-step">
+    <div class="step-num">1</div>
+    <div class="step-title">Usuario cancela desde la app</div>
+    <div class="step-desc">Frontend llama <code>POST /subscription/cancel</code> con <code>preapproval_id</code>.</div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">
+    <div class="step-num">2</div>
+    <div class="step-title">API cancela en MP</div>
+    <div class="step-desc">PUT a <code>/preapproval/{id}</code> con <code>status: cancelled</code>.</div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">
+    <div class="step-num">3</div>
+    <div class="step-title">Baja de plan</div>
+    <div class="step-desc"><code>id_plan = 1</code>, <code>is_debtor = false</code>. Historial guardado.</div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">
+    <div class="step-num">4</div>
+    <div class="step-title">Emails de baja</div>
+    <div class="step-desc">LowPlan al usuario + NotificationLowPlan al admin.</div>
+  </div>
+</div>
+
+<h2>4.2 Cancelación vía webhook de MP</h2>
+<p>
+  MP puede enviar un webhook <code>subscription_preapproval</code> con <code>status: cancelled</code> (por ejemplo si el usuario cancela desde el portal de MP directamente).
+  El handler ejecuta la misma lógica: baja a plan 1, emails LowPlan.
+</p>
+
+<!-- ═══════════════════════════════════════════ -->
+<h1>5. Webhooks de MercadoPago</h1>
+
+<h2>5.1 Tipos de webhooks recibidos</h2>
+<table>
+  <thead>
+    <tr><th>Tipo</th><th>Estado / Acción</th><th>Qué hace el sistema</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td rowspan="4"><code>subscription_preapproval</code></td>
+      <td><code>authorized</code></td>
+      <td>Sube a Plan Siembra. Guarda en <code>users_plans</code>. Emails de bienvenida.</td>
+    </tr>
+    <tr>
+      <td><code>cancelled</code></td>
+      <td>Baja a Plan Gratuito. Emails de cancelación.</td>
+    </tr>
+    <tr>
+      <td><code>paused</code></td>
+      <td>Evalúa <code>grace_period_used</code>. Otorga gracia o baja definitiva.</td>
+    </tr>
+    <tr>
+      <td><code>failed</code></td>
+      <td>Solo registra en <code>payment_history</code>. Sin cambio de plan.</td>
+    </tr>
+    <tr>
+      <td rowspan="2"><code>subscription_authorized_payment</code></td>
+      <td><code>scheduled</code> (sin payment.id)</td>
+      <td>Registro informativo. MP aún no cobró. Se esperan webhooks posteriores.</td>
+    </tr>
+    <tr>
+      <td><code>rejected</code> (sin payment.id)</td>
+      <td>Pago rechazado antes de generar transacción. Marca <code>is_debtor = true</code>. Email de primer aviso.</td>
+    </tr>
+    <tr>
+      <td><code>payment</code></td>
+      <td><code>approved</code> / <code>authorized</code></td>
+      <td>Marca <code>is_debtor = false</code>, <code>id_plan = 2</code>. Email NewPayment o ServiceRegularized.</td>
+    </tr>
+    <tr>
+      <td><code>payment</code></td>
+      <td><code>rejected</code> / <code>failed</code></td>
+      <td>Solo en primer fallo: <code>is_debtor = true</code> + email. Reintentos siguientes: solo log.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>5.2 Protecciones anti-duplicado</h2>
+
+<table>
+  <thead><tr><th>Mecanismo</th><th>Cómo funciona</th><th>Cubre</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>Cache de idempotencia</strong></td>
+      <td>Clave <code>mp_webhook_{id}_v{version}</code> con TTL 24h. Si el mismo evento llega de nuevo, se ignora antes de procesar.</td>
+      <td>Mismo evento reenviado por MP (timeouts, reintentos de entrega)</td>
+    </tr>
+    <tr>
+      <td><strong>Deduplicación por <code>payment_id</code></strong></td>
+      <td>Antes de crear <code>PaymentHistory</code>, se verifica que no exista un registro con el mismo <code>payment_id</code>.</td>
+      <td>Mismo pago recibido por distintos tipos de webhook</td>
+    </tr>
+    <tr>
+      <td><strong>Check <code>is_debtor</code></strong></td>
+      <td>En reintentos fallidos: si ya es <code>is_debtor = true</code>, solo se loguea. No se re-envía email.</td>
+      <td>Email duplicado por múltiples reintentos de MP en el mismo ciclo</td>
+    </tr>
+    <tr>
+      <td><strong>Check <code>id_plan != 2</code></strong></td>
+      <td>Si <code>grace_period_used = true</code> y <code>id_plan != 2</code>, el webhook de baja se ignora.</td>
+      <td>Webhook duplicado de baja ya ejecutada</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ═══════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h1>6. CRON de Pagos</h1>
+
+<p>
+  Endpoint: <code>GET /cron-payment</code>. Se ejecuta automáticamente 4 veces por día (02:00, 08:00, 14:00, 20:00 UTC-4).
+</p>
+
+<h2>6.1 ¿Qué suscripciones procesa?</h2>
+
+<p>El CRON busca en <code>users_plans</code> solo registros donde:</p>
+<ul style="padding-left:20px; margin-bottom:12px; font-size:12px; line-height:2;">
+  <li>El usuario actualmente está en <code>id_plan = 2</code> (Plan Siembra activo)</li>
+  <li><strong>Caso 1:</strong> <code>next_payment_date</code> es hoy o mañana</li>
+  <li><strong>Caso 2:</strong> <code>next_payment_date</code> venció en los últimos 7 días Y el usuario es <code>is_debtor = true</code></li>
+  <li>Se toma solo el registro más reciente por usuario (<code>unique('id_user')</code>), evitando procesar preapprovals viejos de suscripciones anteriores fallidas</li>
+</ul>
+
+<h2>6.2 Qué hace por cada suscripción</h2>
+
+<div class="flow">
+  <div class="flow-step">
+    <div class="step-num">1</div>
+    <div class="step-title">Consulta estado en MP</div>
+    <div class="step-desc">No confía en la BD. Llama a <code>/preapproval/{id}</code> para obtener el estado real.</div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">
+    <div class="step-num">2</div>
+    <div class="step-title">Actualiza precio</div>
+    <div class="step-desc">Recalcula el monto en ARS (precio USD × dólar oficial) y hace PUT en MP.</div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">
+    <div class="step-num">3</div>
+    <div class="step-title">Si está pausada</div>
+    <div class="step-desc">Intenta reactivar (<code>status: authorized</code>). Si falla, evalúa gracia o baja definitiva.</div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">
+    <div class="step-num">4</div>
+    <div class="step-title">Actualiza BD</div>
+    <div class="step-desc">Guarda la nueva data y <code>next_payment_date</code> de MP en <code>users_plans</code>.</div>
+  </div>
+</div>
+
+<div class="alert alert-info">
+  <strong>Nota sobre el log:</strong> El campo <code>status_bd</code> en el log de "Suscripciones encontradas" refleja el estado guardado en la BD <em>antes</em> de consultar MP. El estado real de MP se logea después como "Estado actual de MercadoPago para usuario X".
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<h1>7. Emails del Sistema</h1>
+
+<table>
+  <thead>
+    <tr><th>Email</th><th>Cuándo se envía</th><th>Destinatario</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>WelcomePlan</code></td><td>Suscripción autorizada por primera vez</td><td>Usuario</td></tr>
+    <tr><td><code>NotificationWelcomePlan</code></td><td>Suscripción autorizada por primera vez</td><td>Admin</td></tr>
+    <tr><td><code>NewPayment</code></td><td>Pago exitoso sin historial de problemas</td><td>Usuario</td></tr>
+    <tr><td><code>ServiceRegularized</code></td><td>Pago exitoso luego de deuda o período de gracia</td><td>Usuario</td></tr>
+    <tr><td><code>FailedPayment</code></td><td>Primer fallo de pago en el ciclo (no en reintentos)</td><td>Usuario</td></tr>
+    <tr><td><code>NotificationFailedPayment</code></td><td>Primer fallo de pago en el ciclo</td><td>Admin</td></tr>
+    <tr><td><code>GracePeriodGranted</code></td><td>Suscripción pausada — primera vez (gracia otorgada)</td><td>Usuario</td></tr>
+    <tr><td><code>NotificationGracePeriodGranted</code></td><td>Suscripción pausada — primera vez (gracia otorgada)</td><td>Admin</td></tr>
+    <tr><td><code>ExpiredSubscription</code></td><td>Baja definitiva por impago (gracia ya usada)</td><td>Usuario</td></tr>
+    <tr><td><code>NotificationExpiredSubscription</code></td><td>Baja definitiva por impago</td><td>Admin</td></tr>
+    <tr><td><code>LowPlan</code></td><td>Cancelación manual o por webhook <code>cancelled</code></td><td>Usuario</td></tr>
+    <tr><td><code>NotificationLowPlan</code></td><td>Cancelación manual o por webhook <code>cancelled</code></td><td>Admin</td></tr>
+  </tbody>
+</table>
+
+<div class="alert alert-success">
+  Todos los emails se envían con <code>sendEmailSafely()</code>, que envuelve el envío en try-catch. Un fallo de email no interrumpe el procesamiento del webhook.
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h1>8. Bugs Corregidos en Abril 2026</h1>
+
+<table>
+  <thead>
+    <tr><th>#</th><th>Problema</th><th>Causa raíz</th><th>Solución aplicada</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>Correo de baja enviado a usuario con plan asignado manualmente desde el admin</td>
+      <td>El bloque <code>paused</code> y el de pago fallido no distinguían si el plan fue asignado por suscripción real en MP o manualmente.</td>
+      <td>Se verifica que <code>preapproval_id</code> exista en <code>users_plans</code> antes de ejecutar la baja. Si no existe, el webhook se ignora.</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>Correo de baja/fallo llegó múltiples veces (hasta 3 veces con horas de diferencia)</td>
+      <td>Los emails se enviaban fuera del bloque de deduplicación de <code>PaymentHistory</code>, y la ventana de 5 minutos no cubría los reintentos tardíos de MP.</td>
+      <td>Emails movidos dentro del bloque <code>!$existingPayment</code>. Deduplicación cambiada a <code>payment_id</code> único de MP (permanente, sin ventana temporal). Reintentos normales solo loguean si <code>is_debtor</code> ya es true.</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>Pago rechazado sin <code>payment.id</code> no se procesaba</td>
+      <td>MP envía el campo <code>payment</code> como objeto sin <code>id</code> cuando el rechazo ocurre antes de generar una transacción. El código retornaba error sin procesar.</td>
+      <td>Se detecta el caso <code>payment.status = rejected</code> sin <code>id</code> y se procesa directamente con los datos del <code>authorized_payment</code>.</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>Mismo webhook procesado 4 veces en 4 segundos</td>
+      <td>MP reenvía el mismo evento ante timeouts. Sin idempotencia en el handler.</td>
+      <td>Cache de idempotencia por clave <code>mp_webhook_{id}_v{version}</code> con TTL 24h al inicio del handler.</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td>CRON procesaba preapprovals viejos/fallidos del mismo usuario</td>
+      <td>La query sobre <code>users_plans</code> (tabla de historial) devolvía múltiples registros por usuario.</td>
+      <td>Agregado <code>whereHas('user', id_plan=2)</code> para excluir usuarios ya dados de baja, y <code>unique('id_user')</code> para quedarse con el preapproval más reciente.</td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td>CRON procesaba suscripciones canceladas de ciclos anteriores</td>
+      <td>La query no filtraba por el estado actual del usuario en la tabla <code>users</code>.</td>
+      <td>Agregado <code>whereHas('user', fn($q) => $q->where('id_plan', 2))</code> a la query principal del CRON.</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ═══════════════════════════════════════════ -->
+<h1>9. Checklist de Producción</h1>
+
+<table>
+  <thead><tr><th>Tarea</th><th>Estado</th><th>Detalle</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>Migración SQL <code>payment_id</code></td>
+      <td><span class="badge badge-yellow">Pendiente</span></td>
+      <td>Ejecutar <code>database/sql/alter_payment_history_add_payment_id.sql</code></td>
+    </tr>
+    <tr>
+      <td>Campos <code>is_debtor</code> y <code>grace_period_used</code> en <code>users</code></td>
+      <td><span class="badge badge-green">Aplicado</span></td>
+      <td><code>database/sql/user.sql</code></td>
+    </tr>
+    <tr>
+      <td>Configurar <code>MERCADOPAGO_WEBHOOK_SECRET</code> en <code>.env</code></td>
+      <td><span class="badge badge-gray">Opcional</span></td>
+      <td>La validación de firma está comentada temporalmente. Descomentar cuando se configure el secret en el panel de MP.</td>
+    </tr>
+    <tr>
+      <td>Verificar driver de cache (no <code>array</code>)</td>
+      <td><span class="badge badge-yellow">Verificar</span></td>
+      <td>La idempotencia de webhooks usa <code>cache()</code>. Con driver <code>array</code> no persiste entre requests. Usar <code>redis</code> o <code>file</code> en prod.</td>
+    </tr>
+    <tr>
+      <td>Relación <code>UserPlan::user()</code> definida en el modelo</td>
+      <td><span class="badge badge-yellow">Verificar</span></td>
+      <td>El CRON usa <code>whereHas('user', ...)</code>. La relación debe existir en <code>app/Models/UserPlan.php</code>.</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ═══════════════════════════════════════════ -->
+<div class="footer">
+  SmartAgro API &nbsp;|&nbsp; Sistema de Suscripciones v3.0 &nbsp;|&nbsp; Abril 2026 &nbsp;|&nbsp; Confidencial
+</div>
+
+</body>
+</html>

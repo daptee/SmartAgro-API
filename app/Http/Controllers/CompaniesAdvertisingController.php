@@ -19,7 +19,7 @@ class CompaniesAdvertisingController extends Controller
         $data = null;
 
         try {
-            $perPage = $request->query('per_page', 10);
+            $perPage = $request->query('per_page');
             $page = $request->query('page', 1);
 
             $query = CompanyAdvertising::with(['advertising_space', 'company.category', 'company.status', 'company.locality', 'company.plan', 'status']);
@@ -59,17 +59,29 @@ class CompaniesAdvertisingController extends Controller
                 });
             }
 
-            $results = $query->paginate($perPage, ['*'], 'page', $page);
-
-            $data = [
-                'result' => $results->items(),
-                'meta_data' => [
-                    'page' => $results->currentPage(),
-                    'per_page' => $results->perPage(),
-                    'total' => $results->total(),
-                    'last_page' => $results->lastPage(),
-                ]
-            ];
+            if ($perPage) {
+                $results = $query->paginate($perPage, ['*'], 'page', $page);
+                $data = [
+                    'result' => $results->items(),
+                    'meta_data' => [
+                        'page' => $results->currentPage(),
+                        'per_page' => $results->perPage(),
+                        'total' => $results->total(),
+                        'last_page' => $results->lastPage(),
+                    ]
+                ];
+            } else {
+                $items = $query->get();
+                $data = [
+                    'result' => $items,
+                    'meta_data' => [
+                        'page' => 1,
+                        'per_page' => $items->count(),
+                        'total' => $items->count(),
+                        'last_page' => 1,
+                    ]
+                ];
+            }
 
             Audith::new($id_user, $action, $request->all(), 200, compact('data'));
             return response(compact('data'));

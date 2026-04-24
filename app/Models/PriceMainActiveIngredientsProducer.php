@@ -16,6 +16,7 @@ class PriceMainActiveIngredientsProducer extends Model
     protected $fillable = [
         'id_plan',
         'data',
+        'additional_info',
         'segment_id',
         'month',
         'year',
@@ -29,6 +30,7 @@ class PriceMainActiveIngredientsProducer extends Model
     {
         return [
             'data' => 'json',
+            'additional_info' => 'json',
         ];
     }
 

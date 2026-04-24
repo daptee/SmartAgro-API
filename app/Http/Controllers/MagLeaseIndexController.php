@@ -95,17 +95,19 @@ class MagLeaseIndexController extends Controller
             $rules = [
                 'date' => 'required|date',
                 'status_id' => 'required|in:1,2', // 1=Publicado, 2=Borrador
+                'additional_info' => 'nullable',
             ];
 
             // Si el estado es PUBLICADO (1), todos los campos son obligatorios
             if ($request->status_id == 1) {
-                $rules['data'] = 'required|json';
+                $rules['data'] = 'required';
                 $rules['id_plan'] = 'required|exists:plans,id';
 
                 // Validar que el JSON tenga la estructura correcta y el nombre del mes
                 $request->validate($rules);
 
-                $dataJson = json_decode($request->data, true);
+                $rawData = $request->input('data');
+                $dataJson = is_string($rawData) ? json_decode($rawData, true) : (array) $rawData;
                 if (!isset($dataJson['I.A.MAG ($)']) || empty($dataJson['I.A.MAG ($)'])) {
                     return response([
                         "message" => "El campo 'I.A.MAG ($)' (nombre del mes) es obligatorio en el JSON data cuando el estado es PUBLICADO."
@@ -117,14 +119,15 @@ class MagLeaseIndexController extends Controller
                 $year = date('Y', strtotime($request->date));
             } else {
                 // Si es BORRADOR (2), data y plan son opcionales
-                $rules['data'] = 'nullable|json';
+                $rules['data'] = 'nullable';
                 $rules['id_plan'] = 'nullable|exists:plans,id';
 
                 $request->validate($rules);
 
                 // Si se proporciona data, validar el mes y año para evitar duplicados
-                if ($request->data) {
-                    $dataJson = json_decode($request->data, true);
+                if ($request->input('data')) {
+                    $rawData = $request->input('data');
+                $dataJson = is_string($rawData) ? json_decode($rawData, true) : (array) $rawData;
                     if (isset($dataJson['I.A.MAG ($)']) && !empty($dataJson['I.A.MAG ($)'])) {
                         $monthName = $dataJson['I.A.MAG ($)'];
                         $year = date('Y', strtotime($request->date));
@@ -132,12 +135,14 @@ class MagLeaseIndexController extends Controller
                 }
             }
 
+            $rawData = $request->input('data');
             $data = MagLeaseIndex::create([
                 'date' => $request->date,
-                'data' => $request->data ? json_decode($request->data) : null,
+                'data' => is_string($rawData) ? json_decode($rawData, true) : $rawData,
                 'id_plan' => $request->id_plan,
                 'status_id' => $request->status_id,
                 'id_user' => $id_user,
+                'additional_info' => is_string($request->input('additional_info')) ? json_decode($request->input('additional_info'), true) : $request->input('additional_info'),
             ]);
 
             $data->load(['plan', 'status', 'user']);
@@ -172,16 +177,18 @@ class MagLeaseIndexController extends Controller
             $rules = [
                 'date' => 'required|date',
                 'status_id' => 'required|in:1,2',
+                'additional_info' => 'nullable',
             ];
 
             // Si el estado es PUBLICADO (1), todos los campos son obligatorios
             if ($request->status_id == 1) {
-                $rules['data'] = 'required|json';
+                $rules['data'] = 'required';
                 $rules['id_plan'] = 'required|exists:plans,id';
 
                 $request->validate($rules);
 
-                $dataJson = json_decode($request->data, true);
+                $rawData = $request->input('data');
+                $dataJson = is_string($rawData) ? json_decode($rawData, true) : (array) $rawData;
                 if (!isset($dataJson['I.A.MAG ($)']) || empty($dataJson['I.A.MAG ($)'])) {
                     return response([
                         "message" => "El campo 'I.A.MAG ($)' (nombre del mes) es obligatorio en el JSON data cuando el estado es PUBLICADO."
@@ -193,14 +200,15 @@ class MagLeaseIndexController extends Controller
                 $year = date('Y', strtotime($request->date));
             } else {
                 // Si es BORRADOR (2), estos campos son opcionales
-                $rules['data'] = 'nullable|json';
+                $rules['data'] = 'nullable';
                 $rules['id_plan'] = 'nullable|exists:plans,id';
 
                 $request->validate($rules);
 
                 // Si se proporciona data, validar el mes y año
-                if ($request->data) {
-                    $dataJson = json_decode($request->data, true);
+                if ($request->input('data')) {
+                    $rawData = $request->input('data');
+                $dataJson = is_string($rawData) ? json_decode($rawData, true) : (array) $rawData;
                     if (isset($dataJson['I.A.MAG ($)']) && !empty($dataJson['I.A.MAG ($)'])) {
                         $monthName = $dataJson['I.A.MAG ($)'];
                         $year = date('Y', strtotime($request->date));
@@ -208,12 +216,14 @@ class MagLeaseIndexController extends Controller
                 }
             }
 
+            $rawData = $request->input('data');
             $index->update([
                 'date' => $request->date,
-                'data' => $request->has('data') ? json_decode($request->data) : $index->data,
+                'data' => $request->has('data') ? (is_string($rawData) ? json_decode($rawData, true) : $rawData) : $index->data,
                 'id_plan' => $request->id_plan,
                 'status_id' => $request->status_id,
                 'id_user' => $id_user,
+                'additional_info' => is_string($request->input('additional_info')) ? json_decode($request->input('additional_info'), true) : $request->input('additional_info'),
             ]);
 
             $data = $index;

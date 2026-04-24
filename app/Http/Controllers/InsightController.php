@@ -109,6 +109,8 @@ class InsightController extends Controller
                 $rules['id_plan'] = 'nullable|exists:plans,id';
             }
 
+            $rules['additional_info'] = 'nullable';
+
             $request->validate($rules);
 
             $data = Insight::create([
@@ -119,6 +121,7 @@ class InsightController extends Controller
                 'id_plan' => $request->id_plan,
                 'status_id' => $request->status_id,
                 'id_user' => $id_user,
+                'additional_info' => is_string($request->input('additional_info')) ? json_decode($request->input('additional_info'), true) : $request->input('additional_info'),
             ]);
 
             $data->load(['plan', 'status', 'user', 'iconData']);
@@ -168,6 +171,8 @@ class InsightController extends Controller
                 $rules['id_plan'] = 'nullable|exists:plans,id';
             }
 
+            $rules['additional_info'] = 'nullable';
+
             $request->validate($rules);
 
             // Validar que si el estado es PUBLICADO, debe tener todos los campos completos
@@ -187,6 +192,7 @@ class InsightController extends Controller
                 'id_plan' => $request->id_plan,
                 'status_id' => $request->status_id,
                 'id_user' => $id_user,
+                'additional_info' => is_string($request->input('additional_info')) ? json_decode($request->input('additional_info'), true) : $request->input('additional_info'),
             ]);
 
             $data = $insight;

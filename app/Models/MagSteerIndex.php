@@ -17,6 +17,7 @@ class MagSteerIndex extends Model
         'id_plan',
         'date',
         'data',
+        'additional_info',
         'status_id',
         'id_user',
     ];
@@ -27,6 +28,7 @@ class MagSteerIndex extends Model
     {
         return [
             'data' => 'json',
+            'additional_info' => 'json',
         ];
     }
 

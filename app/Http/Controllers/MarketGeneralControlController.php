@@ -326,6 +326,81 @@ class MarketGeneralControlController extends Controller
         return response(["message" => "Control general de mercado eliminado correctamente"]);
     }
 
+    // PUT - Replicar additional_info del primer registro publicado de cada módulo
+    // en el mes/año de referencia hacia todos los demás registros del módulo
+    public function replicateAdditionalInfo(Request $request)
+    {
+        $message = "Error al replicar additional_info";
+        $action  = "Replicar additional_info de mercado general";
+        $id_user = Auth::user()->id ?? null;
+
+        try {
+            $request->validate([
+                'month' => 'required|integer|min:1|max:12',
+                'year'  => 'required|integer|min:2000|max:2100',
+            ]);
+
+            $month = (int) $request->month;
+            $year  = (int) $request->year;
+
+            $blockModelMap = [
+                'major_crops'                             => ['model' => MajorCrop::class,                          'filter' => 'month_year'],
+                'insights'                                => ['model' => Insight::class,                            'filter' => 'date'],
+                'news'                                    => ['model' => News::class,                               'filter' => 'date'],
+                'rainfall_records'                        => ['model' => RainfallRecordProvince::class,             'filter' => 'month_year'],
+                'main_grain_prices'                       => ['model' => MainGrainPrice::class,                     'filter' => 'month_year'],
+                'price_main_active_ingredients_producers' => ['model' => PriceMainActiveIngredientsProducer::class, 'filter' => 'month_year'],
+                'producer_segment_prices'                 => ['model' => ProducerSegmentPrice::class,               'filter' => 'month_year'],
+                'mag_lease_index'                         => ['model' => MagLeaseIndex::class,                      'filter' => 'date'],
+                'mag_steer_index'                         => ['model' => MagSteerIndex::class,                      'filter' => 'date'],
+            ];
+
+            $results = [];
+
+            foreach ($blockModelMap as $block => $config) {
+                $modelClass = $config['model'];
+                $filter     = $config['filter'];
+
+                // Primer registro publicado del mes/año de referencia
+                $refQuery = $modelClass::where('status_id', 1);
+                if ($filter === 'date') {
+                    $refQuery->whereMonth('date', $month)->whereYear('date', $year);
+                } else {
+                    $refQuery->where('month', $month)->where('year', $year);
+                }
+                $reference = $refQuery->first();
+
+                if (!$reference || is_null($reference->additional_info)) {
+                    $results[$block] = 0;
+                    continue;
+                }
+
+                $additionalInfo = $reference->additional_info;
+
+                // Actualizar todos los registros excepto el de referencia (mes/año)
+                if ($filter === 'date') {
+                    $updateQuery = $modelClass::where(function ($q) use ($month, $year) {
+                        $q->whereMonth('date', '!=', $month)->orWhereYear('date', '!=', $year);
+                    });
+                } else {
+                    $updateQuery = $modelClass::where(function ($q) use ($month, $year) {
+                        $q->where('month', '!=', $month)->orWhere('year', '!=', $year);
+                    });
+                }
+
+                $results[$block] = $updateQuery->update(['additional_info' => json_encode($additionalInfo)]);
+            }
+
+            Audith::new($id_user, $action, $request->all(), 200, $results);
+
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage()], 500);
+        }
+
+        return response(["data" => $results]);
+    }
+
     /**
      * Calcula el estado real de cada bloque para un mes/año dado
      * consultando las tablas de cada bloque

@@ -18,11 +18,19 @@ class Insight extends Model
         'icon',
         'title',
         'description',
+        'additional_info',
         'status_id',
         'id_user',
     ];
 
     protected $dates = ['deleted_at'];
+
+    protected function casts(): array
+    {
+        return [
+            'additional_info' => 'json',
+        ];
+    }
 
     public function plan(): BelongsTo
     {

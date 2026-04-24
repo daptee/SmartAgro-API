@@ -107,6 +107,7 @@ class MajorCropController extends Controller
                 'month' => 'required|integer|min:1|max:12',
                 'year' => 'required|integer|min:2000|max:2100',
                 'status_id' => 'required|in:1,2', // 1=Publicado, 2=Borrador
+                'additional_info' => 'nullable|array',
             ];
 
             // Si el estado es PUBLICADO (1), el campo data es obligatorio
@@ -155,6 +156,7 @@ class MajorCropController extends Controller
                 'month' => $request->month,
                 'year' => $request->year,
                 'data' => $dataToStore,
+                'additional_info' => $request->input('additional_info'),
                 'status_id' => $request->status_id,
                 'id_user' => $id_user,
             ]);
@@ -189,6 +191,7 @@ class MajorCropController extends Controller
             $rules = [
                 'month' => 'required|integer|min:1|max:12',
                 'year' => 'required|integer|min:2000|max:2100',
+                'additional_info' => 'nullable|array',
                 'status_id' => 'required|in:1,2', // 1=Publicado, 2=Borrador
             ];
 
@@ -242,6 +245,7 @@ class MajorCropController extends Controller
                 'year' => $request->year,
                 'data' => $dataToStore,
                 'status_id' => $request->status_id,
+                'additional_info' => $request->input('additional_info'),
                 'id_user' => $id_user,
             ]);
 

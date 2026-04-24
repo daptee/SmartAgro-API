@@ -110,6 +110,8 @@ class NewsController extends Controller
                 $rules['id_plan'] = 'nullable|exists:plans,id';
             }
 
+            $rules['additional_info'] = 'nullable';
+
             $request->validate($rules);
 
             $data = News::create([
@@ -120,6 +122,7 @@ class NewsController extends Controller
                 'id_plan' => $request->id_plan,
                 'status_id' => $request->status_id,
                 'id_user' => $id_user,
+                'additional_info' => is_string($request->input('additional_info')) ? json_decode($request->input('additional_info'), true) : $request->input('additional_info'),
             ]);
 
             $data->load(['plan', 'status', 'user']);
@@ -169,6 +172,8 @@ class NewsController extends Controller
                 $rules['id_plan'] = 'nullable|exists:plans,id';
             }
 
+            $rules['additional_info'] = 'nullable';
+
             $request->validate($rules);
 
             // Validar que si el estado es PUBLICADO, debe tener imagen (en request o en BD)
@@ -189,6 +194,7 @@ class NewsController extends Controller
                 'id_plan' => $request->id_plan,
                 'status_id' => $request->status_id,
                 'id_user' => $id_user,
+                'additional_info' => is_string($request->input('additional_info')) ? json_decode($request->input('additional_info'), true) : $request->input('additional_info'),
             ]);
 
             $data = $news;

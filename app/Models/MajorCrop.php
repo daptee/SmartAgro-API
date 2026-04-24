@@ -16,6 +16,7 @@ class MajorCrop extends Model
         'year',
         'data',
         'icon',
+        'additional_info',
         'id_plan',
         'status_id',
         'id_user',
@@ -27,6 +28,7 @@ class MajorCrop extends Model
     {
         return [
             'data' => 'json',
+            'additional_info' => 'json',
         ];
     }
 
