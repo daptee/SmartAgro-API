@@ -201,7 +201,7 @@ class AdvertisingReportController extends Controller
             }
 
             // Parámetros de paginación
-            $perPage = $request->get('per_page', 50);
+            $perPage = $request->get('per_page');
             $page = $request->get('page', 1);
 
             // Filtros opcionales
@@ -231,20 +231,26 @@ class AdvertisingReportController extends Controller
                 $query->where('user_id', $userId);
             }
 
-            // Obtener interacciones paginadas
-            $interactionsPaginated = $query->orderBy('created_at', 'desc')
-                ->paginate($perPage, ['*'], 'page', $page);
+            $query->orderBy('created_at', 'desc');
 
-            // Crear meta de paginación
-            $meta = [
-                'page' => $interactionsPaginated->currentPage(),
-                'per_page' => $interactionsPaginated->perPage(),
-                'total' => $interactionsPaginated->total(),
-                'last_page' => $interactionsPaginated->lastPage(),
-            ];
-
-            // Obtener solo los items
-            $interactions = $interactionsPaginated->items();
+            if ($perPage) {
+                $interactionsPaginated = $query->paginate($perPage, ['*'], 'page', $page);
+                $meta = [
+                    'page' => $interactionsPaginated->currentPage(),
+                    'per_page' => $interactionsPaginated->perPage(),
+                    'total' => $interactionsPaginated->total(),
+                    'last_page' => $interactionsPaginated->lastPage(),
+                ];
+                $interactions = $interactionsPaginated->items();
+            } else {
+                $interactions = $query->get();
+                $meta = [
+                    'page' => 1,
+                    'per_page' => $interactions->count(),
+                    'total' => $interactions->count(),
+                    'last_page' => 1,
+                ];
+            }
 
             // Obtener estadísticas agregadas con los mismos filtros
             $statsQuery = AdvertisingInteraction::forCompanyAdvertising($id_company_advertising);
