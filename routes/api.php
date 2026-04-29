@@ -69,7 +69,7 @@ Route::controller(AuthController::class)->group(function () {
     Route::get('auth/check-invitation/{id}', 'check_invitation');
 });
 
-Route::group(['middleware' => ['token']], function ($router) {
+Route::group(['middleware' => ['token', 'update_last_activity']], function ($router) {
     // AuthController
     Route::post('logout', [AuthController::class, 'logout']);
     Route::post('auth/password-recovery-token', [AuthController::class, 'auth_password_recovery_token']);

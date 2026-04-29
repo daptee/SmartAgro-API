@@ -353,9 +353,25 @@ class SubscriptionController extends Controller
                     $user = User::find($userId);
 
                     if ($user) {
-                        if ($user->id_plan != 2) {
+                        $hasFreeTrialInPayload = (bool) ($subscriptionData['auto_recurring']['free_trial'] ?? false);
+                        $frequencyType = $subscriptionData['auto_recurring']['frequency_type'] ?? null;
+                        $frequency = (int) ($subscriptionData['auto_recurring']['frequency'] ?? 1);
+                        // monthly: frequency_type=months y frequency=1 | yearly: frequency_type=months y frequency=12
+                        $subscriptionTypeDerived = ($frequencyType === 'months' && $frequency === 12) ? 'yearly' : 'monthly';
 
-                            $user->update(['id_plan' => 2]);
+                        if ($user->id_plan != 2) {
+                            $planUpdateData = ['id_plan' => 2];
+
+                            // Solo seteamos plan_start_date la primera vez que se activa
+                            if (!$user->plan_start_date) {
+                                $planUpdateData['plan_start_date'] = now();
+                            }
+                            $planUpdateData['subscription_type'] = $subscriptionTypeDerived;
+                            if ($hasFreeTrialInPayload) {
+                                $planUpdateData['free_trial_used'] = true;
+                            }
+
+                            $user->update($planUpdateData);
 
                             // Enviar emails de forma segura
                             $this->sendEmailSafely($user->email, new WelcomePlan($user), 'Suscripción autorizada - usuario');
@@ -379,7 +395,7 @@ class SubscriptionController extends Controller
 
                             Log::channel('mercadopago')->info('Historial guardado correctamente');
 
-                            if ($subscriptionData['auto_recurring']['free_trial'] ?? false) {
+                            if ($hasFreeTrialInPayload) {
                                 // Log completo de la suscripción
                                 Log::channel('mercadopago')->info('Datos de suscripción recibidos:', $subscriptionData);
                                 Log::channel('mercadopago')->info('Mes gratis aplicado correctamente');
@@ -665,11 +681,39 @@ class SubscriptionController extends Controller
                             $wasDebtor      = $user->is_debtor;
                             $hadGracePeriod = $user->grace_period_used;
 
-                            // grace_period_used NUNCA se resetea: una vez consumido queda así para siempre.
-                            $user->update([
+                            $paymentUpdateData = [
                                 'is_debtor' => false,
                                 'id_plan'   => 2,
-                            ]);
+                            ];
+
+                            // Si aún no tiene fecha de alta al plan, la registramos ahora
+                            if (!$user->plan_start_date) {
+                                $paymentUpdateData['plan_start_date'] = now();
+
+                                // Derivar tipo de suscripción desde los datos del pago si están disponibles
+                                $subId = $subscriptionData['point_of_interaction']['transaction_data']['subscription_id']
+                                    ?? $subscriptionData['metadata']['preapproval_id']
+                                    ?? null;
+                                if ($subId) {
+                                    $userPlanRecord = UserPlan::where('id_user', $userId)
+                                        ->where('preapproval_id', $subId)
+                                        ->latest()
+                                        ->first();
+                                    if ($userPlanRecord && $userPlanRecord->data) {
+                                        $upData = is_string($userPlanRecord->data)
+                                            ? json_decode($userPlanRecord->data, true)
+                                            : (array) $userPlanRecord->data;
+                                        $ftypeSaved = $upData['auto_recurring']['frequency_type'] ?? null;
+                                        $freqSaved  = (int) ($upData['auto_recurring']['frequency'] ?? 1);
+                                        $paymentUpdateData['subscription_type'] = ($ftypeSaved === 'months' && $freqSaved === 12)
+                                            ? 'yearly'
+                                            : 'monthly';
+                                    }
+                                }
+                            }
+
+                            // grace_period_used NUNCA se resetea: una vez consumido queda así para siempre.
+                            $user->update($paymentUpdateData);
 
                             // Si venía de una deuda o de período de gracia → "Servicio Regularizado"
                             // Si es un pago normal sin historial de problemas → "Nuevo Pago"

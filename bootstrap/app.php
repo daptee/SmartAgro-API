@@ -3,6 +3,7 @@
 use App\Http\Middleware\Admin;
 use App\Http\Middleware\CompanyApiKeyMiddleware;
 use App\Http\Middleware\Token;
+use App\Http\Middleware\UpdateLastActivity;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -23,6 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'token' => Token::class,
             'company_api_key' => CompanyApiKeyMiddleware::class,
             'admin' => Admin::class,
+            'update_last_activity' => UpdateLastActivity::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

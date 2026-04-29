@@ -50,9 +50,16 @@ class UserController extends Controller
             $localityId = $request->input('id_locality');
             $userProfileId = $request->input('id_user_profile');
             $statusId = $request->input('id_status');
-            $referredBy = $request->input('referred_by'); // Filtro de usuario referidor
+            $referredBy = $request->input('referred_by');
             $eventId = $request->input('event_id');
             $perPage = $request->input('per_page');
+
+            // Nuevos filtros
+            $planStartFrom = $request->input('plan_start_from');      // Fecha desde (YYYY-MM-DD)
+            $planStartTo = $request->input('plan_start_to');          // Fecha hasta (YYYY-MM-DD)
+            $subscriptionType = $request->input('subscription_type'); // monthly | yearly
+            $freeTrialUsed = $request->input('free_trial_used');      // 1 | 0
+            $emailConfirmation = $request->input('email_confirmation'); // 1 | 0
 
             // Query base
             $query = User::with(['status', 'plan', 'locality', 'event'])
@@ -67,7 +74,7 @@ class UserController extends Controller
                 });
             }
 
-            // Filtros
+            // Filtros existentes
             if (!empty($planId)) {
                 $query->where('id_plan', $planId);
             }
@@ -96,6 +103,34 @@ class UserController extends Controller
             }
             if (!empty($eventId)) {
                 $query->where('event_id', $eventId);
+            }
+
+            // Filtro por rango de fecha de alta al plan siembra
+            if (!empty($planStartFrom)) {
+                $query->where('plan_start_date', '>=', $planStartFrom . ' 00:00:00');
+            }
+            if (!empty($planStartTo)) {
+                $query->where('plan_start_date', '<=', $planStartTo . ' 23:59:59');
+            }
+
+            // Filtro por tipo de suscripción (mensual o anual)
+            if (!empty($subscriptionType)) {
+                $query->where('subscription_type', $subscriptionType);
+            }
+
+            // Filtro por si usó el mes gratuito
+            if ($freeTrialUsed !== null && $freeTrialUsed !== '') {
+                $query->where('free_trial_used', (bool) $freeTrialUsed);
+            }
+
+            // Filtro por verificación de correo
+            // email_confirmation es un datetime: NOT NULL = verificado, NULL = no verificado
+            if ($emailConfirmation !== null && $emailConfirmation !== '') {
+                if ((bool) $emailConfirmation) {
+                    $query->whereNotNull('email_confirmation');
+                } else {
+                    $query->whereNull('email_confirmation');
+                }
             }
 
             // Paginado o listado completo
@@ -368,6 +403,9 @@ class UserController extends Controller
             ],
             'referred_by' => 'nullable|exists:users,id',
             'password' => 'nullable|string|min:8',
+            'plan_start_date' => 'nullable|date',
+            'email_confirmation' => 'nullable|date',
+            'event_id' => 'nullable|integer|exists:events,id',
         ]);
 
         if ($validator->fails()) {
@@ -383,7 +421,7 @@ class UserController extends Controller
             DB::beginTransaction();
 
             // Actualizar usuario
-            $user->update([
+            $updateData = [
                 'name' => $request->input('name'),
                 'last_name' => $request->input('last_name'),
                 'email' => $request->input('email'),
@@ -396,7 +434,21 @@ class UserController extends Controller
                 'id_user_profile' => $request->input('id_user_profile'),
                 'id_status' => $request->input('id_status'),
                 'id_plan' => $request->input('id_plan'),
-            ]);
+            ];
+
+            if ($request->has('plan_start_date')) {
+                $updateData['plan_start_date'] = $request->input('plan_start_date');
+            }
+
+            if ($request->has('email_confirmation')) {
+                $updateData['email_confirmation'] = $request->input('email_confirmation'); // datetime o null
+            }
+
+            if ($request->has('event_id')) {
+                $updateData['event_id'] = $request->input('event_id');
+            }
+
+            $user->update($updateData);
 
             // Guardamos el company actual (si existe)
             $oldCompanyId = UsersCompany::where('id_user', $user->id)->value('id_company_plan');
