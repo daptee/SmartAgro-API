@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\UsersExport;
 use App\Mail\WelcomeUserMailable;
 use App\Models\Audith;
 use App\Models\CompanyInvitation;
@@ -20,6 +21,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Str;
+use Maatwebsite\Excel\Facades\Excel;
 
 class UserController extends Controller
 {
@@ -1034,6 +1036,86 @@ class UserController extends Controller
             ];
             Audith::new($id_user, $action, null, 500, $response);
             Log::debug(json_encode($response));
+            return response()->json($response, 500);
+        }
+    }
+
+    /**
+     * Exportar listado de usuarios a Excel respetando los mismos filtros del index.
+     */
+    public function export(Request $request)
+    {
+        $action = "Exportación de usuarios a Excel";
+        $id_user = Auth::user()->id ?? null;
+
+        try {
+            $search           = $request->input('search');
+            $planId           = $request->input('id_plan');
+            $profileId        = $request->input('id_user_profile');
+            $countryId        = $request->input('id_country');
+            $provinceId       = $request->input('id_province');
+            $localityId       = $request->input('id_locality');
+            $statusId         = $request->input('id_status');
+            $referredBy       = $request->input('referred_by');
+            $eventId          = $request->input('event_id');
+            $planStartFrom    = $request->input('plan_start_from');
+            $planStartTo      = $request->input('plan_start_to');
+            $subscriptionType = $request->input('subscription_type');
+            $freeTrialUsed    = $request->input('free_trial_used');
+            $emailConfirmation = $request->input('email_confirmation');
+
+            $query = User::with(['status', 'plan', 'locality', 'locality.province', 'country', 'profile', 'event'])
+                ->orderBy('name', 'asc');
+
+            if (!empty($search)) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'LIKE', "%{$search}%")
+                        ->orWhere('last_name', 'LIKE', "%{$search}%")
+                        ->orWhere('email', 'LIKE', "%{$search}%");
+                });
+            }
+            if (!empty($planId))           { $query->where('id_plan', $planId); }
+            if (!empty($statusId))         { $query->where('id_status', $statusId); }
+            if (!empty($profileId))        { $query->where('id_user_profile', $profileId); }
+            if (!empty($countryId))        { $query->where('id_country', $countryId); }
+            if (!empty($localityId))       { $query->where('id_locality', $localityId); }
+            if (!empty($provinceId)) {
+                $query->whereHas('locality', function ($q) use ($provinceId) {
+                    $q->where('province_id', $provinceId);
+                });
+            }
+            if (!empty($referredBy))       { $query->where('referred_by', $referredBy); }
+            if (!empty($eventId))          { $query->where('event_id', $eventId); }
+            if (!empty($planStartFrom))    { $query->where('plan_start_date', '>=', $planStartFrom . ' 00:00:00'); }
+            if (!empty($planStartTo))      { $query->where('plan_start_date', '<=', $planStartTo . ' 23:59:59'); }
+            if (!empty($subscriptionType)) { $query->where('subscription_type', $subscriptionType); }
+            if ($freeTrialUsed !== null && $freeTrialUsed !== '') {
+                $query->where('free_trial_used', (bool) $freeTrialUsed);
+            }
+            if ($emailConfirmation !== null && $emailConfirmation !== '') {
+                if ((bool) $emailConfirmation) {
+                    $query->whereNotNull('email_confirmation');
+                } else {
+                    $query->whereNull('email_confirmation');
+                }
+            }
+
+            $users = $query->get();
+
+            $filename = 'usuarios_' . now()->format('Ymd_His') . '.xlsx';
+
+            Audith::new($id_user, $action, $request->all(), 200, ['total' => $users->count(), 'filename' => $filename]);
+
+            return Excel::download(new UsersExport($users), $filename);
+
+        } catch (Exception $e) {
+            $response = [
+                "message" => "Error al exportar usuarios",
+                "error"   => $e->getMessage(),
+                "line"    => $e->getLine(),
+            ];
+            Audith::new($id_user, $action, $request->all(), 500, $response);
+            Log::error(json_encode($response));
             return response()->json($response, 500);
         }
     }
