@@ -488,11 +488,15 @@ class CompanyController extends Controller
                 'params' => $request->all(),
             ]);
 
-            // Obtener meses/años publicados en control general de mercado
-            $publishedControls = MarketGeneralControl::where('status_id', 1)->get(['month', 'year']);
-            $publishedPeriods = $publishedControls->map(fn($c) => $c->year . '-' . str_pad($c->month, 2, '0', STR_PAD_LEFT))->toArray();
+            // Obtener meses/años publicados en control general de mercado con news habilitado
+            $publishedControls = MarketGeneralControl::where('status_id', 1)->get(['month', 'year', 'data']);
+            $publishedPeriods = $publishedControls
+                ->filter(fn($c) => !empty($c->data['news']))
+                ->map(fn($c) => $c->year . '-' . str_pad($c->month, 2, '0', STR_PAD_LEFT))
+                ->toArray();
 
             $data = News::query()
+                ->where('status_id', 1)
                 ->whereRaw("DATE_FORMAT(date, '%Y-%m') IN (" . (count($publishedPeriods) > 0 ? implode(',', array_map(fn($p) => "'{$p}'", $publishedPeriods)) : "''" ) . ")")
                 ->when($dateFrom, function ($query) use ($dateFrom) {
                     return $query->where('date', '>=', $dateFrom);
