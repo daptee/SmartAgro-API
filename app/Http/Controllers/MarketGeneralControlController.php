@@ -120,11 +120,12 @@ class MarketGeneralControlController extends Controller
             ]);
 
             // Validar que no exista un registro con el mismo mes y año
-            $exists = MarketGeneralControl::where('year', $request->year)
+            $existing = MarketGeneralControl::withTrashed()
+                ->where('year', $request->year)
                 ->where('month', $request->month)
-                ->exists();
+                ->first();
 
-            if ($exists) {
+            if ($existing && !$existing->trashed()) {
                 return response([
                     "message" => "Ya existe un registro para el mes {$request->month} del año {$request->year}."
                 ], 400);
@@ -133,14 +134,25 @@ class MarketGeneralControlController extends Controller
             // Calcular data según lo que ya existe publicado para ese mes/año
             $initialData = self::calculateBlockStatuses($request->month, $request->year);
 
-            $data = MarketGeneralControl::create([
-                'month'           => $request->month,
-                'year'            => $request->year,
-                'data'            => $initialData,
-                'additional_info' => $request->input('additional_info'),
-                'status_id'       => 2, // Siempre inicia como borrador
-                'id_user'         => $id_user,
-            ]);
+            if ($existing && $existing->trashed()) {
+                $existing->restore();
+                $existing->update([
+                    'data'            => $initialData,
+                    'additional_info' => $request->input('additional_info'),
+                    'status_id'       => 2,
+                    'id_user'         => $id_user,
+                ]);
+                $data = $existing;
+            } else {
+                $data = MarketGeneralControl::create([
+                    'month'           => $request->month,
+                    'year'            => $request->year,
+                    'data'            => $initialData,
+                    'additional_info' => $request->input('additional_info'),
+                    'status_id'       => 2, // Siempre inicia como borrador
+                    'id_user'         => $id_user,
+                ]);
+            }
 
             $data->load(['status', 'user']);
 
