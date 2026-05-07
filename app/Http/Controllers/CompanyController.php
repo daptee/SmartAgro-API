@@ -570,7 +570,7 @@ class CompanyController extends Controller
             $publishedControls = MarketGeneralControl::where('status_id', 1)->get(['month', 'year']);
             $publishedPeriods = $publishedControls->map(fn($c) => $c->year . '-' . str_pad($c->month, 2, '0', STR_PAD_LEFT))->toArray();
 
-            $data = Insight::query()
+            $data = Insight::with('iconData')
                 ->whereRaw("DATE_FORMAT(date, '%Y-%m') IN (" . (count($publishedPeriods) > 0 ? implode(',', array_map(fn($p) => "'{$p}'", $publishedPeriods)) : "''" ) . ")")
                 ->when($dateFrom, function ($query) use ($dateFrom) {
                     return $query->where('date', '>=', $dateFrom);
@@ -580,7 +580,12 @@ class CompanyController extends Controller
                 })
                 ->when($maxResults, fn($q) => $q->limit($maxResults))
                 ->orderBy('date', 'desc')
-                ->get();
+                ->get()
+                ->map(function ($insight) {
+                    $insight->icon = $insight->iconData?->url ?? $insight->icon;
+                    unset($insight->iconData);
+                    return $insight;
+                });
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
         } catch (Exception $e) {

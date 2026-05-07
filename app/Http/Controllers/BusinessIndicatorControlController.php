@@ -133,11 +133,12 @@ class BusinessIndicatorControlController extends Controller
                 'additional_info' => 'nullable|array',
             ]);
 
-            $exists = BusinessIndicatorControl::where('year', $request->year)
+            $existing = BusinessIndicatorControl::withTrashed()
+                ->where('year', $request->year)
                 ->where('month', (int)$request->month)
-                ->exists();
+                ->first();
 
-            if ($exists) {
+            if ($existing && !$existing->trashed()) {
                 return response([
                     "message" => "Ya existe un registro para el mes {$request->month} del año {$request->year}."
                 ], 400);
@@ -145,14 +146,25 @@ class BusinessIndicatorControlController extends Controller
 
             $initialData = self::calculateBlockStatuses((int)$request->month, $request->year);
 
-            $data = BusinessIndicatorControl::create([
-                'month'           => (int)$request->month,
-                'year'            => $request->year,
-                'data'            => $initialData,
-                'additional_info' => $request->input('additional_info'),
-                'status_id'       => 2,
-                'id_user'         => $id_user,
-            ]);
+            if ($existing && $existing->trashed()) {
+                $existing->restore();
+                $existing->update([
+                    'data'            => $initialData,
+                    'additional_info' => $request->input('additional_info'),
+                    'status_id'       => 2,
+                    'id_user'         => $id_user,
+                ]);
+                $data = $existing;
+            } else {
+                $data = BusinessIndicatorControl::create([
+                    'month'           => (int)$request->month,
+                    'year'            => $request->year,
+                    'data'            => $initialData,
+                    'additional_info' => $request->input('additional_info'),
+                    'status_id'       => 2,
+                    'id_user'         => $id_user,
+                ]);
+            }
 
             $data->load(['status', 'user']);
 

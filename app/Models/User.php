@@ -39,7 +39,11 @@ class User extends Authenticatable implements JWTSubject
         'is_debtor',
         'grace_period_used',
         'event_id',
-        'email_confirmation'
+        'email_confirmation',
+        'plan_start_date',
+        'subscription_type',
+        'free_trial_used',
+        'last_activity_at',
     ];
 
     /**
@@ -64,10 +68,13 @@ class User extends Authenticatable implements JWTSubject
             'password' => 'hashed',
             'is_debtor' => 'boolean',
             'grace_period_used' => 'boolean',
+            'free_trial_used' => 'boolean',
+            'plan_start_date' => 'datetime',
+            'last_activity_at' => 'datetime',
         ];
     }
 
-    const DATA_WITH_ALL = ['locality', 'country', 'profile', 'plan', 'status'];
+    const DATA_WITH_ALL = ['locality', 'country', 'profile', 'plan', 'status', 'event'];
 
     public static function getAllDataUser($id)
     {
