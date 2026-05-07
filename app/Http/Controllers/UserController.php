@@ -408,6 +408,8 @@ class UserController extends Controller
             'plan_start_date' => 'nullable|date',
             'email_confirmation' => 'nullable|date',
             'event_id' => 'nullable|integer|exists:events,id',
+            'is_debtor' => 'nullable|boolean',
+            'grace_period_used' => 'nullable|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -448,6 +450,14 @@ class UserController extends Controller
 
             if ($request->has('event_id')) {
                 $updateData['event_id'] = $request->input('event_id');
+            }
+
+            if ($request->has('is_debtor')) {
+                $updateData['is_debtor'] = $request->boolean('is_debtor');
+            }
+
+            if ($request->has('grace_period_used')) {
+                $updateData['grace_period_used'] = $request->boolean('grace_period_used');
             }
 
             $user->update($updateData);
