@@ -138,6 +138,21 @@ class BusinessIndicatorControlController extends Controller
                 ->where('month', (int)$request->month)
                 ->first();
 
+            \Log::info('[BusinessIndicatorControl store] request', [
+                'month'      => $request->month,
+                'year'       => $request->year,
+                'month_type' => gettype($request->month),
+                'year_type'  => gettype($request->year),
+            ]);
+            \Log::info('[BusinessIndicatorControl store] existing', [
+                'found'      => $existing ? true : false,
+                'id'         => $existing?->id,
+                'month'      => $existing?->month,
+                'year'       => $existing?->year,
+                'deleted_at' => $existing?->deleted_at,
+                'trashed'    => $existing ? $existing->trashed() : null,
+            ]);
+
             if ($existing && !$existing->trashed()) {
                 return response([
                     "message" => "Ya existe un registro para el mes {$request->month} del año {$request->year}."
