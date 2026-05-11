@@ -1412,11 +1412,43 @@ class CompanyController extends Controller
                 });
             }
 
-            $data = $query
+            $records = $query
                 ->when($maxResults, fn($q) => $q->limit($maxResults))
                 ->orderBy('year', 'desc')
                 ->orderByRaw('CAST(month AS UNSIGNED) DESC')
                 ->get();
+
+            // Cargar crops e iconos para resolver nombre/icon por crop_id
+            $cropsMap = \App\Models\Crop::whereNull('deleted_at')->get()->keyBy('id');
+            $iconsMap = \App\Models\Icon::whereNull('deleted_at')->get()->keyBy('id');
+
+            // Transformar al formato legacy: un objeto por cultivo por mes
+            $data = [];
+            foreach ($records as $record) {
+                $date = Carbon::create($record->year, $record->month, 1)->endOfMonth()->toDateString();
+                $cropRows = $record->data ?? [];
+
+                foreach ($cropRows as $row) {
+                    $cropId = $row['crop_id'] ?? null;
+                    $crop   = $cropId ? ($cropsMap[$cropId] ?? null) : null;
+                    $icon   = $crop ? ($iconsMap[$crop->icon] ?? null) : null;
+
+                    $data[] = [
+                        'id'         => $record->id,
+                        'id_plan'    => $record->id_plan,
+                        'date'       => $date,
+                        'title'      => $crop?->name,
+                        'icon'       => $icon?->url,
+                        'data'       => [
+                            'min'  => $row['min']  ?? null,
+                            'max'  => $row['max']  ?? null,
+                            'prom' => $row['prom'] ?? null,
+                        ],
+                        'created_at' => $record->created_at,
+                        'updated_at' => $record->updated_at,
+                    ];
+                }
+            }
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
         } catch (Exception $e) {
