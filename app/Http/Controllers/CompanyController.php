@@ -956,16 +956,43 @@ class CompanyController extends Controller
             $publishedControls = MarketGeneralControl::where('status_id', 1)->get(['month', 'year']);
             $publishedPeriods = $publishedControls->map(fn($c) => $c->year . '-' . str_pad($c->month, 2, '0', STR_PAD_LEFT))->toArray();
 
-            $data = PriceMainActiveIngredientsProducer::query()
-                ->whereRaw("DATE_FORMAT(date, '%Y-%m') IN (" . (count($publishedPeriods) > 0 ? implode(',', array_map(fn($p) => "'{$p}'", $publishedPeriods)) : "''" ) . ")")
-                ->when($dateFrom, function ($query) use ($dateFrom) {
-                    return $query->where('date', '>=', $dateFrom);
-                })
-                ->when($dateTo, function ($query) use ($dateTo) {
-                    return $query->where('date', '<=', $dateTo);
-                })
+            $query = PriceMainActiveIngredientsProducer::query()
+                ->where(function ($q) use ($publishedPeriods) {
+                    foreach ($publishedPeriods as $period) {
+                        [$y, $m] = explode('-', $period);
+                        $q->orWhere(function ($q2) use ($y, $m) {
+                            $q2->where('year', (int)$y)->where('month', (int)$m);
+                        });
+                    }
+                    if (empty($publishedPeriods)) {
+                        $q->whereRaw('1 = 0');
+                    }
+                });
+
+            if ($dateFrom) {
+                $from = Carbon::parse($dateFrom);
+                $query->where(function ($q) use ($from) {
+                    $q->where('year', '>', $from->year)
+                      ->orWhere(function ($q2) use ($from) {
+                          $q2->where('year', $from->year)->where('month', '>=', $from->month);
+                      });
+                });
+            }
+
+            if ($dateTo) {
+                $to = Carbon::parse($dateTo);
+                $query->where(function ($q) use ($to) {
+                    $q->where('year', '<', $to->year)
+                      ->orWhere(function ($q2) use ($to) {
+                          $q2->where('year', $to->year)->where('month', '<=', $to->month);
+                      });
+                });
+            }
+
+            $data = $query
                 ->when($maxResults, fn($q) => $q->limit($maxResults))
-                ->orderBy('date', 'desc')
+                ->orderBy('year', 'desc')
+                ->orderByRaw('CAST(month AS UNSIGNED) DESC')
                 ->get();
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
