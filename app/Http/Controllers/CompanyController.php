@@ -842,11 +842,51 @@ class CompanyController extends Controller
                 });
             }
 
-            $data = $query
+            $records = $query
                 ->when($maxResults, fn($q) => $q->limit($maxResults))
                 ->orderBy('year', 'desc')
                 ->orderByRaw('CAST(month AS UNSIGNED) DESC')
                 ->get();
+
+            // Cargar crops para resolver nombre/icon por crop_id
+            $cropsMap = \App\Models\Crop::whereNull('deleted_at')->get()->keyBy('id');
+
+            // Transformar al formato legacy: un objeto por cultivo por mes
+            $data = [];
+            foreach ($records as $record) {
+                $date = Carbon::create($record->year, $record->month, 1)->endOfMonth()->toDateString();
+                $titles = $record->data['titles'] ?? [];
+                $cropRows = $record->data['data'] ?? [];
+
+                foreach ($cropRows as $cropRow) {
+                    $cropId = $cropRow['crop_id'] ?? null;
+                    $crop = $cropId ? ($cropsMap[$cropId] ?? null) : null;
+
+                    $flatData = [];
+                    foreach (['group_one', 'group_two', 'group_three', 'group_four'] as $group) {
+                        if (!isset($cropRow[$group])) continue;
+                        $groupTitle = $titles[$group]['name'] ?? $group;
+                        $children = $titles[$group]['children'] ?? [];
+                        $groupValues = $cropRow[$group];
+                        $flatGroup = [];
+                        foreach ($groupValues as $colKey => $colVal) {
+                            $colTitle = $children[$colKey] ?? $colKey;
+                            $flatGroup[$colTitle] = $colVal;
+                        }
+                        $flatData[strtolower($groupTitle)] = $flatGroup;
+                    }
+
+                    $data[] = [
+                        'id'         => $record->id,
+                        'id_plan'    => $record->id_plan,
+                        'date'       => $date,
+                        'icon'       => $crop ? strtolower($crop->name) : null,
+                        'data'       => $flatData,
+                        'created_at' => $record->created_at,
+                        'updated_at' => $record->updated_at,
+                    ];
+                }
+            }
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
         } catch (Exception $e) {
