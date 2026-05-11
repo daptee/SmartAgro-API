@@ -1027,6 +1027,7 @@ class CompanyController extends Controller
                         'id'         => $record->id,
                         'id_plan'    => $record->id_plan,
                         'date'       => $date,
+                        'title'      => $classification?->name,
                         'data'       => $flatData,
                         'created_at' => $record->created_at,
                         'updated_at' => $record->updated_at,
@@ -1132,11 +1133,50 @@ class CompanyController extends Controller
                 });
             }
 
-            $data = $query
+            $records = $query
                 ->when($maxResults, fn($q) => $q->limit($maxResults))
                 ->orderBy('year', 'desc')
                 ->orderByRaw('CAST(month AS UNSIGNED) DESC')
                 ->get();
+
+            // Cargar clasificaciones para resolver nombre por classification_id
+            $classificationsMap = \App\Models\Classification::whereNull('deleted_at')->get()->keyBy('id');
+
+            // Transformar al formato legacy: un objeto por segmento por mes
+            $data = [];
+            foreach ($records as $record) {
+                $date = Carbon::create($record->year, $record->month, 1)->endOfMonth()->toDateString();
+                $seriesName = $record->data['series_name'] ?? [];
+                $lastYearLabel    = $seriesName['last_year'] ?? null;
+                $currentYearLabel = $seriesName['current_year'] ?? null;
+                $segmentRows = $record->data['data'] ?? [];
+
+                foreach ($segmentRows as $row) {
+                    $classificationId = $row['classification_id'] ?? null;
+                    $classification = $classificationId ? ($classificationsMap[$classificationId] ?? null) : null;
+
+                    $flatData = [
+                        'USD/Kg o Lt' => $classification?->name,
+                    ];
+
+                    if ($lastYearLabel) {
+                        $flatData[$lastYearLabel] = $row['last_year_value'] ?? null;
+                    }
+                    if ($currentYearLabel) {
+                        $flatData[$currentYearLabel] = $row['current_year_value'] ?? null;
+                    }
+
+                    $data[] = [
+                        'id'         => $record->id,
+                        'id_plan'    => $record->id_plan,
+                        'date'       => $date,
+                        'title'      => $classification?->name,
+                        'data'       => $flatData,
+                        'created_at' => $record->created_at,
+                        'updated_at' => $record->updated_at,
+                    ];
+                }
+            }
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
         } catch (Exception $e) {
