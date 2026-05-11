@@ -848,8 +848,9 @@ class CompanyController extends Controller
                 ->orderByRaw('CAST(month AS UNSIGNED) DESC')
                 ->get();
 
-            // Cargar crops para resolver nombre/icon por crop_id
+            // Cargar crops e iconos para resolver icon path por crop_id
             $cropsMap = \App\Models\Crop::whereNull('deleted_at')->get()->keyBy('id');
+            $iconsMap = \App\Models\Icon::whereNull('deleted_at')->get()->keyBy('id');
 
             // Transformar al formato legacy: un objeto por cultivo por mes
             $data = [];
@@ -861,6 +862,7 @@ class CompanyController extends Controller
                 foreach ($cropRows as $cropRow) {
                     $cropId = $cropRow['crop_id'] ?? null;
                     $crop = $cropId ? ($cropsMap[$cropId] ?? null) : null;
+                    $icon = $crop ? ($iconsMap[$crop->icon] ?? null) : null;
 
                     $flatData = [];
                     foreach (['group_one', 'group_two', 'group_three', 'group_four'] as $group) {
@@ -880,7 +882,8 @@ class CompanyController extends Controller
                         'id'         => $record->id,
                         'id_plan'    => $record->id_plan,
                         'date'       => $date,
-                        'icon'       => $crop ? strtolower($crop->name) : null,
+                        'icon'       => $icon?->url,
+                        'title'      => $crop?->name,
                         'data'       => $flatData,
                         'created_at' => $record->created_at,
                         'updated_at' => $record->updated_at,
