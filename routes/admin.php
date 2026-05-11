@@ -41,6 +41,7 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\RainfallRecordController;
 use App\Http\Controllers\RegionController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\ReportImageController;
 use App\Http\Controllers\StatusController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\UserCompanyController;
@@ -436,6 +437,13 @@ Route::prefix('admin')
             Route::put('economic-variables/{id}/status', 'changeStatus');
             Route::delete('economic-variables/{id}', 'destroy');
         });
+
+        // Report Images
+        Route::controller(ReportImageController::class)->group(function () {
+            Route::post('report-images', 'store');
+            Route::post('report-images/{fileName}', 'update');
+            Route::delete('report-images/{fileName}', 'destroy');
+        });
     }
 );
 // Unit of Measures - Public route
@@ -458,3 +466,6 @@ Route::get('admin/advertising-interactions', [AdvertisingReportController::class
 
 // Company Plan Publicities Reports
 Route::get('admin/company-plan-publicities-reports', [CompanyPlanPublicitiesReportController::class, 'index']);
+
+// reports images - Public route
+Route::get('admin/report-images', [ReportImageController::class, 'index']);
