@@ -1286,19 +1286,20 @@ class CompanyController extends Controller
             $data = [];
             foreach ($records as $record) {
                 $date = Carbon::create($record->year, $record->month, 1)->endOfMonth()->toDateString();
-                $titles = $record->data['titles'] ?? [];
                 $provinceRows = $record->data['data'] ?? [];
+                $yearCurrent = $record->year % 100;         // ej. 2026 → 26
+                $yearPrev    = ($record->year - 1) % 100;   // ej. 2025 → 25
 
                 foreach ($provinceRows as $row) {
                     $provinceName = $row['state']['name'] ?? null;
 
                     $flatData = [
-                        'REGISTRO DE LLUVIAS X PROVINCIA' => $provinceName,
-                        $titles['prom_first_year']  ?? 'prom_first_year'  => $row['prom_first_year']  ?? null,
-                        $titles['acum_first_year']  ?? 'acum_first_year'  => $row['acum_first_year']  ?? null,
-                        $titles['prom_second_year'] ?? 'prom_second_year' => $row['prom_second_year'] ?? null,
-                        $titles['acum_second_year'] ?? 'acum_second_year' => $row['acum_second_year'] ?? null,
-                        $titles['var']              ?? 'var'              => $row['var']              ?? null,
+                        'REGISTRO DE LLUVIAS X PROVINCIA'          => $provinceName,
+                        "PROM {$yearPrev}"                         => $row['prom_first_year']  ?? null,
+                        "ACUM {$yearPrev}"                         => $row['acum_first_year']  ?? null,
+                        "PROM {$yearCurrent}"                      => $row['prom_second_year'] ?? null,
+                        "ACUM {$yearCurrent}"                      => $row['acum_second_year'] ?? null,
+                        "Var. Acum {$yearCurrent} Vs {$yearPrev}"  => $row['var']              ?? null,
                     ];
 
                     $data[] = [
