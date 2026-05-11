@@ -1276,11 +1276,42 @@ class CompanyController extends Controller
                 });
             }
 
-            $data = $query
+            $records = $query
                 ->when($maxResults, fn($q) => $q->limit($maxResults))
                 ->orderBy('year', 'desc')
                 ->orderByRaw('CAST(month AS UNSIGNED) DESC')
                 ->get();
+
+            // Transformar al formato legacy: un objeto por provincia por mes
+            $data = [];
+            foreach ($records as $record) {
+                $date = Carbon::create($record->year, $record->month, 1)->endOfMonth()->toDateString();
+                $titles = $record->data['titles'] ?? [];
+                $provinceRows = $record->data['data'] ?? [];
+
+                foreach ($provinceRows as $row) {
+                    $provinceName = $row['state']['name'] ?? null;
+
+                    $flatData = [
+                        'REGISTRO DE LLUVIAS X PROVINCIA' => $provinceName,
+                        $titles['prom_first_year']  ?? 'prom_first_year'  => $row['prom_first_year']  ?? null,
+                        $titles['acum_first_year']  ?? 'acum_first_year'  => $row['acum_first_year']  ?? null,
+                        $titles['prom_second_year'] ?? 'prom_second_year' => $row['prom_second_year'] ?? null,
+                        $titles['acum_second_year'] ?? 'acum_second_year' => $row['acum_second_year'] ?? null,
+                        $titles['var']              ?? 'var'              => $row['var']              ?? null,
+                    ];
+
+                    $data[] = [
+                        'id'         => $record->id,
+                        'id_plan'    => $record->id_plan,
+                        'date'       => $date,
+                        'title'      => $provinceName,
+                        'data'       => $flatData,
+                        'created_at' => $record->created_at,
+                        'updated_at' => $record->updated_at,
+                    ];
+                }
+            }
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
         } catch (Exception $e) {
