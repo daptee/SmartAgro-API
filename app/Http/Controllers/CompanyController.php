@@ -1650,11 +1650,65 @@ class CompanyController extends Controller
                 });
             }
 
-            $data = $query
+            $records = $query
                 ->when($maxResults, fn($q) => $q->limit($maxResults))
                 ->orderBy('year', 'desc')
                 ->orderByRaw('CAST(month AS UNSIGNED) DESC')
                 ->get();
+
+            // Cargar crops, products y unidades
+            $cropsMap    = \App\Models\Crop::whereNull('deleted_at')->get()->keyBy('id');
+            $productsMap = \App\Models\Product::whereNull('deleted_at')->get()->keyBy('id');
+            $unitsMap    = \App\Models\UnitOfMeasure::whereNull('deleted_at')->get()->keyBy('id');
+
+            // Transformar al formato legacy: un objeto por record (aplanando regions y relationships)
+            $data = [];
+            foreach ($records as $record) {
+                $date = Carbon::create($record->year, $record->month, 1)->endOfMonth()->toDateString();
+                $month = $record->year . '-' . str_pad($record->month, 2, '0', STR_PAD_LEFT);
+                $regions = $record->data['regions'] ?? [];
+
+                foreach ($regions as $regionRow) {
+                    $regionId      = $regionRow['region_id'] ?? null;
+                    $relationships = $regionRow['data']['relationships'] ?? [];
+
+                    $flatData = [];
+                    foreach ($relationships as $rel) {
+                        $unitId  = $rel['unit_of_measure_id'] ?? null;
+                        $unit    = $unitId ? ($unitsMap[$unitId] ?? null) : null;
+                        $unitName = $unit?->name ?? '';
+
+                        // Determinar label según combinación de ids
+                        if (isset($rel['crop_id']) && isset($rel['product_id'])) {
+                            $crop    = $cropsMap[$rel['crop_id']] ?? null;
+                            $product = $productsMap[$rel['product_id']] ?? null;
+                            $label   = ($crop?->name ?? '?') . ' / ' . ($product?->name ?? '?');
+                        } elseif (isset($rel['product_id']) && isset($rel['product_id_2'])) {
+                            $product1 = $productsMap[$rel['product_id']] ?? null;
+                            $product2 = $productsMap[$rel['product_id_2']] ?? null;
+                            $label    = 'Relacion ' . ($product1?->name ?? '?') . ' / ' . ($product2?->name ?? '?');
+                        } else {
+                            $label = 'Desconocido';
+                        }
+
+                        $flatData["{$label} ({$unitName})"] = [
+                            'value'      => $rel['value'] ?? null,
+                            'percentage' => $rel['percentage'] ?? null,
+                        ];
+                    }
+
+                    $data[] = [
+                        'id'         => $record->id,
+                        'id_plan'    => $record->id_plan,
+                        'date'       => $date,
+                        'month'      => $month,
+                        'region'     => (string)$regionId,
+                        'data'       => $flatData,
+                        'created_at' => $record->created_at,
+                        'updated_at' => $record->updated_at,
+                    ];
+                }
+            }
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
         } catch (Exception $e) {
