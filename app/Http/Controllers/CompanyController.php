@@ -1529,11 +1529,46 @@ class CompanyController extends Controller
                 });
             }
 
-            $data = $query
+            $records = $query
                 ->when($maxResults, fn($q) => $q->limit($maxResults))
                 ->orderBy('year', 'desc')
                 ->orderByRaw('CAST(month AS UNSIGNED) DESC')
                 ->get();
+
+            // Cargar clasificaciones e iconos para resolver icon por classification_id
+            $classificationsMap = \App\Models\Classification::whereNull('deleted_at')->get()->keyBy('id');
+            $iconsMap           = \App\Models\Icon::whereNull('deleted_at')->get()->keyBy('id');
+            $unitsMap           = \App\Models\UnitOfMeasure::whereNull('deleted_at')->get()->keyBy('id');
+
+            // Transformar al formato legacy: un objeto por row por mes
+            $data = [];
+            foreach ($records as $record) {
+                $date = Carbon::create($record->year, $record->month, 1)->endOfMonth()->toDateString();
+                $rows = $record->data ?? [];
+
+                foreach ($rows as $row) {
+                    $classificationId = $row['classification_id'] ?? null;
+                    $classification   = $classificationId ? ($classificationsMap[$classificationId] ?? null) : null;
+                    $icon             = $classification ? ($iconsMap[$classification->id_icon] ?? null) : null;
+                    $unitId           = $row['unit_of_measure_id'] ?? null;
+                    $unit             = $unitId ? ($unitsMap[$unitId] ?? null) : null;
+
+                    $data[] = [
+                        'id'         => $record->id,
+                        'id_plan'    => $record->id_plan,
+                        'date'       => $date,
+                        'icon'       => $icon?->url,
+                        'data'       => [
+                            'Titulo' => null,
+                            'Valor'  => $row['value'] ?? null,
+                            'Unidad' => $unit?->name,
+                            'Texto'  => $row['label'] ?? null,
+                        ],
+                        'created_at' => $record->created_at,
+                        'updated_at' => $record->updated_at,
+                    ];
+                }
+            }
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
         } catch (Exception $e) {
