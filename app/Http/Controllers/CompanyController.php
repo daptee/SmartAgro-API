@@ -1557,9 +1557,10 @@ class CompanyController extends Controller
                         'id'         => $record->id,
                         'id_plan'    => $record->id_plan,
                         'date'       => $date,
+                        'Title'      => $row['label'] ?? null,
                         'icon'       => $icon?->url,
                         'data'       => [
-                            'Titulo' => null,
+                            'Clasificacion' => $classification?->name,
                             'Valor'  => $row['value'] ?? null,
                             'Unidad' => $unit?->name,
                             'Texto'  => $row['label'] ?? null,
