@@ -2427,10 +2427,11 @@ class CompanyController extends Controller
                 ->orderByRaw('CAST(month AS UNSIGNED) DESC')
                 ->get();
 
-            $cropsMap  = \App\Models\Crop::whereNull('deleted_at')->get()->keyBy('id');
-            $inputsMap = \App\Models\Input::all()->keyBy('id');
+            $cropsMap           = \App\Models\Crop::whereNull('deleted_at')->get()->keyBy('id');
+            $classificationsMap = \App\Models\Classification::all()->keyBy('id');
+            $productsMap        = \App\Models\Product::all()->keyBy('id');
 
-            // Mapeo id_selected → input_id según tipo
+            // Mapeo id_selected → input_id según tipo (para preservar orden de inputs)
             // classification: 101→1(Glifosato), 36→4(Gasoil), 45→8(Atrazina)
             // product: 15→2(Fosfato), 12→3(Urea), 3→5(Ternero), 4→6(Ternera), 5→7(Vaquillona)
             // crop: 1→9(Soja)
@@ -2464,6 +2465,17 @@ class CompanyController extends Controller
                         $inputId    = $inputIdMap[$type][$idSelected] ?? null;
                         if (!$inputId) continue;
 
+                        if ($type === 'classification') {
+                            $inputLabel = $classificationsMap[$idSelected]?->name ?? $inputId;
+                        } elseif ($type === 'product') {
+                            $inputLabel = $productsMap[$idSelected]?->name ?? $inputId;
+                        } elseif ($type === 'crop') {
+                            $inputLabel = $cropsMap[$idSelected]?->name ?? $inputId;
+                        } else {
+                            $inputLabel = $inputId;
+                        }
+
+                        $cropsByInputPosition[$inputId]['_label']         = $inputLabel;
                         $cropsByInputPosition[$inputId][$cropName] = [
                             'current_value' => $row['current_value'] ?? null,
                             'average'       => $row['average']       ?? null,
@@ -2474,9 +2486,11 @@ class CompanyController extends Controller
 
                 // Emitir 3 filas por input (una por variable)
                 foreach ($cropsByInputPosition as $inputId => $cropValues) {
+                    $inputLabel = $cropValues['_label'] ?? $inputId;
                     foreach ($variables as $varKey => $varLabel) {
                         $flatData = [];
                         foreach ($cropValues as $cropName => $vals) {
+                            if ($cropName === '_label') continue;
                             $flatData[$cropName] = $vals[$varKey] ?? null;
                         }
 
@@ -2484,7 +2498,7 @@ class CompanyController extends Controller
                             'id'         => $record->id,
                             'id_plan'    => $record->id_plan,
                             'date'       => $date,
-                            'input'      => $inputId,
+                            'input'      => $inputLabel,
                             'variable'   => $varLabel,
                             'data'       => $flatData,
                             'created_at' => $record->created_at,
