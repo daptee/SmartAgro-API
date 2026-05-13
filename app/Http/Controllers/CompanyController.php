@@ -2208,6 +2208,7 @@ class CompanyController extends Controller
                         'id'         => $record->id,
                         'id_plan'    => $record->id_plan,
                         'date'       => $date,
+                        'title'      => $product?->name,
                         'data'       => $flatData,
                         'created_at' => $record->created_at,
                         'updated_at' => $record->updated_at,
