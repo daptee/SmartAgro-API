@@ -2421,11 +2421,78 @@ class CompanyController extends Controller
                 });
             }
 
-            $data = $query
+            $records = $query
                 ->when($maxResults, fn($q) => $q->limit($maxResults))
                 ->orderBy('year', 'desc')
                 ->orderByRaw('CAST(month AS UNSIGNED) DESC')
                 ->get();
+
+            $cropsMap  = \App\Models\Crop::whereNull('deleted_at')->get()->keyBy('id');
+            $inputsMap = \App\Models\Input::all()->keyBy('id');
+
+            // Mapeo id_selected → input_id según tipo
+            // classification: 101→1(Glifosato), 36→4(Gasoil), 45→8(Atrazina)
+            // product: 15→2(Fosfato), 12→3(Urea), 3→5(Ternero), 4→6(Ternera), 5→7(Vaquillona)
+            // crop: 1→9(Soja)
+            $inputIdMap = [
+                'classification' => [101 => 1, 36 => 4, 45 => 8],
+                'product'        => [15 => 2, 12 => 3, 3 => 5, 4 => 6, 5 => 7],
+                'crop'           => [1 => 9],
+            ];
+
+            $variables = [
+                'current_value' => 'Valor actual',
+                'average'       => 'Promedio 2 años',
+                'percentaje'    => 'Variacion',
+            ];
+
+            $data = [];
+            foreach ($records as $record) {
+                $date  = Carbon::create($record->year, $record->month, 1)->endOfMonth()->toDateString();
+                $crops = $record->data['crops'] ?? [];
+
+                // Reindexar crops por crop_id para acceso rápido
+                $cropsByInputPosition = [];
+                foreach ($crops as $cropBlock) {
+                    $cropId   = $cropBlock['crop_id'] ?? null;
+                    $cropName = $cropId ? ($cropsMap[$cropId]?->name ?? null) : null;
+                    if (!$cropName) continue;
+
+                    foreach ($cropBlock['data'] ?? [] as $row) {
+                        $type       = $row['type'] ?? null;
+                        $idSelected = $row['id_selected'] ?? null;
+                        $inputId    = $inputIdMap[$type][$idSelected] ?? null;
+                        if (!$inputId) continue;
+
+                        $cropsByInputPosition[$inputId][$cropName] = [
+                            'current_value' => $row['current_value'] ?? null,
+                            'average'       => $row['average']       ?? null,
+                            'percentaje'    => $row['percentaje']    ?? null,
+                        ];
+                    }
+                }
+
+                // Emitir 3 filas por input (una por variable)
+                foreach ($cropsByInputPosition as $inputId => $cropValues) {
+                    foreach ($variables as $varKey => $varLabel) {
+                        $flatData = [];
+                        foreach ($cropValues as $cropName => $vals) {
+                            $flatData[$cropName] = $vals[$varKey] ?? null;
+                        }
+
+                        $data[] = [
+                            'id'         => $record->id,
+                            'id_plan'    => $record->id_plan,
+                            'date'       => $date,
+                            'input'      => $inputId,
+                            'variable'   => $varLabel,
+                            'data'       => $flatData,
+                            'created_at' => $record->created_at,
+                            'updated_at' => $record->updated_at,
+                        ];
+                    }
+                }
+            }
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
         } catch (Exception $e) {
