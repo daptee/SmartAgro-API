@@ -806,17 +806,90 @@ class CompanyController extends Controller
             $publishedControls = MarketGeneralControl::where('status_id', 1)->get(['month', 'year']);
             $publishedPeriods = $publishedControls->map(fn($c) => $c->year . '-' . str_pad($c->month, 2, '0', STR_PAD_LEFT))->toArray();
 
-            $data = MajorCrop::query()
-                ->whereRaw("DATE_FORMAT(date, '%Y-%m') IN (" . (count($publishedPeriods) > 0 ? implode(',', array_map(fn($p) => "'{$p}'", $publishedPeriods)) : "''" ) . ")")
-                ->when($dateFrom, function ($query) use ($dateFrom) {
-                    return $query->where('date', '>=', $dateFrom);
-                })
-                ->when($dateTo, function ($query) use ($dateTo) {
-                    return $query->where('date', '<=', $dateTo);
-                })
+            // Filtrar por períodos publicados (year-month)
+            $query = MajorCrop::query()
+                ->where(function ($q) use ($publishedPeriods) {
+                    foreach ($publishedPeriods as $period) {
+                        [$y, $m] = explode('-', $period);
+                        $q->orWhere(function ($q2) use ($y, $m) {
+                            $q2->where('year', (int)$y)->where('month', (int)$m);
+                        });
+                    }
+                    if (empty($publishedPeriods)) {
+                        $q->whereRaw('1 = 0');
+                    }
+                });
+
+            // Filtro date_from: incluir registros cuyo año-mes >= fecha de inicio
+            if ($dateFrom) {
+                $from = Carbon::parse($dateFrom);
+                $query->where(function ($q) use ($from) {
+                    $q->where('year', '>', $from->year)
+                      ->orWhere(function ($q2) use ($from) {
+                          $q2->where('year', $from->year)->where('month', '>=', $from->month);
+                      });
+                });
+            }
+
+            // Filtro date_to: incluir registros cuyo año-mes <= fecha de fin
+            if ($dateTo) {
+                $to = Carbon::parse($dateTo);
+                $query->where(function ($q) use ($to) {
+                    $q->where('year', '<', $to->year)
+                      ->orWhere(function ($q2) use ($to) {
+                          $q2->where('year', $to->year)->where('month', '<=', $to->month);
+                      });
+                });
+            }
+
+            $records = $query
                 ->when($maxResults, fn($q) => $q->limit($maxResults))
-                ->orderBy('date', 'desc')
+                ->orderBy('year', 'desc')
+                ->orderByRaw('CAST(month AS UNSIGNED) DESC')
                 ->get();
+
+            // Cargar crops e iconos para resolver icon path por crop_id
+            $cropsMap = \App\Models\Crop::whereNull('deleted_at')->get()->keyBy('id');
+            $iconsMap = \App\Models\Icon::whereNull('deleted_at')->get()->keyBy('id');
+
+            // Transformar al formato legacy: un objeto por cultivo por mes
+            $data = [];
+            foreach ($records as $record) {
+                $date = Carbon::create($record->year, $record->month, 1)->endOfMonth()->toDateString();
+                $titles = $record->data['titles'] ?? [];
+                $cropRows = $record->data['data'] ?? [];
+
+                foreach ($cropRows as $cropRow) {
+                    $cropId = $cropRow['crop_id'] ?? null;
+                    $crop = $cropId ? ($cropsMap[$cropId] ?? null) : null;
+                    $icon = $crop ? ($iconsMap[$crop->icon] ?? null) : null;
+
+                    $flatData = [];
+                    foreach (['group_one', 'group_two', 'group_three', 'group_four'] as $group) {
+                        if (!isset($cropRow[$group])) continue;
+                        $groupTitle = $titles[$group]['name'] ?? $group;
+                        $children = $titles[$group]['children'] ?? [];
+                        $groupValues = $cropRow[$group];
+                        $flatGroup = [];
+                        foreach ($groupValues as $colKey => $colVal) {
+                            $colTitle = $children[$colKey] ?? $colKey;
+                            $flatGroup[$colTitle] = $colVal;
+                        }
+                        $flatData[strtolower($groupTitle)] = $flatGroup;
+                    }
+
+                    $data[] = [
+                        'id'         => $record->id,
+                        'id_plan'    => $record->id_plan,
+                        'date'       => $date,
+                        'icon'       => $icon?->url,
+                        'title'      => $crop?->name,
+                        'data'       => $flatData,
+                        'created_at' => $record->created_at,
+                        'updated_at' => $record->updated_at,
+                    ];
+                }
+            }
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
         } catch (Exception $e) {
@@ -883,17 +956,84 @@ class CompanyController extends Controller
             $publishedControls = MarketGeneralControl::where('status_id', 1)->get(['month', 'year']);
             $publishedPeriods = $publishedControls->map(fn($c) => $c->year . '-' . str_pad($c->month, 2, '0', STR_PAD_LEFT))->toArray();
 
-            $data = PriceMainActiveIngredientsProducer::query()
-                ->whereRaw("DATE_FORMAT(date, '%Y-%m') IN (" . (count($publishedPeriods) > 0 ? implode(',', array_map(fn($p) => "'{$p}'", $publishedPeriods)) : "''" ) . ")")
-                ->when($dateFrom, function ($query) use ($dateFrom) {
-                    return $query->where('date', '>=', $dateFrom);
-                })
-                ->when($dateTo, function ($query) use ($dateTo) {
-                    return $query->where('date', '<=', $dateTo);
-                })
+            $query = PriceMainActiveIngredientsProducer::query()
+                ->where(function ($q) use ($publishedPeriods) {
+                    foreach ($publishedPeriods as $period) {
+                        [$y, $m] = explode('-', $period);
+                        $q->orWhere(function ($q2) use ($y, $m) {
+                            $q2->where('year', (int)$y)->where('month', (int)$m);
+                        });
+                    }
+                    if (empty($publishedPeriods)) {
+                        $q->whereRaw('1 = 0');
+                    }
+                });
+
+            if ($dateFrom) {
+                $from = Carbon::parse($dateFrom);
+                $query->where(function ($q) use ($from) {
+                    $q->where('year', '>', $from->year)
+                      ->orWhere(function ($q2) use ($from) {
+                          $q2->where('year', $from->year)->where('month', '>=', $from->month);
+                      });
+                });
+            }
+
+            if ($dateTo) {
+                $to = Carbon::parse($dateTo);
+                $query->where(function ($q) use ($to) {
+                    $q->where('year', '<', $to->year)
+                      ->orWhere(function ($q2) use ($to) {
+                          $q2->where('year', $to->year)->where('month', '<=', $to->month);
+                      });
+                });
+            }
+
+            $records = $query
                 ->when($maxResults, fn($q) => $q->limit($maxResults))
-                ->orderBy('date', 'desc')
+                ->orderBy('year', 'desc')
+                ->orderByRaw('CAST(month AS UNSIGNED) DESC')
                 ->get();
+
+            // Cargar clasificaciones para resolver nombre/short_name por classification_id
+            $classificationsMap = \App\Models\Classification::whereNull('deleted_at')->get()->keyBy('id');
+
+            // Transformar al formato legacy: un objeto por ingrediente activo por mes
+            $data = [];
+            foreach ($records as $record) {
+                $date = Carbon::create($record->year, $record->month, 1)->endOfMonth()->toDateString();
+                $seriesName = $record->data['series_name'] ?? [];
+                $lastYearLabel   = $seriesName['last_year'] ?? null;
+                $currentYearLabel = $seriesName['current_year'] ?? null;
+                $ingredientRows = $record->data['data'] ?? [];
+
+                foreach ($ingredientRows as $row) {
+                    $classificationId = $row['classification_id'] ?? null;
+                    $classification = $classificationId ? ($classificationsMap[$classificationId] ?? null) : null;
+
+                    $flatData = [
+                        'activo'               => $classification?->name,
+                        'nomenclatura resumida' => $classification?->short_name,
+                    ];
+
+                    if ($lastYearLabel) {
+                        $flatData[$lastYearLabel] = $row['last_year_value'] ?? null;
+                    }
+                    if ($currentYearLabel) {
+                        $flatData[$currentYearLabel] = $row['current_year_value'] ?? null;
+                    }
+
+                    $data[] = [
+                        'id'         => $record->id,
+                        'id_plan'    => $record->id_plan,
+                        'date'       => $date,
+                        'title'      => $classification?->name,
+                        'data'       => $flatData,
+                        'created_at' => $record->created_at,
+                        'updated_at' => $record->updated_at,
+                    ];
+                }
+            }
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
         } catch (Exception $e) {
@@ -960,17 +1100,83 @@ class CompanyController extends Controller
             $publishedControls = MarketGeneralControl::where('status_id', 1)->get(['month', 'year']);
             $publishedPeriods = $publishedControls->map(fn($c) => $c->year . '-' . str_pad($c->month, 2, '0', STR_PAD_LEFT))->toArray();
 
-            $data = ProducerSegmentPrice::query()
-                ->whereRaw("DATE_FORMAT(date, '%Y-%m') IN (" . (count($publishedPeriods) > 0 ? implode(',', array_map(fn($p) => "'{$p}'", $publishedPeriods)) : "''" ) . ")")
-                ->when($dateFrom, function ($query) use ($dateFrom) {
-                    return $query->where('date', '>=', $dateFrom);
-                })
-                ->when($dateTo, function ($query) use ($dateTo) {
-                    return $query->where('date', '<=', $dateTo);
-                })
+            $query = ProducerSegmentPrice::query()
+                ->where(function ($q) use ($publishedPeriods) {
+                    foreach ($publishedPeriods as $period) {
+                        [$y, $m] = explode('-', $period);
+                        $q->orWhere(function ($q2) use ($y, $m) {
+                            $q2->where('year', (int)$y)->where('month', (int)$m);
+                        });
+                    }
+                    if (empty($publishedPeriods)) {
+                        $q->whereRaw('1 = 0');
+                    }
+                });
+
+            if ($dateFrom) {
+                $from = Carbon::parse($dateFrom);
+                $query->where(function ($q) use ($from) {
+                    $q->where('year', '>', $from->year)
+                      ->orWhere(function ($q2) use ($from) {
+                          $q2->where('year', $from->year)->where('month', '>=', $from->month);
+                      });
+                });
+            }
+
+            if ($dateTo) {
+                $to = Carbon::parse($dateTo);
+                $query->where(function ($q) use ($to) {
+                    $q->where('year', '<', $to->year)
+                      ->orWhere(function ($q2) use ($to) {
+                          $q2->where('year', $to->year)->where('month', '<=', $to->month);
+                      });
+                });
+            }
+
+            $records = $query
                 ->when($maxResults, fn($q) => $q->limit($maxResults))
-                ->orderBy('date', 'desc')
+                ->orderBy('year', 'desc')
+                ->orderByRaw('CAST(month AS UNSIGNED) DESC')
                 ->get();
+
+            // Cargar clasificaciones para resolver nombre por classification_id
+            $classificationsMap = \App\Models\Classification::whereNull('deleted_at')->get()->keyBy('id');
+
+            // Transformar al formato legacy: un objeto por segmento por mes
+            $data = [];
+            foreach ($records as $record) {
+                $date = Carbon::create($record->year, $record->month, 1)->endOfMonth()->toDateString();
+                $seriesName = $record->data['series_name'] ?? [];
+                $lastYearLabel    = $seriesName['last_year'] ?? null;
+                $currentYearLabel = $seriesName['current_year'] ?? null;
+                $segmentRows = $record->data['data'] ?? [];
+
+                foreach ($segmentRows as $row) {
+                    $classificationId = $row['classification_id'] ?? null;
+                    $classification = $classificationId ? ($classificationsMap[$classificationId] ?? null) : null;
+
+                    $flatData = [
+                        'USD/Kg o Lt' => $classification?->name,
+                    ];
+
+                    if ($lastYearLabel) {
+                        $flatData[$lastYearLabel] = $row['last_year_value'] ?? null;
+                    }
+                    if ($currentYearLabel) {
+                        $flatData[$currentYearLabel] = $row['current_year_value'] ?? null;
+                    }
+
+                    $data[] = [
+                        'id'         => $record->id,
+                        'id_plan'    => $record->id_plan,
+                        'date'       => $date,
+                        'title'      => $classification?->name,
+                        'data'       => $flatData,
+                        'created_at' => $record->created_at,
+                        'updated_at' => $record->updated_at,
+                    ];
+                }
+            }
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
         } catch (Exception $e) {
@@ -1037,17 +1243,76 @@ class CompanyController extends Controller
             $publishedControls = MarketGeneralControl::where('status_id', 1)->get(['month', 'year']);
             $publishedPeriods = $publishedControls->map(fn($c) => $c->year . '-' . str_pad($c->month, 2, '0', STR_PAD_LEFT))->toArray();
 
-            $data = RainfallRecordProvince::query()
-                ->whereRaw("DATE_FORMAT(date, '%Y-%m') IN (" . (count($publishedPeriods) > 0 ? implode(',', array_map(fn($p) => "'{$p}'", $publishedPeriods)) : "''" ) . ")")
-                ->when($dateFrom, function ($query) use ($dateFrom) {
-                    return $query->where('date', '>=', $dateFrom);
-                })
-                ->when($dateTo, function ($query) use ($dateTo) {
-                    return $query->where('date', '<=', $dateTo);
-                })
+            $query = RainfallRecordProvince::query()
+                ->where(function ($q) use ($publishedPeriods) {
+                    foreach ($publishedPeriods as $period) {
+                        [$y, $m] = explode('-', $period);
+                        $q->orWhere(function ($q2) use ($y, $m) {
+                            $q2->where('year', (int)$y)->where('month', (int)$m);
+                        });
+                    }
+                    if (empty($publishedPeriods)) {
+                        $q->whereRaw('1 = 0');
+                    }
+                });
+
+            if ($dateFrom) {
+                $from = Carbon::parse($dateFrom);
+                $query->where(function ($q) use ($from) {
+                    $q->where('year', '>', $from->year)
+                      ->orWhere(function ($q2) use ($from) {
+                          $q2->where('year', $from->year)->where('month', '>=', $from->month);
+                      });
+                });
+            }
+
+            if ($dateTo) {
+                $to = Carbon::parse($dateTo);
+                $query->where(function ($q) use ($to) {
+                    $q->where('year', '<', $to->year)
+                      ->orWhere(function ($q2) use ($to) {
+                          $q2->where('year', $to->year)->where('month', '<=', $to->month);
+                      });
+                });
+            }
+
+            $records = $query
                 ->when($maxResults, fn($q) => $q->limit($maxResults))
-                ->orderBy('date', 'desc')
+                ->orderBy('year', 'desc')
+                ->orderByRaw('CAST(month AS UNSIGNED) DESC')
                 ->get();
+
+            // Transformar al formato legacy: un objeto por provincia por mes
+            $data = [];
+            foreach ($records as $record) {
+                $date = Carbon::create($record->year, $record->month, 1)->endOfMonth()->toDateString();
+                $provinceRows = $record->data['data'] ?? [];
+                $yearCurrent = $record->year % 100;         // ej. 2026 → 26
+                $yearPrev    = ($record->year - 1) % 100;   // ej. 2025 → 25
+
+                foreach ($provinceRows as $row) {
+                    $provinceName = $row['state']['name'] ?? null;
+
+                    $flatData = [
+                        'REGISTRO DE LLUVIAS X PROVINCIA'          => $provinceName,
+                        "PROM {$yearPrev}"                         => $row['prom_first_year']  ?? null,
+                        "ACUM {$yearPrev}"                         => $row['acum_first_year']  ?? null,
+                        "PROM {$yearCurrent}"                      => $row['prom_second_year'] ?? null,
+                        "ACUM {$yearCurrent}"                      => $row['acum_second_year'] ?? null,
+                        "Var. Acum {$yearCurrent} Vs {$yearPrev}"  => $row['var']              ?? null,
+                    ];
+
+                    $data[] = [
+                        'id'         => $record->id,
+                        'id_plan'    => $record->id_plan,
+                        'date'       => $date,
+                        'title'      => $provinceName,
+                        'data'       => $flatData,
+                        'created_at' => $record->created_at,
+                        'updated_at' => $record->updated_at,
+                    ];
+                }
+            }
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
         } catch (Exception $e) {
@@ -1114,17 +1379,76 @@ class CompanyController extends Controller
             $publishedControls = MarketGeneralControl::where('status_id', 1)->get(['month', 'year']);
             $publishedPeriods = $publishedControls->map(fn($c) => $c->year . '-' . str_pad($c->month, 2, '0', STR_PAD_LEFT))->toArray();
 
-            $data = MainGrainPrice::query()
-                ->whereRaw("DATE_FORMAT(date, '%Y-%m') IN (" . (count($publishedPeriods) > 0 ? implode(',', array_map(fn($p) => "'{$p}'", $publishedPeriods)) : "''" ) . ")")
-                ->when($dateFrom, function ($query) use ($dateFrom) {
-                    return $query->where('date', '>=', $dateFrom);
-                })
-                ->when($dateTo, function ($query) use ($dateTo) {
-                    return $query->where('date', '<=', $dateTo);
-                })
+            $query = MainGrainPrice::query()
+                ->where(function ($q) use ($publishedPeriods) {
+                    foreach ($publishedPeriods as $period) {
+                        [$y, $m] = explode('-', $period);
+                        $q->orWhere(function ($q2) use ($y, $m) {
+                            $q2->where('year', (int)$y)->where('month', (int)$m);
+                        });
+                    }
+                    if (empty($publishedPeriods)) {
+                        $q->whereRaw('1 = 0');
+                    }
+                });
+
+            if ($dateFrom) {
+                $from = Carbon::parse($dateFrom);
+                $query->where(function ($q) use ($from) {
+                    $q->where('year', '>', $from->year)
+                      ->orWhere(function ($q2) use ($from) {
+                          $q2->where('year', $from->year)->where('month', '>=', $from->month);
+                      });
+                });
+            }
+
+            if ($dateTo) {
+                $to = Carbon::parse($dateTo);
+                $query->where(function ($q) use ($to) {
+                    $q->where('year', '<', $to->year)
+                      ->orWhere(function ($q2) use ($to) {
+                          $q2->where('year', $to->year)->where('month', '<=', $to->month);
+                      });
+                });
+            }
+
+            $records = $query
                 ->when($maxResults, fn($q) => $q->limit($maxResults))
-                ->orderBy('date', 'desc')
+                ->orderBy('year', 'desc')
+                ->orderByRaw('CAST(month AS UNSIGNED) DESC')
                 ->get();
+
+            // Cargar crops e iconos para resolver nombre/icon por crop_id
+            $cropsMap = \App\Models\Crop::whereNull('deleted_at')->get()->keyBy('id');
+            $iconsMap = \App\Models\Icon::whereNull('deleted_at')->get()->keyBy('id');
+
+            // Transformar al formato legacy: un objeto por cultivo por mes
+            $data = [];
+            foreach ($records as $record) {
+                $date = Carbon::create($record->year, $record->month, 1)->endOfMonth()->toDateString();
+                $cropRows = $record->data ?? [];
+
+                foreach ($cropRows as $row) {
+                    $cropId = $row['crop_id'] ?? null;
+                    $crop   = $cropId ? ($cropsMap[$cropId] ?? null) : null;
+                    $icon   = $crop ? ($iconsMap[$crop->icon] ?? null) : null;
+
+                    $data[] = [
+                        'id'         => $record->id,
+                        'id_plan'    => $record->id_plan,
+                        'date'       => $date,
+                        'title'      => $crop?->name,
+                        'icon'       => $icon?->url,
+                        'data'       => [
+                            'min'  => $row['min']  ?? null,
+                            'max'  => $row['max']  ?? null,
+                            'prom' => $row['prom'] ?? null,
+                        ],
+                        'created_at' => $record->created_at,
+                        'updated_at' => $record->updated_at,
+                    ];
+                }
+            }
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
         } catch (Exception $e) {
@@ -1183,16 +1507,69 @@ class CompanyController extends Controller
                 'params' => $request->all(),
             ]);
 
-            $data = PitIndicator::query()
-                ->when($dateFrom, function ($query) use ($dateFrom) {
-                    return $query->where('date', '>=', $dateFrom);
-                })
-                ->when($dateTo, function ($query) use ($dateTo) {
-                    return $query->where('date', '<=', $dateTo);
-                })
+            $query = PitIndicator::query();
+
+            if ($dateFrom) {
+                $from = Carbon::parse($dateFrom);
+                $query->where(function ($q) use ($from) {
+                    $q->where('year', '>', $from->year)
+                      ->orWhere(function ($q2) use ($from) {
+                          $q2->where('year', $from->year)->where('month', '>=', $from->month);
+                      });
+                });
+            }
+
+            if ($dateTo) {
+                $to = Carbon::parse($dateTo);
+                $query->where(function ($q) use ($to) {
+                    $q->where('year', '<', $to->year)
+                      ->orWhere(function ($q2) use ($to) {
+                          $q2->where('year', $to->year)->where('month', '<=', $to->month);
+                      });
+                });
+            }
+
+            $records = $query
                 ->when($maxResults, fn($q) => $q->limit($maxResults))
-                ->orderBy('date', 'desc')
+                ->orderBy('year', 'desc')
+                ->orderByRaw('CAST(month AS UNSIGNED) DESC')
                 ->get();
+
+            // Cargar clasificaciones e iconos para resolver icon por classification_id
+            $classificationsMap = \App\Models\Classification::whereNull('deleted_at')->get()->keyBy('id');
+            $iconsMap           = \App\Models\Icon::whereNull('deleted_at')->get()->keyBy('id');
+            $unitsMap           = \App\Models\UnitOfMeasure::whereNull('deleted_at')->get()->keyBy('id');
+
+            // Transformar al formato legacy: un objeto por row por mes
+            $data = [];
+            foreach ($records as $record) {
+                $date = Carbon::create($record->year, $record->month, 1)->endOfMonth()->toDateString();
+                $rows = $record->data ?? [];
+
+                foreach ($rows as $row) {
+                    $classificationId = $row['classification_id'] ?? null;
+                    $classification   = $classificationId ? ($classificationsMap[$classificationId] ?? null) : null;
+                    $icon             = $classification ? ($iconsMap[$classification->id_icon] ?? null) : null;
+                    $unitId           = $row['unit_of_measure_id'] ?? null;
+                    $unit             = $unitId ? ($unitsMap[$unitId] ?? null) : null;
+
+                    $data[] = [
+                        'id'         => $record->id,
+                        'id_plan'    => $record->id_plan,
+                        'date'       => $date,
+                        'Title'      => $row['label'] ?? null,
+                        'icon'       => $icon?->url,
+                        'data'       => [
+                            'Clasificacion' => $classification?->name,
+                            'Valor'  => $row['value'] ?? null,
+                            'Unidad' => $unit?->name,
+                            'Texto'  => $row['label'] ?? null,
+                        ],
+                        'created_at' => $record->created_at,
+                        'updated_at' => $record->updated_at,
+                    ];
+                }
+            }
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
         } catch (Exception $e) {
@@ -1251,16 +1628,87 @@ class CompanyController extends Controller
                 'params' => $request->all(),
             ]);
 
-            $data = LivestockInputOutputRatio::query()
-                ->when($dateFrom, function ($query) use ($dateFrom) {
-                    return $query->where('date', '>=', $dateFrom);
-                })
-                ->when($dateTo, function ($query) use ($dateTo) {
-                    return $query->where('date', '<=', $dateTo);
-                })
+            $query = LivestockInputOutputRatio::query();
+
+            if ($dateFrom) {
+                $from = Carbon::parse($dateFrom);
+                $query->where(function ($q) use ($from) {
+                    $q->where('year', '>', $from->year)
+                      ->orWhere(function ($q2) use ($from) {
+                          $q2->where('year', $from->year)->where('month', '>=', $from->month);
+                      });
+                });
+            }
+
+            if ($dateTo) {
+                $to = Carbon::parse($dateTo);
+                $query->where(function ($q) use ($to) {
+                    $q->where('year', '<', $to->year)
+                      ->orWhere(function ($q2) use ($to) {
+                          $q2->where('year', $to->year)->where('month', '<=', $to->month);
+                      });
+                });
+            }
+
+            $records = $query
                 ->when($maxResults, fn($q) => $q->limit($maxResults))
-                ->orderBy('date', 'desc')
+                ->orderBy('year', 'desc')
+                ->orderByRaw('CAST(month AS UNSIGNED) DESC')
                 ->get();
+
+            // Cargar crops, products y unidades
+            $cropsMap    = \App\Models\Crop::whereNull('deleted_at')->get()->keyBy('id');
+            $productsMap = \App\Models\Product::whereNull('deleted_at')->get()->keyBy('id');
+            $unitsMap    = \App\Models\UnitOfMeasure::whereNull('deleted_at')->get()->keyBy('id');
+
+            // Transformar al formato legacy: un objeto por record (aplanando regions y relationships)
+            $data = [];
+            foreach ($records as $record) {
+                $date = Carbon::create($record->year, $record->month, 1)->endOfMonth()->toDateString();
+                $month = $record->year . '-' . str_pad($record->month, 2, '0', STR_PAD_LEFT);
+                $regions = $record->data['regions'] ?? [];
+
+                foreach ($regions as $regionRow) {
+                    $regionId      = $regionRow['region_id'] ?? null;
+                    $relationships = $regionRow['data']['relationships'] ?? [];
+
+                    $flatData = [];
+                    foreach ($relationships as $rel) {
+                        $unitId  = $rel['unit_of_measure_id'] ?? null;
+                        $unit    = $unitId ? ($unitsMap[$unitId] ?? null) : null;
+                        $unitName = $unit?->name ?? '';
+
+                        // Determinar label según combinación de ids
+                        if (isset($rel['crop_id']) && isset($rel['product_id'])) {
+                            $crop    = $cropsMap[$rel['crop_id']] ?? null;
+                            $product = $productsMap[$rel['product_id']] ?? null;
+                            $label   = ($crop?->name ?? '?') . ' / ' . ($product?->name ?? '?');
+                        } elseif (isset($rel['product_id']) && isset($rel['product_id_2'])) {
+                            $product1 = $productsMap[$rel['product_id']] ?? null;
+                            $product2 = $productsMap[$rel['product_id_2']] ?? null;
+                            $label    = 'Relacion ' . ($product1?->name ?? '?') . ' / ' . ($product2?->name ?? '?');
+                        } else {
+                            $label = 'Desconocido';
+                        }
+
+                        $flatData["{$label} ({$unitName})"] = [
+                            'value'      => $rel['value'] ?? null,
+                            'percentage' => $rel['percentage'] ?? null,
+                        ];
+                    }
+
+                    $data[] = [
+                        'id'         => $record->id,
+                        'id_plan'    => $record->id_plan,
+                        'date'       => $date,
+                        'month'      => $month,
+                        'region'     => (string)$regionId,
+                        'data'       => $flatData,
+                        'created_at' => $record->created_at,
+                        'updated_at' => $record->updated_at,
+                    ];
+                }
+            }
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
         } catch (Exception $e) {
@@ -1319,16 +1767,89 @@ class CompanyController extends Controller
                 'params' => $request->all(),
             ]);
 
-            $data = AgriculturalInputOutputRelationship::query()
-                ->when($dateFrom, function ($query) use ($dateFrom) {
-                    return $query->where('date', '>=', $dateFrom);
-                })
-                ->when($dateTo, function ($query) use ($dateTo) {
-                    return $query->where('date', '<=', $dateTo);
-                })
+            $query = AgriculturalInputOutputRelationship::query();
+
+            if ($dateFrom) {
+                $from = Carbon::parse($dateFrom);
+                $query->where(function ($q) use ($from) {
+                    $q->where('year', '>', $from->year)
+                      ->orWhere(function ($q2) use ($from) {
+                          $q2->where('year', $from->year)->where('month', '>=', $from->month);
+                      });
+                });
+            }
+
+            if ($dateTo) {
+                $to = Carbon::parse($dateTo);
+                $query->where(function ($q) use ($to) {
+                    $q->where('year', '<', $to->year)
+                      ->orWhere(function ($q2) use ($to) {
+                          $q2->where('year', $to->year)->where('month', '<=', $to->month);
+                      });
+                });
+            }
+
+            $records = $query
                 ->when($maxResults, fn($q) => $q->limit($maxResults))
-                ->orderBy('date', 'desc')
+                ->orderBy('year', 'desc')
+                ->orderByRaw('CAST(month AS UNSIGNED) DESC')
                 ->get();
+
+            // Cargar crops, products, classifications y unidades
+            $cropsMap           = \App\Models\Crop::whereNull('deleted_at')->get()->keyBy('id');
+            $productsMap        = \App\Models\Product::whereNull('deleted_at')->get()->keyBy('id');
+            $classificationsMap = \App\Models\Classification::whereNull('deleted_at')->get()->keyBy('id');
+            $unitsMap           = \App\Models\UnitOfMeasure::whereNull('deleted_at')->get()->keyBy('id');
+
+            $data = [];
+            foreach ($records as $record) {
+                $date  = Carbon::create($record->year, $record->month, 1)->endOfMonth()->toDateString();
+                $month = $record->year . '-' . str_pad($record->month, 2, '0', STR_PAD_LEFT);
+                $regions = $record->data['regions'] ?? [];
+
+                foreach ($regions as $regionRow) {
+                    $regionId      = $regionRow['region_id'] ?? null;
+                    $relationships = $regionRow['data']['relationships'] ?? [];
+
+                    $flatData = [];
+                    foreach ($relationships as $rel) {
+                        $unitId   = $rel['unit_of_measure_id'] ?? null;
+                        $unit     = $unitId ? ($unitsMap[$unitId] ?? null) : null;
+                        $unitName = $unit?->name ?? '';
+
+                        $crop     = isset($rel['crop_id']) ? ($cropsMap[$rel['crop_id']] ?? null) : null;
+                        $cropName = $crop?->name ?? '?';
+
+                        if (isset($rel['classification_id'])) {
+                            $classification = $classificationsMap[$rel['classification_id']] ?? null;
+                            $secondName     = $classification?->name ?? '?';
+                        } elseif (isset($rel['product_id'])) {
+                            $product    = $productsMap[$rel['product_id']] ?? null;
+                            $secondName = $product?->name ?? '?';
+                        } else {
+                            $secondName = '?';
+                        }
+
+                        $label = "{$cropName}/{$secondName} ({$unitName})";
+
+                        $flatData[$label] = [
+                            'value'      => $rel['value'] ?? null,
+                            'percentage' => $rel['percentage'] ?? null,
+                        ];
+                    }
+
+                    $data[] = [
+                        'id'         => $record->id,
+                        'id_plan'    => $record->id_plan,
+                        'date'       => $date,
+                        'month'      => $month,
+                        'region'     => (string)$regionId,
+                        'data'       => $flatData,
+                        'created_at' => $record->created_at,
+                        'updated_at' => $record->updated_at,
+                    ];
+                }
+            }
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
         } catch (Exception $e) {
@@ -1387,16 +1908,67 @@ class CompanyController extends Controller
                 'params' => $request->all(),
             ]);
 
-            $data = GrossMarginsTrend::query()
-                ->when($dateFrom, function ($query) use ($dateFrom) {
-                    return $query->where('date', '>=', $dateFrom);
-                })
-                ->when($dateTo, function ($query) use ($dateTo) {
-                    return $query->where('date', '<=', $dateTo);
-                })
+            $query = GrossMarginsTrend::query();
+
+            if ($dateFrom) {
+                $from = Carbon::parse($dateFrom);
+                $query->where(function ($q) use ($from) {
+                    $q->where('year', '>', $from->year)
+                      ->orWhere(function ($q2) use ($from) {
+                          $q2->where('year', $from->year)->where('month', '>=', $from->month);
+                      });
+                });
+            }
+
+            if ($dateTo) {
+                $to = Carbon::parse($dateTo);
+                $query->where(function ($q) use ($to) {
+                    $q->where('year', '<', $to->year)
+                      ->orWhere(function ($q2) use ($to) {
+                          $q2->where('year', $to->year)->where('month', '<=', $to->month);
+                      });
+                });
+            }
+
+            $records = $query
                 ->when($maxResults, fn($q) => $q->limit($maxResults))
-                ->orderBy('date', 'desc')
+                ->orderBy('year', 'desc')
+                ->orderByRaw('CAST(month AS UNSIGNED) DESC')
                 ->get();
+
+            $cropsMap = \App\Models\Crop::whereNull('deleted_at')->get()->keyBy('id');
+
+            // Transformar al formato legacy: un objeto por región por mes
+            $data = [];
+            foreach ($records as $record) {
+                $date  = Carbon::create($record->year, $record->month, 1)->endOfMonth()->toDateString();
+                $month = $record->year . '-' . str_pad($record->month, 2, '0', STR_PAD_LEFT);
+                $regions = $record->data['regions'] ?? [];
+
+                foreach ($regions as $regionRow) {
+                    $regionId = $regionRow['region_id'] ?? null;
+                    $flatData = [];
+
+                    foreach ($regionRow['data'] ?? [] as $cropRow) {
+                        $cropId = $cropRow['crop_id'] ?? null;
+                        $crop   = $cropId ? ($cropsMap[$cropId] ?? null) : null;
+                        if ($crop) {
+                            $flatData[$crop->name] = $cropRow['value'] ?? null;
+                        }
+                    }
+
+                    $data[] = [
+                        'id'         => $record->id,
+                        'id_plan'    => $record->id_plan,
+                        'date'       => $date,
+                        'month'      => $month,
+                        'region'     => (string)$regionId,
+                        'data'       => $flatData,
+                        'created_at' => $record->created_at,
+                        'updated_at' => $record->updated_at,
+                    ];
+                }
+            }
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
         } catch (Exception $e) {
@@ -1455,16 +2027,66 @@ class CompanyController extends Controller
                 'params' => $request->all(),
             ]);
 
-            $data = HarvestPrices::query()
-                ->when($dateFrom, function ($query) use ($dateFrom) {
-                    return $query->where('date', '>=', $dateFrom);
-                })
-                ->when($dateTo, function ($query) use ($dateTo) {
-                    return $query->where('date', '<=', $dateTo);
-                })
+            $query = HarvestPrices::query();
+
+            if ($dateFrom) {
+                $from = Carbon::parse($dateFrom);
+                $query->where(function ($q) use ($from) {
+                    $q->where('year', '>', $from->year)
+                      ->orWhere(function ($q2) use ($from) {
+                          $q2->where('year', $from->year)->where('month', '>=', $from->month);
+                      });
+                });
+            }
+
+            if ($dateTo) {
+                $to = Carbon::parse($dateTo);
+                $query->where(function ($q) use ($to) {
+                    $q->where('year', '<', $to->year)
+                      ->orWhere(function ($q2) use ($to) {
+                          $q2->where('year', $to->year)->where('month', '<=', $to->month);
+                      });
+                });
+            }
+
+            $records = $query
                 ->when($maxResults, fn($q) => $q->limit($maxResults))
-                ->orderBy('date', 'desc')
+                ->orderBy('year', 'desc')
+                ->orderByRaw('CAST(month AS UNSIGNED) DESC')
                 ->get();
+
+            $cropsMap = \App\Models\Crop::whereNull('deleted_at')->get()->keyBy('id');
+
+            $data = [];
+            foreach ($records as $record) {
+                $date  = Carbon::create($record->year, $record->month, 1)->endOfMonth()->toDateString();
+                $month = $record->year . '-' . str_pad($record->month, 2, '0', STR_PAD_LEFT);
+                $regions = $record->data['regions'] ?? [];
+
+                foreach ($regions as $regionRow) {
+                    $regionId = $regionRow['region_id'] ?? null;
+                    $flatData = [];
+
+                    foreach ($regionRow['data'] ?? [] as $cropRow) {
+                        $cropId = $cropRow['crop_id'] ?? null;
+                        $crop   = $cropId ? ($cropsMap[$cropId] ?? null) : null;
+                        if ($crop) {
+                            $flatData[$crop->name] = $cropRow['value'] ?? null;
+                        }
+                    }
+
+                    $data[] = [
+                        'id'         => $record->id,
+                        'id_plan'    => $record->id_plan,
+                        'date'       => $date,
+                        'month'      => $month,
+                        'region'     => (string)$regionId,
+                        'data'       => $flatData,
+                        'created_at' => $record->created_at,
+                        'updated_at' => $record->updated_at,
+                    ];
+                }
+            }
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
         } catch (Exception $e) {
@@ -1523,16 +2145,77 @@ class CompanyController extends Controller
                 'params' => $request->all(),
             ]);
 
-            $data = ProductPrice::query()
-                ->when($dateFrom, function ($query) use ($dateFrom) {
-                    return $query->where('date', '>=', $dateFrom);
-                })
-                ->when($dateTo, function ($query) use ($dateTo) {
-                    return $query->where('date', '<=', $dateTo);
-                })
+            $query = ProductPrice::query();
+
+            if ($dateFrom) {
+                $from = Carbon::parse($dateFrom);
+                $query->where(function ($q) use ($from) {
+                    $q->where('year', '>', $from->year)
+                      ->orWhere(function ($q2) use ($from) {
+                          $q2->where('year', $from->year)->where('month', '>=', $from->month);
+                      });
+                });
+            }
+
+            if ($dateTo) {
+                $to = Carbon::parse($dateTo);
+                $query->where(function ($q) use ($to) {
+                    $q->where('year', '<', $to->year)
+                      ->orWhere(function ($q2) use ($to) {
+                          $q2->where('year', $to->year)->where('month', '<=', $to->month);
+                      });
+                });
+            }
+
+            $records = $query
                 ->when($maxResults, fn($q) => $q->limit($maxResults))
-                ->orderBy('date', 'desc')
+                ->orderBy('year', 'desc')
+                ->orderByRaw('CAST(month AS UNSIGNED) DESC')
                 ->get();
+
+            // Cargar products con sus clasificaciones para resolver nombre y activo resumido
+            $productsMap        = \App\Models\Product::whereNull('deleted_at')->with('classification')->get()->keyBy('id');
+
+            $data = [];
+            foreach ($records as $record) {
+                $date = Carbon::create($record->year, $record->month, 1)->endOfMonth()->toDateString();
+                $seriesName       = $record->data['series_name'] ?? [];
+                $firstYearLabel   = $seriesName['first_year']   ?? null;
+                $lastYearLabel    = $seriesName['last_year']    ?? null;
+                $currentYearLabel = $seriesName['current_year'] ?? null;
+                $productRows      = $record->data['data'] ?? [];
+
+                foreach ($productRows as $row) {
+                    $productId = $row['product_id'] ?? null;
+                    $product   = $productId ? ($productsMap[$productId] ?? null) : null;
+
+                    $flatData = [
+                        'Marca Comercial' => $product?->name,
+                        'Activo resumido' => $product?->classification?->name,
+                    ];
+
+                    if ($firstYearLabel) {
+                        $flatData[$firstYearLabel] = $row['first_year_data'] ?? null;
+                    }
+                    if ($lastYearLabel) {
+                        $flatData[$lastYearLabel] = $row['last_year_value'] ?? null;
+                    }
+                    if ($currentYearLabel) {
+                        $flatData[$currentYearLabel] = $row['current_year_value'] ?? null;
+                    }
+
+                    $data[] = [
+                        'id'         => $record->id,
+                        'id_plan'    => $record->id_plan,
+                        'date'       => $date,
+                        'title'      => $product?->name,
+                        'data'       => $flatData,
+                        'created_at' => $record->created_at,
+                        'updated_at' => $record->updated_at,
+                        'segment_id' => $record->segment_id,
+                    ];
+                }
+            }
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
         } catch (Exception $e) {
@@ -1591,16 +2274,73 @@ class CompanyController extends Controller
                 'params' => $request->all(),
             ]);
 
-            $data = GrossMargin::query()
-                ->when($dateFrom, function ($query) use ($dateFrom) {
-                    return $query->where('date', '>=', $dateFrom);
-                })
-                ->when($dateTo, function ($query) use ($dateTo) {
-                    return $query->where('date', '<=', $dateTo);
-                })
+            $query = GrossMargin::query();
+
+            if ($dateFrom) {
+                $from = Carbon::parse($dateFrom);
+                $query->where(function ($q) use ($from) {
+                    $q->where('year', '>', $from->year)
+                      ->orWhere(function ($q2) use ($from) {
+                          $q2->where('year', $from->year)->where('month', '>=', $from->month);
+                      });
+                });
+            }
+
+            if ($dateTo) {
+                $to = Carbon::parse($dateTo);
+                $query->where(function ($q) use ($to) {
+                    $q->where('year', '<', $to->year)
+                      ->orWhere(function ($q2) use ($to) {
+                          $q2->where('year', $to->year)->where('month', '<=', $to->month);
+                      });
+                });
+            }
+
+            $records = $query
                 ->when($maxResults, fn($q) => $q->limit($maxResults))
-                ->orderBy('date', 'desc')
+                ->orderBy('year', 'desc')
+                ->orderByRaw('CAST(month AS UNSIGNED) DESC')
                 ->get();
+
+            $cropsMap     = \App\Models\Crop::whereNull('deleted_at')->get()->keyBy('id');
+            $econVarsMap  = \App\Models\EconomicVariable::whereNull('deleted_at')->get()->keyBy('id');
+
+            // Un objeto por región x variable económica x mes
+            $data = [];
+            foreach ($records as $record) {
+                $date    = Carbon::create($record->year, $record->month, 1)->endOfMonth()->toDateString();
+                $regions = $record->data['data'] ?? [];
+
+                foreach ($regions as $regionRow) {
+                    $regionId = $regionRow['region_id'] ?? null;
+
+                    foreach ($regionRow['economic_variables'] ?? [] as $econVar) {
+                        $econVarId   = $econVar['economic_variable_id'] ?? null;
+                        $econVarName = $econVarId ? ($econVarsMap[$econVarId]?->name ?? null) : null;
+
+                        $flatData = ['Mes actual' => $econVarName];
+
+                        foreach ($econVar['crops_data'] ?? [] as $cropRow) {
+                            $cropId = $cropRow['crop_id'] ?? null;
+                            $crop   = $cropId ? ($cropsMap[$cropId] ?? null) : null;
+                            if ($crop) {
+                                $flatData[$crop->name] = $cropRow['value'] ?? null;
+                            }
+                        }
+
+                        $data[] = [
+                            'id'         => $record->id,
+                            'id_plan'    => $record->id_plan,
+                            'date'       => $date,
+                            'title'      => $econVarName,
+                            'region'     => (string)$regionId,
+                            'data'       => $flatData,
+                            'created_at' => $record->created_at,
+                            'updated_at' => $record->updated_at,
+                        ];
+                    }
+                }
+            }
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
         } catch (Exception $e) {
@@ -1659,16 +2399,114 @@ class CompanyController extends Controller
                 'params' => $request->all(),
             ]);
 
-            $data = MainCropsBuyingSellingTrafficLight::query()
-                ->when($dateFrom, function ($query) use ($dateFrom) {
-                    return $query->where('date', '>=', $dateFrom);
-                })
-                ->when($dateTo, function ($query) use ($dateTo) {
-                    return $query->where('date', '<=', $dateTo);
-                })
+            $query = MainCropsBuyingSellingTrafficLight::query();
+
+            if ($dateFrom) {
+                $from = Carbon::parse($dateFrom);
+                $query->where(function ($q) use ($from) {
+                    $q->where('year', '>', $from->year)
+                      ->orWhere(function ($q2) use ($from) {
+                          $q2->where('year', $from->year)->where('month', '>=', $from->month);
+                      });
+                });
+            }
+
+            if ($dateTo) {
+                $to = Carbon::parse($dateTo);
+                $query->where(function ($q) use ($to) {
+                    $q->where('year', '<', $to->year)
+                      ->orWhere(function ($q2) use ($to) {
+                          $q2->where('year', $to->year)->where('month', '<=', $to->month);
+                      });
+                });
+            }
+
+            $records = $query
                 ->when($maxResults, fn($q) => $q->limit($maxResults))
-                ->orderBy('date', 'desc')
+                ->orderBy('year', 'desc')
+                ->orderByRaw('CAST(month AS UNSIGNED) DESC')
                 ->get();
+
+            $cropsMap           = \App\Models\Crop::whereNull('deleted_at')->get()->keyBy('id');
+            $classificationsMap = \App\Models\Classification::all()->keyBy('id');
+            $productsMap        = \App\Models\Product::all()->keyBy('id');
+
+            // Mapeo id_selected → input_id según tipo (para preservar orden de inputs)
+            // classification: 101→1(Glifosato), 36→4(Gasoil), 45→8(Atrazina)
+            // product: 15→2(Fosfato), 12→3(Urea), 3→5(Ternero), 4→6(Ternera), 5→7(Vaquillona)
+            // crop: 1→9(Soja)
+            $inputIdMap = [
+                'classification' => [101 => 1, 36 => 4, 45 => 8],
+                'product'        => [15 => 2, 12 => 3, 3 => 5, 4 => 6, 5 => 7],
+                'crop'           => [1 => 9],
+            ];
+
+            $variables = [
+                'current_value' => 'Valor actual',
+                'average'       => 'Promedio 2 años',
+                'percentaje'    => 'Variacion',
+            ];
+
+            $data = [];
+            foreach ($records as $record) {
+                $date  = Carbon::create($record->year, $record->month, 1)->endOfMonth()->toDateString();
+                $crops = $record->data['crops'] ?? [];
+
+                // Reindexar crops por crop_id para acceso rápido
+                $cropsByInputPosition = [];
+                foreach ($crops as $cropBlock) {
+                    $cropId   = $cropBlock['crop_id'] ?? null;
+                    $cropName = $cropId ? ($cropsMap[$cropId]?->name ?? null) : null;
+                    if (!$cropName) continue;
+
+                    foreach ($cropBlock['data'] ?? [] as $row) {
+                        $type       = $row['type'] ?? null;
+                        $idSelected = $row['id_selected'] ?? null;
+                        $inputId    = $inputIdMap[$type][$idSelected] ?? null;
+                        if (!$inputId) continue;
+
+                        if ($type === 'classification') {
+                            $inputLabel = $classificationsMap[$idSelected]?->name ?? $inputId;
+                        } elseif ($type === 'product') {
+                            $inputLabel = $productsMap[$idSelected]?->name ?? $inputId;
+                        } elseif ($type === 'crop') {
+                            $inputLabel = $cropsMap[$idSelected]?->name ?? $inputId;
+                        } else {
+                            $inputLabel = $inputId;
+                        }
+
+                        $cropsByInputPosition[$inputId]['_label']         = $inputLabel;
+                        $cropsByInputPosition[$inputId][$cropName] = [
+                            'current_value' => $row['current_value'] ?? null,
+                            'average'       => $row['average']       ?? null,
+                            'percentaje'    => $row['percentaje']    ?? null,
+                        ];
+                    }
+                }
+
+                // Emitir 3 filas por input (una por variable)
+                foreach ($cropsByInputPosition as $inputId => $cropValues) {
+                    $inputLabel = $cropValues['_label'] ?? $inputId;
+                    foreach ($variables as $varKey => $varLabel) {
+                        $flatData = [];
+                        foreach ($cropValues as $cropName => $vals) {
+                            if ($cropName === '_label') continue;
+                            $flatData[$cropName] = $vals[$varKey] ?? null;
+                        }
+
+                        $data[] = [
+                            'id'         => $record->id,
+                            'id_plan'    => $record->id_plan,
+                            'date'       => $date,
+                            'input'      => $inputLabel,
+                            'variable'   => $varLabel,
+                            'data'       => $flatData,
+                            'created_at' => $record->created_at,
+                            'updated_at' => $record->updated_at,
+                        ];
+                    }
+                }
+            }
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
         } catch (Exception $e) {
