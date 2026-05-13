@@ -2145,15 +2145,32 @@ class CompanyController extends Controller
                 'params' => $request->all(),
             ]);
 
-            $data = ProductPrice::query()
-                ->when($dateFrom, function ($query) use ($dateFrom) {
-                    return $query->where('date', '>=', $dateFrom);
-                })
-                ->when($dateTo, function ($query) use ($dateTo) {
-                    return $query->where('date', '<=', $dateTo);
-                })
+            $query = ProductPrice::query();
+
+            if ($dateFrom) {
+                $from = Carbon::parse($dateFrom);
+                $query->where(function ($q) use ($from) {
+                    $q->where('year', '>', $from->year)
+                      ->orWhere(function ($q2) use ($from) {
+                          $q2->where('year', $from->year)->where('month', '>=', $from->month);
+                      });
+                });
+            }
+
+            if ($dateTo) {
+                $to = Carbon::parse($dateTo);
+                $query->where(function ($q) use ($to) {
+                    $q->where('year', '<', $to->year)
+                      ->orWhere(function ($q2) use ($to) {
+                          $q2->where('year', $to->year)->where('month', '<=', $to->month);
+                      });
+                });
+            }
+
+            $data = $query
                 ->when($maxResults, fn($q) => $q->limit($maxResults))
-                ->orderBy('date', 'desc')
+                ->orderBy('year', 'desc')
+                ->orderByRaw('CAST(month AS UNSIGNED) DESC')
                 ->get();
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
