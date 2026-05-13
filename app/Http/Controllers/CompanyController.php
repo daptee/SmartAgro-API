@@ -2049,11 +2049,44 @@ class CompanyController extends Controller
                 });
             }
 
-            $data = $query
+            $records = $query
                 ->when($maxResults, fn($q) => $q->limit($maxResults))
                 ->orderBy('year', 'desc')
                 ->orderByRaw('CAST(month AS UNSIGNED) DESC')
                 ->get();
+
+            $cropsMap = \App\Models\Crop::whereNull('deleted_at')->get()->keyBy('id');
+
+            $data = [];
+            foreach ($records as $record) {
+                $date  = Carbon::create($record->year, $record->month, 1)->endOfMonth()->toDateString();
+                $month = $record->year . '-' . str_pad($record->month, 2, '0', STR_PAD_LEFT);
+                $regions = $record->data['regions'] ?? [];
+
+                foreach ($regions as $regionRow) {
+                    $regionId = $regionRow['region_id'] ?? null;
+                    $flatData = [];
+
+                    foreach ($regionRow['data'] ?? [] as $cropRow) {
+                        $cropId = $cropRow['crop_id'] ?? null;
+                        $crop   = $cropId ? ($cropsMap[$cropId] ?? null) : null;
+                        if ($crop) {
+                            $flatData[$crop->name] = $cropRow['value'] ?? null;
+                        }
+                    }
+
+                    $data[] = [
+                        'id'         => $record->id,
+                        'id_plan'    => $record->id_plan,
+                        'date'       => $date,
+                        'month'      => $month,
+                        'region'     => (string)$regionId,
+                        'data'       => $flatData,
+                        'created_at' => $record->created_at,
+                        'updated_at' => $record->updated_at,
+                    ];
+                }
+            }
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
         } catch (Exception $e) {
