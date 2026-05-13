@@ -2167,11 +2167,54 @@ class CompanyController extends Controller
                 });
             }
 
-            $data = $query
+            $records = $query
                 ->when($maxResults, fn($q) => $q->limit($maxResults))
                 ->orderBy('year', 'desc')
                 ->orderByRaw('CAST(month AS UNSIGNED) DESC')
                 ->get();
+
+            // Cargar products con sus clasificaciones para resolver nombre y activo resumido
+            $productsMap        = \App\Models\Product::whereNull('deleted_at')->with('classification')->get()->keyBy('id');
+
+            $data = [];
+            foreach ($records as $record) {
+                $date = Carbon::create($record->year, $record->month, 1)->endOfMonth()->toDateString();
+                $seriesName       = $record->data['series_name'] ?? [];
+                $firstYearLabel   = $seriesName['first_year']   ?? null;
+                $lastYearLabel    = $seriesName['last_year']    ?? null;
+                $currentYearLabel = $seriesName['current_year'] ?? null;
+                $productRows      = $record->data['data'] ?? [];
+
+                foreach ($productRows as $row) {
+                    $productId = $row['product_id'] ?? null;
+                    $product   = $productId ? ($productsMap[$productId] ?? null) : null;
+
+                    $flatData = [
+                        'Marca Comercial' => $product?->name,
+                        'Activo resumido' => $product?->classification?->name,
+                    ];
+
+                    if ($firstYearLabel) {
+                        $flatData[$firstYearLabel] = $row['first_year_data'] ?? null;
+                    }
+                    if ($lastYearLabel) {
+                        $flatData[$lastYearLabel] = $row['last_year_value'] ?? null;
+                    }
+                    if ($currentYearLabel) {
+                        $flatData[$currentYearLabel] = $row['current_year_value'] ?? null;
+                    }
+
+                    $data[] = [
+                        'id'         => $record->id,
+                        'id_plan'    => $record->id_plan,
+                        'date'       => $date,
+                        'data'       => $flatData,
+                        'created_at' => $record->created_at,
+                        'updated_at' => $record->updated_at,
+                        'segment_id' => $record->segment_id,
+                    ];
+                }
+            }
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
         } catch (Exception $e) {
