@@ -2296,11 +2296,51 @@ class CompanyController extends Controller
                 });
             }
 
-            $data = $query
+            $records = $query
                 ->when($maxResults, fn($q) => $q->limit($maxResults))
                 ->orderBy('year', 'desc')
                 ->orderByRaw('CAST(month AS UNSIGNED) DESC')
                 ->get();
+
+            $cropsMap     = \App\Models\Crop::whereNull('deleted_at')->get()->keyBy('id');
+            $econVarsMap  = \App\Models\EconomicVariable::whereNull('deleted_at')->get()->keyBy('id');
+
+            // Un objeto por región x variable económica x mes
+            $data = [];
+            foreach ($records as $record) {
+                $date    = Carbon::create($record->year, $record->month, 1)->endOfMonth()->toDateString();
+                $regions = $record->data['data'] ?? [];
+
+                foreach ($regions as $regionRow) {
+                    $regionId = $regionRow['region_id'] ?? null;
+
+                    foreach ($regionRow['economic_variables'] ?? [] as $econVar) {
+                        $econVarId   = $econVar['economic_variable_id'] ?? null;
+                        $econVarName = $econVarId ? ($econVarsMap[$econVarId]?->name ?? null) : null;
+
+                        $flatData = ['Mes actual' => $econVarName];
+
+                        foreach ($econVar['crops_data'] ?? [] as $cropRow) {
+                            $cropId = $cropRow['crop_id'] ?? null;
+                            $crop   = $cropId ? ($cropsMap[$cropId] ?? null) : null;
+                            if ($crop) {
+                                $flatData[$crop->name] = $cropRow['value'] ?? null;
+                            }
+                        }
+
+                        $data[] = [
+                            'id'         => $record->id,
+                            'id_plan'    => $record->id_plan,
+                            'date'       => $date,
+                            'title'      => $econVarName,
+                            'region'     => (string)$regionId,
+                            'data'       => $flatData,
+                            'created_at' => $record->created_at,
+                            'updated_at' => $record->updated_at,
+                        ];
+                    }
+                }
+            }
 
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
         } catch (Exception $e) {
