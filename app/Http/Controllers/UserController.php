@@ -6,6 +6,7 @@ use App\Exports\UsersExport;
 use App\Mail\WelcomeUserMailable;
 use App\Models\Audith;
 use App\Models\CompanyInvitation;
+use App\Models\PaymentHistory;
 use App\Models\User;
 use App\Models\UserPlan;
 use App\Models\UserProfile;
@@ -36,6 +37,18 @@ class UserController extends Controller
 
     /**
      * Display a listing of the resource.
+     *
+     * Filtros disponibles:
+     *   search, id_plan, id_user_profile, id_country, id_province, id_locality,
+     *   id_status, referred_by, event_id, plan_start_from, plan_start_to,
+     *   subscription_type (monthly|yearly), free_trial_used (1|0),
+     *   email_confirmation (1|0),
+     *   paid_siembra (1|0) — 1: solo Siembra con pagos reales; 0: solo Siembra habilitados manualmente
+     *
+     * Respuesta:
+     *   data    → campos básicos de los usuarios paginados (o todos si no hay per_page)
+     *   meta    → paginación
+     *   metrics → métricas calculadas sobre TODOS los usuarios que coinciden con el filtro
      */
     public function index(Request $request)
     {
@@ -43,124 +56,146 @@ class UserController extends Controller
         $id_user = Auth::user()->id ?? null;
 
         try {
-            // Parámetros de búsqueda y filtros
-            $search = $request->input('search');
-            $planId = $request->input('id_plan');
-            $profileId = $request->input('id_user_profile');
-            $countryId = $request->input('id_country');
-            $provinceId = $request->input('id_province');
-            $localityId = $request->input('id_locality');
-            $userProfileId = $request->input('id_user_profile');
-            $statusId = $request->input('id_status');
-            $referredBy = $request->input('referred_by');
-            $eventId = $request->input('event_id');
-            $perPage = $request->input('per_page');
+            // --- Parámetros de filtro ---
+            $search            = $request->input('search');
+            $planId            = $request->input('id_plan');
+            $profileId         = $request->input('id_user_profile');
+            $countryId         = $request->input('id_country');
+            $provinceId        = $request->input('id_province');
+            $localityId        = $request->input('id_locality');
+            $statusId          = $request->input('id_status');
+            $referredBy        = $request->input('referred_by');
+            $eventId           = $request->input('event_id');
+            $perPage           = $request->input('per_page');
+            $planStartFrom     = $request->input('plan_start_from');
+            $planStartTo       = $request->input('plan_start_to');
+            $subscriptionType  = $request->input('subscription_type');
+            $freeTrialUsed     = $request->input('free_trial_used');
+            $emailConfirmation = $request->input('email_confirmation');
+            // paid_siembra: 1 = Siembra con al menos un pago real; 0 = Siembra sin pagos (habilitados manualmente)
+            $paidSiembra       = $request->input('paid_siembra');
 
-            // Nuevos filtros
-            $planStartFrom = $request->input('plan_start_from');      // Fecha desde (YYYY-MM-DD)
-            $planStartTo = $request->input('plan_start_to');          // Fecha hasta (YYYY-MM-DD)
-            $subscriptionType = $request->input('subscription_type'); // monthly | yearly
-            $freeTrialUsed = $request->input('free_trial_used');      // 1 | 0
-            $emailConfirmation = $request->input('email_confirmation'); // 1 | 0
+            // IDs de usuarios Siembra con pagos reales (type = 'payment' en payment_history)
+            $siembraConPagos = PaymentHistory::where('type', 'payment')
+                ->distinct()
+                ->pluck('id_user');
 
-            // Query base
-            $query = User::with(['status', 'plan', 'locality', 'event'])
+            // --- Closure para aplicar los mismos filtros a cualquier query ---
+            $applyFilters = function ($q) use (
+                $search, $planId, $profileId, $countryId, $provinceId, $localityId,
+                $statusId, $referredBy, $eventId, $planStartFrom, $planStartTo,
+                $subscriptionType, $freeTrialUsed, $emailConfirmation,
+                $paidSiembra, $siembraConPagos
+            ) {
+                if (!empty($search)) {
+                    $q->where(function ($sq) use ($search) {
+                        $sq->where('name', 'LIKE', "%{$search}%")
+                            ->orWhere('last_name', 'LIKE', "%{$search}%")
+                            ->orWhere('email', 'LIKE', "%{$search}%");
+                    });
+                }
+                if (!empty($planId))          { $q->where('id_plan', $planId); }
+                if (!empty($statusId))        { $q->where('id_status', $statusId); }
+                if (!empty($profileId))       { $q->where('id_user_profile', $profileId); }
+                if (!empty($countryId))       { $q->where('id_country', $countryId); }
+                if (!empty($localityId))      { $q->where('id_locality', $localityId); }
+                if (!empty($provinceId)) {
+                    $q->whereHas('locality', function ($lq) use ($provinceId) {
+                        $lq->where('province_id', $provinceId);
+                    });
+                }
+                if (!empty($referredBy))      { $q->where('referred_by', $referredBy); }
+                if (!empty($eventId))         { $q->where('event_id', $eventId); }
+                if (!empty($planStartFrom))   { $q->where('plan_start_date', '>=', $planStartFrom . ' 00:00:00'); }
+                if (!empty($planStartTo))     { $q->where('plan_start_date', '<=', $planStartTo . ' 23:59:59'); }
+                if (!empty($subscriptionType)) { $q->where('subscription_type', $subscriptionType); }
+                if ($freeTrialUsed !== null && $freeTrialUsed !== '') {
+                    $q->where('free_trial_used', (bool) $freeTrialUsed);
+                }
+                if ($emailConfirmation !== null && $emailConfirmation !== '') {
+                    if ((bool) $emailConfirmation) {
+                        $q->whereNotNull('email_confirmation');
+                    } else {
+                        $q->whereNull('email_confirmation');
+                    }
+                }
+                // Filtro Siembra reales vs habilitados manualmente
+                // Solo aplica si el filtro se envía explícitamente
+                if ($paidSiembra !== null && $paidSiembra !== '') {
+                    $q->where('id_plan', 2); // solo Siembra
+                    if ((bool) $paidSiembra) {
+                        $q->whereIn('id', $siembraConPagos);
+                    } else {
+                        $q->whereNotIn('id', $siembraConPagos);
+                    }
+                }
+            };
+
+            // --- Query para métricas (sin paginación, sobre todos los resultados del filtro) ---
+            $metricsQuery = User::query();
+            $applyFilters($metricsQuery);
+
+            $metrics = [
+                'total_filtrado'        => $metricsQuery->count(),
+                'plan_semilla'          => (clone $metricsQuery)->where('id_plan', 1)->count(),
+                'plan_siembra'          => (clone $metricsQuery)->where('id_plan', 2)->count(),
+                'plan_siembra_pagos'    => (clone $metricsQuery)->where('id_plan', 2)->whereIn('id', $siembraConPagos)->count(),
+                'plan_siembra_manual'   => (clone $metricsQuery)->where('id_plan', 2)->whereNotIn('id', $siembraConPagos)->count(),
+                'plan_empresa'          => (clone $metricsQuery)->where('id_plan', 3)->count(),
+                'siembra_mensual'       => (clone $metricsQuery)->where('id_plan', 2)->where('subscription_type', 'monthly')->count(),
+                'siembra_anual'         => (clone $metricsQuery)->where('id_plan', 2)->where('subscription_type', 'yearly')->count(),
+                'siembra_periodo_gratis'=> (clone $metricsQuery)->where('id_plan', 2)->where('free_trial_used', true)->count(),
+                'deudores'              => (clone $metricsQuery)->where('is_debtor', true)->count(),
+                'email_confirmado'      => (clone $metricsQuery)->whereNotNull('email_confirmation')->count(),
+                'email_sin_confirmar'   => (clone $metricsQuery)->whereNull('email_confirmation')->count(),
+            ];
+
+            // --- Query principal para datos paginados (solo campos básicos) ---
+            $query = User::with(['status:id,name', 'plan:id,plan'])
+                ->select([
+                    'id', 'name', 'last_name', 'email', 'phone',
+                    'id_plan', 'id_status', 'id_user_profile',
+                    'plan_start_date', 'subscription_type', 'free_trial_used',
+                    'is_debtor', 'grace_period_used',
+                    'email_confirmation', 'profile_picture',
+                    'locality_name', 'province_name',
+                    'referral_code', 'referred_by', 'event_id',
+                    'created_at',
+                ])
                 ->orderBy('name', 'asc');
 
-            // Buscador
-            if (!empty($search)) {
-                $query->where(function ($q) use ($search) {
-                    $q->where('name', 'LIKE', "%{$search}%")
-                        ->orWhere('last_name', 'LIKE', "%{$search}%")
-                        ->orWhere('email', 'LIKE', "%{$search}%");
-                });
-            }
+            $applyFilters($query);
 
-            // Filtros existentes
-            if (!empty($planId)) {
-                $query->where('id_plan', $planId);
-            }
-            if (!empty($statusId)) {
-                $query->where('id_status', $statusId);
-            }
-            if (!empty($profileId)) {
-                $query->where('id_user_profile', $profileId);
-            }
-            if (!empty($countryId)) {
-                $query->where('id_country', $countryId);
-            }
-            if (!empty($localityId)) {
-                $query->where('id_locality', $localityId);
-            }
-            if (!empty($provinceId)) {
-                $query->whereHas('locality', function ($q) use ($provinceId) {
-                    $q->where('province_id', $provinceId);
-                });
-            }
-            if (!empty($userProfileId)) {
-                $query->where('id_user_profile', $userProfileId);
-            }
-            if (!empty($referredBy)) {
-                $query->where('referred_by', $referredBy);
-            }
-            if (!empty($eventId)) {
-                $query->where('event_id', $eventId);
-            }
+            // Agregar campo virtual: indica si el usuario Siembra tiene pagos reales
+            $query->addSelect(DB::raw(
+                'CASE WHEN id_plan = 2 AND id IN (' . implode(',', $siembraConPagos->isEmpty() ? [0] : $siembraConPagos->toArray()) . ') THEN 1 ELSE 0 END AS is_paid_siembra'
+            ));
 
-            // Filtro por rango de fecha de alta al plan siembra
-            if (!empty($planStartFrom)) {
-                $query->where('plan_start_date', '>=', $planStartFrom . ' 00:00:00');
-            }
-            if (!empty($planStartTo)) {
-                $query->where('plan_start_date', '<=', $planStartTo . ' 23:59:59');
-            }
-
-            // Filtro por tipo de suscripción (mensual o anual)
-            if (!empty($subscriptionType)) {
-                $query->where('subscription_type', $subscriptionType);
-            }
-
-            // Filtro por si usó el mes gratuito
-            if ($freeTrialUsed !== null && $freeTrialUsed !== '') {
-                $query->where('free_trial_used', (bool) $freeTrialUsed);
-            }
-
-            // Filtro por verificación de correo
-            // email_confirmation es un datetime: NOT NULL = verificado, NULL = no verificado
-            if ($emailConfirmation !== null && $emailConfirmation !== '') {
-                if ((bool) $emailConfirmation) {
-                    $query->whereNotNull('email_confirmation');
-                } else {
-                    $query->whereNull('email_confirmation');
-                }
-            }
-
-            // Paginado o listado completo
+            // --- Paginado o listado completo ---
             if ($perPage) {
                 $paginator = $query->paginate((int) $perPage);
                 $data = $paginator->items();
                 $meta = [
-                    "total" => $paginator->total(),
-                    "per_page" => $paginator->perPage(),
+                    "total"        => $paginator->total(),
+                    "per_page"     => $paginator->perPage(),
                     "current_page" => $paginator->currentPage(),
-                    "last_page" => $paginator->lastPage(),
+                    "last_page"    => $paginator->lastPage(),
                 ];
             } else {
                 $data = $query->get();
                 $meta = null;
             }
 
-            // Auditoría
-            Audith::new($id_user, $action, null, 200, compact("action", "data", "meta"));
+            Audith::new($id_user, $action, null, 200, compact("action", "meta", "metrics"));
 
             $message = $action;
-            return response()->json(compact("message", "data", "meta"), 200);
+            return response()->json(compact("message", "data", "meta", "metrics"), 200);
 
         } catch (Exception $e) {
             $response = [
                 "message" => "Error al obtener registros",
-                "error" => $e->getMessage(),
-                "line" => $e->getLine()
+                "error"   => $e->getMessage(),
+                "line"    => $e->getLine()
             ];
             Audith::new($id_user, $action, null, 500, $response);
             Log::debug($response);
