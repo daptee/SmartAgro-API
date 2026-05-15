@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\Admin;
+use App\Http\Middleware\CheckModule;
 use App\Http\Middleware\CompanyApiKeyMiddleware;
 use App\Http\Middleware\Token;
 use App\Http\Middleware\UpdateLastActivity;
@@ -21,10 +22,11 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
-            'token' => Token::class,
-            'company_api_key' => CompanyApiKeyMiddleware::class,
-            'admin' => Admin::class,
+            'token'                => Token::class,
+            'company_api_key'      => CompanyApiKeyMiddleware::class,
+            'admin'                => Admin::class,
             'update_last_activity' => UpdateLastActivity::class,
+            'check_module'         => CheckModule::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

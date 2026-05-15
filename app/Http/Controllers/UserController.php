@@ -7,9 +7,11 @@ use App\Mail\WelcomeUserMailable;
 use App\Models\Audith;
 use App\Models\CompanyInvitation;
 use App\Models\PaymentHistory;
+use App\Models\Role;
 use App\Models\User;
 use App\Models\UserPlan;
 use App\Models\UserProfile;
+use App\Models\UserRole;
 use App\Models\UsersCompany;
 use App\Models\UserStatus;
 use Exception;
@@ -160,7 +162,7 @@ class UserController extends Controller
                     'email_confirmation', 'profile_picture',
                     'locality_name', 'province_name',
                     'referral_code', 'referred_by', 'event_id',
-                    'created_at',
+                    'created_at', 'last_activity_at',
                 ])
                 ->orderBy('name', 'asc');
 
@@ -1161,6 +1163,75 @@ class UserController extends Controller
             ];
             Audith::new($id_user, $action, $request->all(), 500, $response);
             Log::error(json_encode($response));
+            return response()->json($response, 500);
+        }
+    }
+
+    /**
+     * POST /admin/users/{id}/role
+     * Asigna o reemplaza el rol de administración de un usuario.
+     * Solo acepta roles con is_admin_role = 1.
+     *
+     * Body: { "id_role": 2 }
+     */
+    public function assignRole(Request $request, string $id)
+    {
+        $action  = "Asignación de rol de administración a usuario";
+        $id_user = Auth::user()->id ?? null;
+
+        $validator = Validator::make($request->all(), [
+            'id_role' => 'required|integer|exists:roles,id',
+        ]);
+
+        if ($validator->fails()) {
+            $response = [
+                'message' => 'Alguna de las validaciones falló',
+                'errors'  => $validator->errors(),
+            ];
+            Audith::new($id_user, $action, $request->all(), 422, $response);
+            return response()->json($response, 422);
+        }
+
+        $user = User::find($id);
+        if (!$user) {
+            return response()->json(['message' => 'Usuario no encontrado'], 404);
+        }
+
+        // Solo se pueden asignar roles de tipo admin
+        $role = Role::where('id', $request->input('id_role'))
+            ->where('is_admin_role', 1)
+            ->first();
+
+        if (!$role) {
+            return response()->json(['message' => 'El rol seleccionado no es un rol de administración válido'], 422);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // Eliminar roles admin actuales del usuario, conservando otros roles
+            $adminRoleIds = Role::where('is_admin_role', 1)->pluck('id');
+            UserRole::where('id_user', $user->id)
+                ->whereIn('id_role', $adminRoleIds)
+                ->delete();
+
+            // Asignar el nuevo rol
+            UserRole::create([
+                'id_user' => $user->id,
+                'id_role' => $role->id,
+            ]);
+
+            DB::commit();
+
+            $data    = User::getAllDataUser($user->id);
+            $message = "Rol asignado con éxito";
+            Audith::new($id_user, $action, $request->all(), 200, compact('message', 'data'));
+            return response()->json(compact('message', 'data'), 200);
+        } catch (Exception $e) {
+            DB::rollBack();
+            $response = ['message' => 'Error al asignar rol', 'error' => $e->getMessage(), 'line' => $e->getLine()];
+            Audith::new($id_user, $action, $request->all(), 500, $response);
+            Log::debug(json_encode($response));
             return response()->json($response, 500);
         }
     }
