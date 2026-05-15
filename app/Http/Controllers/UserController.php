@@ -74,9 +74,17 @@ class UserController extends Controller
             $emailConfirmation = $request->input('email_confirmation');
             // paid_siembra: 1 = Siembra con al menos un pago real; 0 = Siembra sin pagos (habilitados manualmente)
             $paidSiembra       = $request->input('paid_siembra');
+            // active_free_trial: 1 = usuarios Siembra actualmente en período de prueba gratuito (free_trial_used=1, sin pagos reales aún)
+            $activeFreeTrialFilter = $request->input('active_free_trial');
 
             // IDs de usuarios Siembra con pagos reales (type = 'payment' en payment_history)
             $siembraConPagos = PaymentHistory::where('type', 'payment')
+                ->distinct()
+                ->pluck('id_user');
+
+            // IDs de usuarios que tienen un registro free_trial en payment_history
+            // (activaron el período gratuito formalmente a través del sistema de pagos)
+            $conRegistroFreeTrial = PaymentHistory::where('type', 'free_trial')
                 ->distinct()
                 ->pluck('id_user');
 
@@ -85,7 +93,7 @@ class UserController extends Controller
                 $search, $planId, $profileId, $countryId, $provinceId, $localityId,
                 $statusId, $referredBy, $eventId, $planStartFrom, $planStartTo,
                 $subscriptionType, $freeTrialUsed, $emailConfirmation,
-                $paidSiembra, $siembraConPagos
+                $paidSiembra, $siembraConPagos, $activeFreeTrialFilter, $conRegistroFreeTrial
             ) {
                 if (!empty($search)) {
                     $q->where(function ($sq) use ($search) {
@@ -129,6 +137,21 @@ class UserController extends Controller
                         $q->whereNotIn('id', $siembraConPagos);
                     }
                 }
+                // Filtro período de prueba gratuito activo:
+                // Siembra con free_trial_used=1, con registro free_trial en payment_history
+                // y sin ningún pago real (type='payment') aún
+                if ($activeFreeTrialFilter !== null && $activeFreeTrialFilter !== '') {
+                    if ((bool) $activeFreeTrialFilter) {
+                        $q->where('id_plan', 2)
+                          ->where('free_trial_used', true)
+                          ->whereIn('id', $conRegistroFreeTrial)
+                          ->whereNotIn('id', $siembraConPagos);
+                    } else {
+                        // Siembra que ya superaron el período gratuito (tienen al menos un pago real)
+                        $q->where('id_plan', 2)
+                          ->whereIn('id', $siembraConPagos);
+                    }
+                }
             };
 
             // --- Query para métricas (sin paginación, sobre todos los resultados del filtro) ---
@@ -144,7 +167,8 @@ class UserController extends Controller
                 'plan_empresa'          => (clone $metricsQuery)->where('id_plan', 3)->count(),
                 'siembra_mensual'       => (clone $metricsQuery)->where('id_plan', 2)->where('subscription_type', 'monthly')->count(),
                 'siembra_anual'         => (clone $metricsQuery)->where('id_plan', 2)->where('subscription_type', 'yearly')->count(),
-                'siembra_periodo_gratis'=> (clone $metricsQuery)->where('id_plan', 2)->where('free_trial_used', true)->count(),
+                'siembra_periodo_gratis'     => (clone $metricsQuery)->where('id_plan', 2)->where('free_trial_used', true)->count(),
+                'siembra_free_trial_activo' => (clone $metricsQuery)->where('id_plan', 2)->where('free_trial_used', true)->whereIn('id', $conRegistroFreeTrial)->whereNotIn('id', $siembraConPagos)->count(),
                 'deudores'              => (clone $metricsQuery)->where('is_debtor', true)->count(),
                 'email_confirmado'      => (clone $metricsQuery)->whereNotNull('email_confirmation')->count(),
                 'email_sin_confirmar'   => (clone $metricsQuery)->whereNull('email_confirmation')->count(),
