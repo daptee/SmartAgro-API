@@ -363,7 +363,7 @@ class AuthController extends Controller
 
             // Verificar si el usuario tiene el rol de administrador
 
-            $isAdmin = $user->roles()->where('name', 'admin')->exists();
+            $isAdmin = $user->roles()->where('is_admin_role', 1)->exists();
 
             if (!$isAdmin) {
                 $response = ['message' => 'Usuario no autorizado para acceder.'];

@@ -138,20 +138,37 @@ class User extends Authenticatable implements JWTSubject
      */
     public function getJWTCustomClaims()
     {
+        // Eager load roles con sus módulos en una sola query
+        $this->load('roles.modules');
+        $roles = $this->roles;
+
+        // Determinar módulos permitidos según el/los roles del usuario
+        if ($roles->contains('name', 'admin')) {
+            // Superadmin: acceso total, el frontend interpreta '*' como sin restricciones
+            $allowedModules = ['*'];
+        } else {
+            $allowedModules = $roles
+                ->flatMap(fn($role) => $role->modules->pluck('slug'))
+                ->unique()
+                ->values()
+                ->toArray();
+        }
+
         $claims = [
-            'id' => $this->id,
-            'name' => $this->name,
-            'last_name' => $this->last_name,
-            'email' => $this->email,
-            'locality' => $this->locality,
-            'profile' => $this->profile,
-            'plan' => $this->plan,
-            'status' => $this->status,
+            'id'              => $this->id,
+            'name'            => $this->name,
+            'last_name'       => $this->last_name,
+            'email'           => $this->email,
+            'locality'        => $this->locality,
+            'profile'         => $this->profile,
+            'plan'            => $this->plan,
+            'status'          => $this->status,
             'profile_picture' => $this->profile_picture,
-            'locality_name' => $this->locality_name,
-            'province_name' => $this->province_name,
-            'country' => $this->country,
-            'roles' => $this->roles,
+            'locality_name'   => $this->locality_name,
+            'province_name'   => $this->province_name,
+            'country'         => $this->country,
+            'roles'           => $roles,
+            'allowed_modules' => $allowedModules,
         ];
 
         // Solo si el plan es 3, buscar los datos de la empresa
@@ -160,8 +177,7 @@ class User extends Authenticatable implements JWTSubject
                 ->with('plan.company')
                 ->first();
 
-            if ($company && $company->plan && $company->plan->company) {// ← convierte el modelo a array
-
+            if ($company && $company->plan && $company->plan->company) {
                 $claims['company_plan'] = $company;
             }
         }
