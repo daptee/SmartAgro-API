@@ -160,7 +160,7 @@ class UserController extends Controller
                     'email_confirmation', 'profile_picture',
                     'locality_name', 'province_name',
                     'referral_code', 'referred_by', 'event_id',
-                    'created_at',
+                    'created_at', 'last_activity_at',
                 ])
                 ->orderBy('name', 'asc');
 
