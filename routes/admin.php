@@ -55,7 +55,7 @@ use Illuminate\Support\Facades\Route;
 Route::post('admin/auth', [AuthController::class, 'auth_login_admin']);
 
 Route::prefix('admin')
-    ->middleware(['admin'])
+    ->middleware(['admin', 'check_permissions_hash'])
     ->group(function () {
 
         // -------------------------------------------------------

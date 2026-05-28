@@ -35,9 +35,11 @@ INSERT INTO admin_modules (slug, name) VALUES
 ('config_variables',       'Configuración > Variables');
 
 -- 3. Tabla pivot: rol <-> módulos habilitados
+-- Nota: id_role es INT (sin UNSIGNED) para coincidir con roles.id INT
+--       id_module es INT UNSIGNED para coincidir con admin_modules.id INT UNSIGNED
 CREATE TABLE role_modules (
     id        BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    id_role   INT UNSIGNED NOT NULL,
+    id_role   INT          NOT NULL,
     id_module INT UNSIGNED NOT NULL,
     UNIQUE KEY uq_role_module (id_role, id_module),
     FOREIGN KEY (id_role)   REFERENCES roles(id)         ON DELETE CASCADE,

@@ -102,13 +102,17 @@ class AdminRoleController extends Controller
         try {
             DB::beginTransaction();
 
+            $moduleIds = collect($request->module_ids)->sort()->values()->toArray();
+            $permissionsHash = hash('sha256', implode(',', $moduleIds));
+
             $role = Role::create([
-                'name'          => $request->name,
-                'description'   => $request->description,
-                'is_admin_role' => 1,
+                'name'             => $request->name,
+                'description'      => $request->description,
+                'is_admin_role'    => 1,
+                'permissions_hash' => $permissionsHash,
             ]);
 
-            $role->modules()->sync($request->module_ids);
+            $role->modules()->sync($moduleIds);
             $role->load('modules');
 
             DB::commit();
@@ -156,15 +160,18 @@ class AdminRoleController extends Controller
         try {
             DB::beginTransaction();
 
-            $role->update([
+            $updateData = [
                 'name'        => $request->input('name', $role->name),
                 'description' => $request->input('description', $role->description),
-            ]);
+            ];
 
             if ($request->has('module_ids')) {
-                $role->modules()->sync($request->module_ids);
+                $moduleIds = collect($request->module_ids)->sort()->values()->toArray();
+                $role->modules()->sync($moduleIds);
+                $updateData['permissions_hash'] = hash('sha256', implode(',', $moduleIds));
             }
 
+            $role->update($updateData);
             $role->load('modules');
 
             DB::commit();
