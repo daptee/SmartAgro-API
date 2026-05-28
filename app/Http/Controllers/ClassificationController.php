@@ -155,7 +155,7 @@ class ClassificationController extends Controller
     }
 
     // PUT STATUS
-    public function updateStatus(Request $request, $id)
+    public function changeStatus(Request $request, $id)
     {
         $message = "Error al actualizar estado de clasificación";
         $action = "Actualizar estado de clasificación";

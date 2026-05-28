@@ -22,6 +22,7 @@ class Role extends Model
 
     public function modules()
     {
-        return $this->belongsToMany(AdminModule::class, 'role_modules', 'id_role', 'id_module');
+        return $this->belongsToMany(AdminModule::class, 'role_modules', 'id_role', 'id_module')
+                    ->withPivot('actions');
     }
 }

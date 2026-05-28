@@ -15,19 +15,24 @@
 
 ## 1. Conceptos generales
 
-El sistema permite gestionar **roles de administración**, donde cada rol define a qué módulos del panel tiene acceso el usuario que lo tiene asignado.
+El sistema permite gestionar **roles de administración**, donde cada rol define a qué módulos del panel tiene acceso el usuario, y qué acciones puede realizar en cada módulo.
 
 ### Entidades clave
 
 | Entidad | Descripción |
 |---|---|
-| **Módulo** | Sección del panel (ej: Mercado, Usuarios). Catálogo fijo de 18 ítems. |
-| **Rol** | Agrupa módulos. Ej: "Operador Mercado" puede ver Mercado e Indicadores. |
+| **Módulo** | Sección del panel. Catálogo fijo de 34 slugs. Mercado e Indicadores tienen un slug por bloque. |
+| **Rol** | Agrupa módulos con sus acciones permitidas. Ej: "Operador Noticias" puede ver `mercado_news` con acciones `["store", "update"]`. |
 | **Usuario** | Tiene asignado **un solo rol admin** a la vez. |
 
 ### Rol superadmin (`admin`)
 
 Existe un rol especial llamado `admin` que tiene acceso irrestricto a todo el panel. Este rol **no puede ser editado ni eliminado** desde la API. En el token, se identifica porque `allowed_modules` es `["*"]`.
+
+### Lógica de permisos
+
+- **GET siempre pasa** si el usuario tiene el módulo asignado (sin necesidad de acciones explícitas).
+- **POST / PUT / PATCH / DELETE** requieren que el nombre del método del controller (`store`, `update`, `destroy`, `changeStatus`, etc.) esté en el array `actions` del módulo asignado al rol.
 
 ---
 
@@ -58,17 +63,27 @@ Existe un rol especial llamado `admin` que tiene acceso irrestricto a todo el pa
                 {
                     "id": 2,
                     "name": "operador_mercado",
-                    "description": "Puede gestionar mercado e indicadores",
+                    "description": "Puede gestionar noticias y precios granos",
                     "is_admin_role": 1,
                     "modules": [
-                        { "id": 6, "slug": "mercado",                "name": "Mercado" },
-                        { "id": 7, "slug": "indicadores_comerciales", "name": "Indicadores comerciales" }
+                        {
+                            "id": 6,
+                            "slug": "mercado_news",
+                            "name": "Mercado > Noticias",
+                            "pivot": { "actions": ["store", "update"] }
+                        },
+                        {
+                            "id": 12,
+                            "slug": "mercado_main_grain_prices",
+                            "name": "Mercado > Precios granos",
+                            "pivot": { "actions": ["store", "update", "destroy"] }
+                        }
                     ]
                 }
             ],
-            "allowed_modules": ["mercado", "indicadores_comerciales"]
+            "allowed_modules": ["mercado_news", "mercado_main_grain_prices"]
         },
-        "company_plan": { ... }
+        "company_plan": { }
     }
 }
 ```
@@ -83,8 +98,19 @@ Al hacer login, guardar en el store/contexto:
 {
     token:           data.access_token,
     user:            data.user,
-    allowedModules:  data.user.allowed_modules,   // ["*"] o ["mercado", ...]
+    allowedModules:  data.user.allowed_modules,   // ["*"] o ["mercado_news", ...]
     roles:           data.user.roles
+}
+```
+
+Y construir el mapa de acciones por módulo:
+
+```js
+const moduleActions = {}
+for (const role of data.user.roles) {
+    for (const mod of role.modules) {
+        moduleActions[mod.slug] = mod.pivot.actions  // ["store", "update", ...]
+    }
 }
 ```
 
@@ -110,35 +136,52 @@ Devuelve el catálogo completo de módulos. Usar para poblar el selector al crea
 ```json
 {
     "data": [
-        { "id": 1,  "slug": "usuarios",               "name": "Usuarios" },
-        { "id": 2,  "slug": "gestion_empresas",       "name": "Gestión de empresas" },
-        { "id": 3,  "slug": "planes_empresa",         "name": "Planes empresa" },
-        { "id": 4,  "slug": "gestion_publicidades",   "name": "Gestión de publicidades" },
-        { "id": 5,  "slug": "espacios_publicitarios", "name": "Espacios publicitarios" },
-        { "id": 6,  "slug": "mercado",                "name": "Mercado" },
-        { "id": 7,  "slug": "indicadores_comerciales","name": "Indicadores comerciales" },
-        { "id": 8,  "slug": "config_planes",          "name": "Configuración > Planes" },
-        { "id": 9,  "slug": "config_faqs",            "name": "Configuración > FAQs" },
-        { "id": 10, "slug": "config_regiones",        "name": "Configuración > Regiones" },
-        { "id": 11, "slug": "config_perfiles",        "name": "Configuración > Perfiles" },
-        { "id": 12, "slug": "config_iconos",          "name": "Configuración > Iconos" },
-        { "id": 13, "slug": "config_imagenes",        "name": "Configuración > Imágenes" },
-        { "id": 14, "slug": "config_clasificaciones", "name": "Configuración > Clasificaciones" },
-        { "id": 15, "slug": "config_productos",       "name": "Configuración > Productos" },
-        { "id": 16, "slug": "config_cultivos",        "name": "Configuración > Cultivos" },
-        { "id": 17, "slug": "config_unidades",        "name": "Configuración > Unidades" },
-        { "id": 18, "slug": "config_variables",       "name": "Configuración > Variables" }
+        { "id": 1,  "slug": "usuarios",                         "name": "Usuarios" },
+        { "id": 2,  "slug": "gestion_empresas",                 "name": "Gestión de empresas" },
+        { "id": 3,  "slug": "planes_empresa",                   "name": "Planes empresa" },
+        { "id": 4,  "slug": "gestion_publicidades",             "name": "Gestión de publicidades" },
+        { "id": 5,  "slug": "espacios_publicitarios",           "name": "Espacios publicitarios" },
+        { "id": 6,  "slug": "mercado_news",                     "name": "Mercado > Noticias" },
+        { "id": 7,  "slug": "mercado_mag_lease_index",          "name": "Mercado > Índice Arrendamiento" },
+        { "id": 8,  "slug": "mercado_mag_steer_index",          "name": "Mercado > Índice Novillo" },
+        { "id": 9,  "slug": "mercado_major_crops",              "name": "Mercado > Cultivos principales" },
+        { "id": 10, "slug": "mercado_insights",                 "name": "Mercado > Insights" },
+        { "id": 11, "slug": "mercado_rainfall_records",         "name": "Mercado > Lluvias por provincia" },
+        { "id": 12, "slug": "mercado_main_grain_prices",        "name": "Mercado > Precios granos" },
+        { "id": 13, "slug": "mercado_price_active_ingredients", "name": "Mercado > Precios insumos productor" },
+        { "id": 14, "slug": "mercado_producer_segment_prices",  "name": "Mercado > Precios por segmento productor" },
+        { "id": 15, "slug": "mercado_general_control",          "name": "Mercado > Control general y datos" },
+        { "id": 16, "slug": "indicadores_pit",                  "name": "Indicadores > PIT" },
+        { "id": 17, "slug": "indicadores_gross_margins",        "name": "Indicadores > Márgenes brutos" },
+        { "id": 18, "slug": "indicadores_gross_margins_trend",  "name": "Indicadores > Tendencia márgenes" },
+        { "id": 19, "slug": "indicadores_livestock",            "name": "Indicadores > Relación insumo-producto ganadera" },
+        { "id": 20, "slug": "indicadores_agricultural",         "name": "Indicadores > Relación insumo-producto agrícola" },
+        { "id": 21, "slug": "indicadores_product_prices",       "name": "Indicadores > Precios productos" },
+        { "id": 22, "slug": "indicadores_harvest_prices",       "name": "Indicadores > Precios cosecha" },
+        { "id": 23, "slug": "indicadores_traffic_light",        "name": "Indicadores > Semáforo compra/venta cultivos" },
+        { "id": 24, "slug": "indicadores_business_controls",    "name": "Indicadores > Business indicator controls" },
+        { "id": 25, "slug": "config_planes",                    "name": "Configuración > Planes" },
+        { "id": 26, "slug": "config_faqs",                      "name": "Configuración > FAQs" },
+        { "id": 27, "slug": "config_regiones",                  "name": "Configuración > Regiones" },
+        { "id": 28, "slug": "config_perfiles",                  "name": "Configuración > Perfiles" },
+        { "id": 29, "slug": "config_iconos",                    "name": "Configuración > Iconos" },
+        { "id": 30, "slug": "config_imagenes",                  "name": "Configuración > Imágenes" },
+        { "id": 31, "slug": "config_clasificaciones",           "name": "Configuración > Clasificaciones" },
+        { "id": 32, "slug": "config_productos",                 "name": "Configuración > Productos" },
+        { "id": 33, "slug": "config_cultivos",                  "name": "Configuración > Cultivos" },
+        { "id": 34, "slug": "config_unidades",                  "name": "Configuración > Unidades" },
+        { "id": 35, "slug": "config_variables",                 "name": "Configuración > Variables" }
     ]
 }
 ```
 
 **Agrupación sugerida para la UI:**
 
-Los módulos con prefijo `config_` pertenecen al grupo Configuración. Se puede agrupar así:
-
 ```js
 const grupos = {
-    principal: modules.filter(m => !m.slug.startsWith('config_')),
+    principal:     modules.filter(m => !m.slug.startsWith('config_') && !m.slug.startsWith('mercado_') && !m.slug.startsWith('indicadores_')),
+    mercado:       modules.filter(m => m.slug.startsWith('mercado_')),
+    indicadores:   modules.filter(m => m.slug.startsWith('indicadores_')),
     configuracion: modules.filter(m => m.slug.startsWith('config_'))
 }
 ```
@@ -164,12 +207,22 @@ const grupos = {
         {
             "id": 2,
             "name": "operador_mercado",
-            "description": "Puede gestionar mercado e indicadores",
+            "description": "Puede gestionar noticias y precios granos",
             "is_admin_role": 1,
             "permissions_hash": "a3f5c2...",
             "modules": [
-                { "id": 6, "slug": "mercado",                "name": "Mercado" },
-                { "id": 7, "slug": "indicadores_comerciales", "name": "Indicadores comerciales" }
+                {
+                    "id": 6,
+                    "slug": "mercado_news",
+                    "name": "Mercado > Noticias",
+                    "pivot": { "actions": ["store", "update"] }
+                },
+                {
+                    "id": 12,
+                    "slug": "mercado_main_grain_prices",
+                    "name": "Mercado > Precios granos",
+                    "pivot": { "actions": ["store", "update", "destroy"] }
+                }
             ]
         }
     ]
@@ -188,12 +241,22 @@ const grupos = {
     "data": {
         "id": 2,
         "name": "operador_mercado",
-        "description": "Puede gestionar mercado e indicadores",
+        "description": "Puede gestionar noticias y precios granos",
         "is_admin_role": 1,
         "permissions_hash": "a3f5c2...",
         "modules": [
-            { "id": 6, "slug": "mercado",                "name": "Mercado" },
-            { "id": 7, "slug": "indicadores_comerciales", "name": "Indicadores comerciales" }
+            {
+                "id": 6,
+                "slug": "mercado_news",
+                "name": "Mercado > Noticias",
+                "pivot": { "actions": ["store", "update"] }
+            },
+            {
+                "id": 12,
+                "slug": "mercado_main_grain_prices",
+                "name": "Mercado > Precios granos",
+                "pivot": { "actions": ["store", "update", "destroy"] }
+            }
         ]
     }
 }
@@ -212,8 +275,11 @@ const grupos = {
 ```json
 {
     "name": "operador_mercado",
-    "description": "Puede gestionar mercado e indicadores comerciales",
-    "module_ids": [6, 7]
+    "description": "Solo puede cargar noticias y gestionar precios granos",
+    "modules": [
+        { "id": 6,  "actions": ["store", "update"] },
+        { "id": 12, "actions": ["store", "update", "destroy"] }
+    ]
 }
 ```
 
@@ -221,7 +287,9 @@ const grupos = {
 |---|---|---|---|
 | `name` | string | Sí | Único, máx 50 caracteres |
 | `description` | string | No | Máx 255 caracteres |
-| `module_ids` | array de enteros | Sí | Mínimo 1 elemento, IDs deben existir |
+| `modules` | array de objetos | Sí | Mínimo 1 elemento |
+| `modules[].id` | integer | Sí | Debe existir en `admin_modules` |
+| `modules[].actions` | array de strings | Sí | Mínimo 1. Nombres de métodos del controller (ver tabla de acciones más abajo) |
 
 **Respuesta `201`:**
 ```json
@@ -230,24 +298,34 @@ const grupos = {
     "role": {
         "id": 3,
         "name": "operador_mercado",
-        "description": "Puede gestionar mercado e indicadores comerciales",
+        "description": "Solo puede cargar noticias y gestionar precios granos",
         "is_admin_role": 1,
         "permissions_hash": "d6acb9...",
         "modules": [
-            { "id": 6, "slug": "mercado",                "name": "Mercado" },
-            { "id": 7, "slug": "indicadores_comerciales", "name": "Indicadores comerciales" }
+            {
+                "id": 6,
+                "slug": "mercado_news",
+                "name": "Mercado > Noticias",
+                "pivot": { "actions": ["store", "update"] }
+            },
+            {
+                "id": 12,
+                "slug": "mercado_main_grain_prices",
+                "name": "Mercado > Precios granos",
+                "pivot": { "actions": ["destroy", "store", "update"] }
+            }
         ]
     }
 }
 ```
 
+> Las acciones en la respuesta están **ordenadas alfabéticamente** (así se almacenan en BD).
+
 **Error `422` — nombre duplicado:**
 ```json
 {
     "message": "The name has already been taken.",
-    "errors": {
-        "name": ["The name has already been taken."]
-    }
+    "errors": { "name": ["The name has already been taken."] }
 }
 ```
 
@@ -255,21 +333,28 @@ const grupos = {
 
 ### Editar rol — `PUT /admin/roles/{id}`
 
-Todos los campos son opcionales. Solo se actualizan los que se envían.
+Todos los campos son opcionales. Si se envía `modules`, reemplaza completamente los módulos y acciones del rol.
 
-**Body (ejemplo parcial — solo cambia módulos):**
+**Body (solo cambia acciones de módulos):**
 ```json
 {
-    "module_ids": [1, 6, 7]
+    "modules": [
+        { "id": 6,  "actions": ["store", "update", "destroy"] },
+        { "id": 12, "actions": ["store"] }
+    ]
 }
 ```
 
-**Body (ejemplo completo):**
+**Body (completo):**
 ```json
 {
     "name": "operador_mercado",
     "description": "Descripción actualizada",
-    "module_ids": [1, 6, 7]
+    "modules": [
+        { "id": 1,  "actions": ["store", "update", "destroy"] },
+        { "id": 6,  "actions": ["store", "update"] },
+        { "id": 12, "actions": ["store", "update", "destroy", "changeStatus"] }
+    ]
 }
 ```
 
@@ -284,9 +369,9 @@ Todos los campos son opcionales. Solo se actualizan los que se envían.
         "is_admin_role": 1,
         "permissions_hash": "b7e3a1...",
         "modules": [
-            { "id": 1, "slug": "usuarios",               "name": "Usuarios" },
-            { "id": 6, "slug": "mercado",                "name": "Mercado" },
-            { "id": 7, "slug": "indicadores_comerciales", "name": "Indicadores comerciales" }
+            { "id": 1,  "slug": "usuarios",               "name": "Usuarios",              "pivot": { "actions": ["destroy", "store", "update"] } },
+            { "id": 6,  "slug": "mercado_news",           "name": "Mercado > Noticias",    "pivot": { "actions": ["store", "update"] } },
+            { "id": 12, "slug": "mercado_main_grain_prices", "name": "Mercado > Precios granos", "pivot": { "actions": ["changeStatus", "destroy", "store", "update"] } }
         ]
     }
 }
@@ -297,7 +382,33 @@ Todos los campos son opcionales. Solo se actualizan los que se envían.
 { "message": "El rol admin no puede ser modificado" }
 ```
 
-> **Importante:** Al editar los módulos de un rol, todos los usuarios con ese rol recibirán un `401 PERMISSIONS_CHANGED` en su próximo request y serán forzados a re-loguearse. Ver sección 7.
+> **Importante:** Al editar módulos o acciones de un rol, todos los usuarios con ese rol recibirán un `401 PERMISSIONS_CHANGED` en su próximo request y serán forzados a re-loguearse. Ver sección 7.
+
+---
+
+### Acciones disponibles por módulo
+
+Las acciones son los **nombres de los métodos del controller** que se ejecutan al llamar a un endpoint de escritura (POST/PUT/PATCH/DELETE). Los GET siempre pasan si el módulo está asignado.
+
+| Acción | Descripción |
+|---|---|
+| `store` | Crear un registro (POST) |
+| `update` | Editar un registro (PUT/PATCH) |
+| `destroy` | Eliminar un registro (DELETE) |
+| `changeStatus` / `updateStatus` | Cambiar estado activo/inactivo |
+| `updateCompanyPlanStatus` | Cambiar estado del plan de empresa |
+| `deleteDuplicates` | Eliminar duplicados |
+| `deleteImage` | Eliminar imagen |
+| `updateImage` / `update_logo` | Reemplazar imagen / logo |
+| `replicateAdditionalInfo` | Replicar información adicional |
+| `updateData` | Actualizar datos específicos |
+| `export` | Exportar datos |
+| `import` | Importar datos |
+| `add_main_admin_company_plan` | Asignar plan principal a empresa |
+| `assignRole` | Asignar rol a usuario |
+| `profile_picture_admin` | Actualizar foto de perfil del admin |
+
+> La validación en el backend acepta cualquier string (máx 60 caracteres), por lo que también se pueden enviar nombres de métodos personalizados si se agregan nuevos endpoints.
 
 ---
 
@@ -357,38 +468,113 @@ El campo `allowed_modules` del login es la fuente de verdad para mostrar/ocultar
 allowed_modules = ["*"]
 
 // Rol con módulos específicos
-allowed_modules = ["mercado", "indicadores_comerciales"]
+allowed_modules = ["mercado_news", "mercado_main_grain_prices"]
 ```
 
-### Función helper sugerida
+### Funciones helper sugeridas
 
 ```js
-function canAccess(module) {
+// Construir mapa de acciones al hacer login
+const moduleActions = {}
+for (const role of user.roles) {
+    for (const mod of role.modules) {
+        moduleActions[mod.slug] = mod.pivot.actions  // ["store", "update", ...]
+    }
+}
+
+// Verificar acceso a un módulo (GET siempre pasa en backend si el módulo está asignado)
+function canAccess(slug) {
     if (allowedModules.includes('*')) return true
-    return allowedModules.includes(module)
+    return allowedModules.includes(slug)
+}
+
+// Verificar si puede ejecutar una acción de escritura específica
+// action = nombre del método del controller: "store", "update", "destroy", "changeStatus", etc.
+function canDo(slug, action) {
+    if (allowedModules.includes('*')) return true
+    return moduleActions[slug]?.includes(action) ?? false
 }
 
 // Uso
-if (canAccess('mercado')) {
-    // mostrar sección Mercado
+if (canAccess('mercado_news')) {
+    // mostrar sección Noticias (el GET siempre pasará en el backend)
 }
 
-if (canAccess('config_planes')) {
-    // mostrar ítem de menú Configuración > Planes
+if (canDo('mercado_news', 'store')) {
+    // mostrar botón "Crear noticia"
+}
+
+if (canDo('mercado_news', 'update')) {
+    // mostrar botón "Editar noticia"
+}
+
+if (canDo('mercado_main_grain_prices', 'destroy')) {
+    // mostrar botón eliminar en precios granos
+}
+
+if (canDo('usuarios', 'changeStatus')) {
+    // mostrar toggle de activar/desactivar usuario
 }
 ```
 
+### Respuesta del backend cuando la acción no está permitida
+
+**HTTP `403`:**
+```json
+{
+    "message": "No tienes permiso para realizar esta acción.",
+    "required_action": "destroy",
+    "allowed_actions": ["store", "update"]
+}
+```
+
+El campo `required_action` indica el nombre exacto del método del controller que se intentó ejecutar.
+
 ### Slugs por sección
 
-| Sección en el panel | Slug a verificar |
+**Módulos principales**
+
+| Sección en el panel | Slug |
 |---|---|
 | Usuarios | `usuarios` |
 | Gestión de empresas | `gestion_empresas` |
 | Planes empresa | `planes_empresa` |
 | Gestión de publicidades | `gestion_publicidades` |
 | Espacios publicitarios | `espacios_publicitarios` |
-| Mercado | `mercado` |
-| Indicadores comerciales | `indicadores_comerciales` |
+
+**Mercado** (un slug por bloque)
+
+| Sección en el panel | Slug |
+|---|---|
+| Mercado > Noticias | `mercado_news` |
+| Mercado > Índice Arrendamiento | `mercado_mag_lease_index` |
+| Mercado > Índice Novillo | `mercado_mag_steer_index` |
+| Mercado > Cultivos principales | `mercado_major_crops` |
+| Mercado > Insights | `mercado_insights` |
+| Mercado > Lluvias por provincia | `mercado_rainfall_records` |
+| Mercado > Precios granos | `mercado_main_grain_prices` |
+| Mercado > Precios insumos productor | `mercado_price_active_ingredients` |
+| Mercado > Precios por segmento productor | `mercado_producer_segment_prices` |
+| Mercado > Control general y datos (export/import) | `mercado_general_control` |
+
+**Indicadores comerciales** (un slug por bloque)
+
+| Sección en el panel | Slug |
+|---|---|
+| Indicadores > PIT | `indicadores_pit` |
+| Indicadores > Márgenes brutos | `indicadores_gross_margins` |
+| Indicadores > Tendencia márgenes | `indicadores_gross_margins_trend` |
+| Indicadores > Relación insumo-producto ganadera | `indicadores_livestock` |
+| Indicadores > Relación insumo-producto agrícola | `indicadores_agricultural` |
+| Indicadores > Precios productos | `indicadores_product_prices` |
+| Indicadores > Precios cosecha | `indicadores_harvest_prices` |
+| Indicadores > Semáforo compra/venta cultivos | `indicadores_traffic_light` |
+| Indicadores > Business indicator controls y datos (export/import) | `indicadores_business_controls` |
+
+**Configuración**
+
+| Sección en el panel | Slug |
+|---|---|
 | Config > Planes | `config_planes` |
 | Config > FAQs | `config_faqs` |
 | Config > Regiones | `config_regiones` |
@@ -401,13 +587,13 @@ if (canAccess('config_planes')) {
 | Config > Unidades | `config_unidades` |
 | Config > Variables | `config_variables` |
 
-> El backend también valida esto por cada request. El control en el frontend es solo para UX (ocultar menús). Un `403` del backend no debería ocurrir si el frontend oculta correctamente las secciones.
+> El backend también valida esto por cada request. El control en el frontend es solo para UX (ocultar botones/menús). Un `403` del backend no debería ocurrir si el frontend oculta correctamente las acciones.
 
 ---
 
 ## 7. Manejo de permisos cambiados
 
-Cuando un administrador modifica los módulos de un rol o reasigna el rol de un usuario, el backend detecta automáticamente que el token del usuario afectado quedó desactualizado.
+Cuando un administrador modifica los módulos o acciones de un rol, o reasigna el rol de un usuario, el backend detecta automáticamente que el token del usuario afectado quedó desactualizado.
 
 ### Respuesta que puede llegar en cualquier request al panel
 
@@ -452,9 +638,10 @@ axios.interceptors.response.use(
 ### Flujo completo
 
 ```
-Admin edita módulos del rol "operador_mercado"
+Admin edita módulos o acciones del rol "operador_mercado"
         ↓
 Backend recalcula permissions_hash del rol en BD
+  (hash incluye: ids de módulos + acciones de cada módulo)
         ↓
 Próximo request del usuario con ese rol:
   - Middleware compara hash del token vs hash en BD
@@ -462,7 +649,7 @@ Próximo request del usuario con ese rol:
         ↓
 Frontend detecta PERMISSIONS_CHANGED → fuerza logout
         ↓
-Usuario re-loguea → nuevo token con módulos actualizados
+Usuario re-loguea → nuevo token con módulos y acciones actualizados
 ```
 
 ---
@@ -475,7 +662,7 @@ Todos los endpoints requieren `Authorization: Bearer {token}` y `Accept: applica
 |---|---|---|---|
 | `POST` | `/admin/auth` | Login admin | — (público) |
 | `GET` | `/admin/modules` | Listar módulos disponibles | Ninguno (solo ser admin) |
-| `GET` | `/admin/roles` | Listar roles con sus módulos | Ninguno (solo ser admin) |
+| `GET` | `/admin/roles` | Listar roles con sus módulos y acciones | Ninguno (solo ser admin) |
 | `GET` | `/admin/roles/{id}` | Detalle de un rol | Ninguno (solo ser admin) |
 | `POST` | `/admin/roles` | Crear nuevo rol | Ninguno (solo ser admin) |
 | `PUT` | `/admin/roles/{id}` | Editar rol | Ninguno (solo ser admin) |

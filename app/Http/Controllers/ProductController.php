@@ -144,7 +144,7 @@ class ProductController extends Controller
     }
 
     // PUT STATUS
-    public function updateStatus(Request $request, $id)
+    public function changeStatus(Request $request, $id)
     {
         $message = "Error al actualizar estado de producto";
         $action = "Actualizar estado de producto";

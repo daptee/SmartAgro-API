@@ -88,7 +88,7 @@ class AdvertisingSpaceController extends Controller
         return response(compact('data'));
     }
 
-    public function update_status(Request $request, $id)
+    public function changeStatus(Request $request, $id)
     {
         $message = "Error al actualizar el estado de un espacio publicitario";
         $action = "Edición de estado de espacio publicitario";

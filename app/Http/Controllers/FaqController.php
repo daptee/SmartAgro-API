@@ -102,7 +102,7 @@ class FaqController extends Controller
     }
 
     // PUT STATUS - Requiere token
-    public function updateStatus(Request $request, $id)
+    public function changeStatus(Request $request, $id)
     {
         $message = "Error al actualizar estado de FAQ";
         $action = "Actualizar estado de FAQ";

@@ -82,7 +82,7 @@ class UserCompanyController extends Controller
         return response(compact('data'));
     }
 
-    public function add_main_admin_company_plan(Request $request)
+    public function addMainAdminCompanyPlan(Request $request)
     {
         $message = "Error al agregar un administrador principal";
         $action = "Administrador principal agregado correctamente.";
