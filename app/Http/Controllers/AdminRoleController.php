@@ -14,17 +14,116 @@ use Illuminate\Support\Facades\Log;
 class AdminRoleController extends Controller
 {
     /**
-     * Acciones (métodos del controller) que se usan en las rutas de escritura del panel admin.
-     * Se usa solo como referencia para la documentación; la validación acepta cualquier string.
+     * Acciones disponibles por módulo.
      * GET siempre está permitido si el módulo está asignado, por lo que no aparece aquí.
+     * La validación acepta cualquier string; este mapa se expone en GET /admin/actions.
      */
-    private const KNOWN_ACTIONS = [
-        'store', 'update', 'destroy',
-        'changeStatus',
-        'deleteDuplicates', 'deleteImage', 'updateImage', 'updateLogo',
-        'replicateAdditionalInfo', 'updateData',
-        'export', 'import',
-        'addMainAdminCompanyPlan', 'assignRole', 'profilePictureAdmin',
+    private const MODULE_ACTIONS = [
+        'usuarios' => [
+            'store', 'update', 'destroy', 'changeStatus', 'profilePictureAdmin',
+        ],
+        'planes_empresa' => [
+            'store', 'update', 'changeStatus',
+        ],
+        'gestion_empresas' => [
+            'store', 'update', 'updateLogo', 'addMainAdminCompanyPlan',
+        ],
+        'gestion_publicidades' => [
+            'store', 'update', 'changeStatus',
+        ],
+        'espacios_publicitarios' => [
+            'store', 'update', 'changeStatus',
+        ],
+        'mercado_news' => [
+            'store', 'update', 'destroy', 'changeStatus', 'updateImage', 'deleteImage',
+        ],
+        'mercado_mag_lease_index' => [
+            'store', 'update', 'destroy', 'changeStatus',
+        ],
+        'mercado_mag_steer_index' => [
+            'store', 'update', 'destroy', 'changeStatus',
+        ],
+        'mercado_major_crops' => [
+            'store', 'update', 'destroy', 'changeStatus',
+        ],
+        'mercado_insights' => [
+            'store', 'update', 'destroy', 'changeStatus',
+        ],
+        'mercado_rainfall_records' => [
+            'store', 'update', 'destroy', 'changeStatus',
+        ],
+        'mercado_main_grain_prices' => [
+            'store', 'update', 'destroy', 'changeStatus',
+        ],
+        'mercado_price_active_ingredients' => [
+            'store', 'update', 'destroy', 'changeStatus',
+        ],
+        'mercado_producer_segment_prices' => [
+            'store', 'update', 'destroy', 'changeStatus',
+        ],
+        'mercado_general_control' => [
+            'store', 'update', 'destroy', 'changeStatus', 'replicateAdditionalInfo', 'updateData', 'export', 'import',
+        ],
+        'indicadores_pit' => [
+            'store', 'update', 'destroy', 'changeStatus',
+        ],
+        'indicadores_gross_margins' => [
+            'store', 'update', 'destroy', 'changeStatus',
+        ],
+        'indicadores_gross_margins_trend' => [
+            'store', 'update', 'destroy', 'changeStatus', 'deleteDuplicates',
+        ],
+        'indicadores_livestock' => [
+            'store', 'update', 'destroy', 'changeStatus', 'deleteDuplicates',
+        ],
+        'indicadores_agricultural' => [
+            'store', 'update', 'destroy', 'changeStatus', 'deleteDuplicates',
+        ],
+        'indicadores_product_prices' => [
+            'store', 'update', 'destroy', 'changeStatus',
+        ],
+        'indicadores_harvest_prices' => [
+            'store', 'update', 'destroy', 'changeStatus', 'deleteDuplicates',
+        ],
+        'indicadores_traffic_light' => [
+            'store', 'update', 'destroy', 'changeStatus',
+        ],
+        'indicadores_business_controls' => [
+            'store', 'update', 'destroy', 'changeStatus', 'replicateAdditionalInfo', 'updateData', 'export', 'import',
+        ],
+        'config_iconos' => [
+            'store', 'update', 'destroy',
+        ],
+        'config_imagenes' => [
+            'store', 'update', 'destroy',
+        ],
+        'config_faqs' => [
+            'store', 'update', 'destroy', 'changeStatus',
+        ],
+        'config_regiones' => [
+            'store', 'update', 'destroy', 'changeStatus',
+        ],
+        'config_perfiles' => [
+            'store', 'update', 'destroy', 'changeStatus',
+        ],
+        'config_planes' => [
+            'update',
+        ],
+        'config_clasificaciones' => [
+            'store', 'update', 'destroy', 'changeStatus',
+        ],
+        'config_productos' => [
+            'store', 'update', 'destroy', 'changeStatus',
+        ],
+        'config_cultivos' => [
+            'store', 'update', 'destroy',
+        ],
+        'config_unidades' => [
+            'store', 'update', 'destroy', 'changeStatus',
+        ],
+        'config_variables' => [
+            'store', 'update', 'destroy', 'changeStatus',
+        ],
     ];
 
     /**
@@ -235,6 +334,26 @@ class AdminRoleController extends Controller
             Log::debug($response);
             return response()->json($response, 500);
         }
+    }
+
+    /**
+     * GET /admin/actions
+     * Devuelve las acciones disponibles agrupadas por slug de módulo.
+     */
+    public function actions()
+    {
+        $action  = "Listado de acciones por módulo";
+        $id_user = Auth::user()->id ?? null;
+
+        $data = collect(self::MODULE_ACTIONS)
+            ->map(fn($actions, $slug) => [
+                'slug'    => $slug,
+                'actions' => $actions,
+            ])
+            ->values();
+
+        Audith::new($id_user, $action, null, 200, compact('data'));
+        return response()->json(compact('data'), 200);
     }
 
     // -------------------------------------------------------
