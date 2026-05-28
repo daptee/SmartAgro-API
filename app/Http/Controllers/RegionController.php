@@ -119,7 +119,7 @@ class RegionController extends Controller
     }
 
     // PUT STATUS
-    public function updateStatus(Request $request, $id)
+    public function changeStatus(Request $request, $id)
     {
         $message = "Error al actualizar estado de región";
         $action = "Actualizar estado de región";

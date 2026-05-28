@@ -86,11 +86,11 @@ Route::prefix('admin')
                 Route::get('users/with-referrals', 'getUsersWithReferrals');
                 Route::get('users/send-welcome-email/{id}', 'send_welcome_email');
                 Route::get('users/{id}', 'show');
-                Route::post('users/create', 'create');
-                Route::post('users/edit/profile_picture', 'profile_picture_admin');
-                Route::put('users/edit/{id}', 'edit');
-                Route::delete('users/delete-by-id/{id}', 'destroy_by_id');
-                Route::post('users/change-status/{id}', 'change_status');
+                Route::post('users/create', 'store');
+                Route::post('users/edit/profile_picture', 'profilePictureAdmin');
+                Route::put('users/edit/{id}', 'update');
+                Route::delete('users/delete-by-id/{id}', 'destroy');
+                Route::post('users/change-status/{id}', 'changeStatus');
             });
 
         // -------------------------------------------------------
@@ -106,7 +106,7 @@ Route::prefix('admin')
                     Route::get('company-plans', 'index');
                     Route::get('company-plans/status', 'companyPlanStatus');
                     Route::get('company-plans/{id}', 'show');
-                    Route::post('company-plans/status/{id}', 'updateCompanyPlanStatus');
+                    Route::post('company-plans/status/{id}', 'changeStatus');
                     Route::post('company-plans', 'store');
                     Route::put('company-plans/{id}', 'update');
                 });
@@ -125,11 +125,11 @@ Route::prefix('admin')
                     Route::get('company/{id}', 'show');
                     Route::post('company', 'store');
                     Route::post('company/{id}', 'update');
-                    Route::post('company/logo/{id}', 'update_logo');
+                    Route::post('company/logo/{id}', 'updateLogo');
                 });
 
                 Route::controller(UserCompanyController::class)->group(function () {
-                    Route::post('user-company/add-main-admin', 'add_main_admin_company_plan');
+                    Route::post('user-company/add-main-admin', 'addMainAdminCompanyPlan');
                 });
             });
 
@@ -146,7 +146,7 @@ Route::prefix('admin')
                 Route::controller(CompaniesAdvertisingController::class)->group(function () {
                     Route::post('advertising-companies', 'store');
                     Route::post('advertising-companies/{id}', 'update');
-                    Route::put('advertising-companies/status/{id}', 'update_status');
+                    Route::put('advertising-companies/status/{id}', 'changeStatus');
                 });
             });
 
@@ -158,157 +158,134 @@ Route::prefix('admin')
             ->group(function () {
                 Route::post('advertising-space', 'store');
                 Route::put('advertising-space/{id}', 'update');
-                Route::put('advertising-space/status/{id}', 'update_status');
+                Route::put('advertising-space/status/{id}', 'changeStatus');
             });
 
         // -------------------------------------------------------
-        // Módulo: Mercado (todos los bloques de carga de mercado)
+        // Mercado > Noticias
         // -------------------------------------------------------
-        Route::middleware(['check_module:mercado'])
+        Route::middleware(['check_module:mercado_news'])
+            ->controller(NewsController::class)
             ->group(function () {
-                Route::controller(NewsController::class)->group(function () {
-                    Route::get('news', 'index');
-                    Route::get('news/gallery', 'gallery');
-                    Route::post('news', 'store');
-                    Route::put('news/{id}', 'update');
-                    Route::post('news/image/{id}', 'updateImage');
-                    Route::delete('news/image/{id}', 'deleteImage');
-                    Route::put('news/{id}/status', 'changeStatus');
-                    Route::delete('news/{id}', 'destroy');
-                });
+                Route::get('news', 'index');
+                Route::get('news/gallery', 'gallery');
+                Route::post('news', 'store');
+                Route::put('news/{id}', 'update');
+                Route::post('news/image/{id}', 'updateImage');
+                Route::delete('news/image/{id}', 'deleteImage');
+                Route::put('news/{id}/status', 'changeStatus');
+                Route::delete('news/{id}', 'destroy');
+            });
 
-                Route::controller(MagLeaseIndexController::class)->group(function () {
-                    Route::get('mag-lease-index', 'index');
-                    Route::post('mag-lease-index', 'store');
-                    Route::put('mag-lease-index/{id}', 'update');
-                    Route::put('mag-lease-index/{id}/status', 'changeStatus');
-                    Route::delete('mag-lease-index/{id}', 'destroy');
-                });
+        // -------------------------------------------------------
+        // Mercado > Índice Arrendamiento
+        // -------------------------------------------------------
+        Route::middleware(['check_module:mercado_mag_lease_index'])
+            ->controller(MagLeaseIndexController::class)
+            ->group(function () {
+                Route::get('mag-lease-index', 'index');
+                Route::post('mag-lease-index', 'store');
+                Route::put('mag-lease-index/{id}', 'update');
+                Route::put('mag-lease-index/{id}/status', 'changeStatus');
+                Route::delete('mag-lease-index/{id}', 'destroy');
+            });
 
-                Route::controller(MagSteerIndexController::class)->group(function () {
-                    Route::get('mag-steer-index', 'index');
-                    Route::post('mag-steer-index', 'store');
-                    Route::put('mag-steer-index/{id}', 'update');
-                    Route::put('mag-steer-index/{id}/status', 'changeStatus');
-                    Route::delete('mag-steer-index/{id}', 'destroy');
-                });
+        // -------------------------------------------------------
+        // Mercado > Índice Novillo
+        // -------------------------------------------------------
+        Route::middleware(['check_module:mercado_mag_steer_index'])
+            ->controller(MagSteerIndexController::class)
+            ->group(function () {
+                Route::get('mag-steer-index', 'index');
+                Route::post('mag-steer-index', 'store');
+                Route::put('mag-steer-index/{id}', 'update');
+                Route::put('mag-steer-index/{id}/status', 'changeStatus');
+                Route::delete('mag-steer-index/{id}', 'destroy');
+            });
 
-                Route::controller(MajorCropController::class)->group(function () {
-                    Route::get('major-crops', 'index');
-                    Route::post('major-crops', 'store');
-                    Route::put('major-crops/{id}', 'update');
-                    Route::put('major-crops/{id}/status', 'changeStatus');
-                    Route::delete('major-crops/{id}', 'destroy');
-                });
+        // -------------------------------------------------------
+        // Mercado > Cultivos principales
+        // -------------------------------------------------------
+        Route::middleware(['check_module:mercado_major_crops'])
+            ->controller(MajorCropController::class)
+            ->group(function () {
+                Route::get('major-crops', 'index');
+                Route::post('major-crops', 'store');
+                Route::put('major-crops/{id}', 'update');
+                Route::put('major-crops/{id}/status', 'changeStatus');
+                Route::delete('major-crops/{id}', 'destroy');
+            });
 
-                Route::controller(InsightController::class)->group(function () {
-                    Route::get('insights', 'index');
-                    Route::post('insights', 'store');
-                    Route::put('insights/{id}', 'update');
-                    Route::put('insights/{id}/status', 'changeStatus');
-                    Route::delete('insights/{id}', 'destroy');
-                });
+        // -------------------------------------------------------
+        // Mercado > Insights
+        // -------------------------------------------------------
+        Route::middleware(['check_module:mercado_insights'])
+            ->controller(InsightController::class)
+            ->group(function () {
+                Route::get('insights', 'index');
+                Route::post('insights', 'store');
+                Route::put('insights/{id}', 'update');
+                Route::put('insights/{id}/status', 'changeStatus');
+                Route::delete('insights/{id}', 'destroy');
+            });
 
-                Route::controller(RainfallRecordController::class)->group(function () {
-                    Route::get('rainfall-records', 'index');
-                    Route::post('rainfall-records', 'store');
-                    Route::put('rainfall-records/{id}', 'update');
-                    Route::put('rainfall-records/{id}/status', 'changeStatus');
-                    Route::delete('rainfall-records/{id}', 'destroy');
-                });
+        // -------------------------------------------------------
+        // Mercado > Lluvias por provincia
+        // -------------------------------------------------------
+        Route::middleware(['check_module:mercado_rainfall_records'])
+            ->controller(RainfallRecordController::class)
+            ->group(function () {
+                Route::get('rainfall-records', 'index');
+                Route::post('rainfall-records', 'store');
+                Route::put('rainfall-records/{id}', 'update');
+                Route::put('rainfall-records/{id}/status', 'changeStatus');
+                Route::delete('rainfall-records/{id}', 'destroy');
+            });
 
-                Route::controller(MainGrainPriceController::class)->group(function () {
-                    Route::get('main-grain-prices', 'index');
-                    Route::post('main-grain-prices', 'store');
-                    Route::put('main-grain-prices/{id}', 'update');
-                    Route::put('main-grain-prices/{id}/status', 'changeStatus');
-                    Route::delete('main-grain-prices/{id}', 'destroy');
-                });
+        // -------------------------------------------------------
+        // Mercado > Precios granos
+        // -------------------------------------------------------
+        Route::middleware(['check_module:mercado_main_grain_prices'])
+            ->controller(MainGrainPriceController::class)
+            ->group(function () {
+                Route::get('main-grain-prices', 'index');
+                Route::post('main-grain-prices', 'store');
+                Route::put('main-grain-prices/{id}', 'update');
+                Route::put('main-grain-prices/{id}/status', 'changeStatus');
+                Route::delete('main-grain-prices/{id}', 'destroy');
+            });
 
-                Route::controller(PriceMainActiveIngredientsProducerController::class)->group(function () {
-                    Route::get('price-main-active-ingredients-producers', 'index');
-                    Route::post('price-main-active-ingredients-producers', 'store');
-                    Route::put('price-main-active-ingredients-producers/{id}', 'update');
-                    Route::put('price-main-active-ingredients-producers/{id}/status', 'changeStatus');
-                    Route::delete('price-main-active-ingredients-producers/{id}', 'destroy');
-                });
+        // -------------------------------------------------------
+        // Mercado > Precios insumos productor
+        // -------------------------------------------------------
+        Route::middleware(['check_module:mercado_price_active_ingredients'])
+            ->controller(PriceMainActiveIngredientsProducerController::class)
+            ->group(function () {
+                Route::get('price-main-active-ingredients-producers', 'index');
+                Route::post('price-main-active-ingredients-producers', 'store');
+                Route::put('price-main-active-ingredients-producers/{id}', 'update');
+                Route::put('price-main-active-ingredients-producers/{id}/status', 'changeStatus');
+                Route::delete('price-main-active-ingredients-producers/{id}', 'destroy');
+            });
 
-                Route::controller(ProducerSegmentPriceController::class)->group(function () {
-                    Route::get('producer-segment-prices', 'index');
-                    Route::post('producer-segment-prices', 'store');
-                    Route::put('producer-segment-prices/{id}', 'update');
-                    Route::put('producer-segment-prices/{id}/status', 'changeStatus');
-                    Route::delete('producer-segment-prices/{id}', 'destroy');
-                });
+        // -------------------------------------------------------
+        // Mercado > Precios por segmento productor
+        // -------------------------------------------------------
+        Route::middleware(['check_module:mercado_producer_segment_prices'])
+            ->controller(ProducerSegmentPriceController::class)
+            ->group(function () {
+                Route::get('producer-segment-prices', 'index');
+                Route::post('producer-segment-prices', 'store');
+                Route::put('producer-segment-prices/{id}', 'update');
+                Route::put('producer-segment-prices/{id}/status', 'changeStatus');
+                Route::delete('producer-segment-prices/{id}', 'destroy');
+            });
 
-                Route::controller(LivestockInputOutputRatioController::class)->group(function () {
-                    Route::get('livestock-input-output-ratios', 'index');
-                    Route::post('livestock-input-output-ratios', 'store');
-                    Route::put('livestock-input-output-ratios/{id}', 'update');
-                    Route::put('livestock-input-output-ratios/{id}/status', 'changeStatus');
-                    Route::delete('livestock-input-output-ratios/{id}', 'destroy');
-                    Route::delete('livestock-input-output-ratios/duplicates/delete', 'deleteDuplicates');
-                });
-
-                Route::controller(AgriculturalInputOutputRelationshipController::class)->group(function () {
-                    Route::get('agricultural-input-output-relationships', 'index');
-                    Route::post('agricultural-input-output-relationships', 'store');
-                    Route::put('agricultural-input-output-relationships/{id}', 'update');
-                    Route::put('agricultural-input-output-relationships/{id}/status', 'changeStatus');
-                    Route::delete('agricultural-input-output-relationships/{id}', 'destroy');
-                    Route::delete('agricultural-input-output-relationships/duplicates/delete', 'deleteDuplicates');
-                });
-
-                Route::controller(PitIndicatorController::class)->group(function () {
-                    Route::get('pit-indicators', 'index');
-                    Route::post('pit-indicators', 'store');
-                    Route::put('pit-indicators/{id}', 'update');
-                    Route::put('pit-indicators/{id}/status', 'changeStatus');
-                    Route::delete('pit-indicators/{id}', 'destroy');
-                });
-
-                Route::controller(GrossMarginController::class)->group(function () {
-                    Route::get('gross-margins', 'index');
-                    Route::post('gross-margins', 'store');
-                    Route::put('gross-margins/{id}', 'update');
-                    Route::put('gross-margins/{id}/status', 'changeStatus');
-                    Route::delete('gross-margins/{id}', 'destroy');
-                });
-
-                Route::controller(GrossMarginsTrendController::class)->group(function () {
-                    Route::get('gross-margins-trend', 'index');
-                    Route::post('gross-margins-trend', 'store');
-                    Route::put('gross-margins-trend/{id}', 'update');
-                    Route::put('gross-margins-trend/{id}/status', 'changeStatus');
-                    Route::delete('gross-margins-trend/{id}', 'destroy');
-                    Route::delete('gross-margins-trend/duplicates/delete', 'deleteDuplicates');
-                });
-
-                Route::controller(ProductPriceController::class)->group(function () {
-                    Route::get('product-prices', 'index');
-                    Route::post('product-prices', 'store');
-                    Route::put('product-prices/{id}', 'update');
-                    Route::put('product-prices/{id}/status', 'changeStatus');
-                    Route::delete('product-prices/{id}', 'destroy');
-                });
-
-                Route::controller(HarvestPricesController::class)->group(function () {
-                    Route::get('harvest-prices', 'index');
-                    Route::post('harvest-prices', 'store');
-                    Route::put('harvest-prices/{id}', 'update');
-                    Route::put('harvest-prices/{id}/status', 'changeStatus');
-                    Route::delete('harvest-prices/{id}', 'destroy');
-                    Route::delete('harvest-prices/duplicates/delete', 'deleteDuplicates');
-                });
-
-                Route::controller(MainCropsBuyingSellingTrafficLightController::class)->group(function () {
-                    Route::get('main-crops-buying-selling-traffic-light', 'index');
-                    Route::post('main-crops-buying-selling-traffic-light', 'store');
-                    Route::put('main-crops-buying-selling-traffic-light/{id}', 'update');
-                    Route::put('main-crops-buying-selling-traffic-light/{id}/status', 'changeStatus');
-                    Route::delete('main-crops-buying-selling-traffic-light/{id}', 'destroy');
-                });
-
+        // -------------------------------------------------------
+        // Mercado > Control general y datos (export/import)
+        // -------------------------------------------------------
+        Route::middleware(['check_module:mercado_general_control'])
+            ->group(function () {
                 Route::controller(MarketGeneralControlController::class)->group(function () {
                     Route::get('market-general-controls', 'index');
                     Route::post('market-general-controls', 'store');
@@ -325,9 +302,117 @@ Route::prefix('admin')
             });
 
         // -------------------------------------------------------
-        // Módulo: Indicadores comerciales
+        // Indicadores > PIT
         // -------------------------------------------------------
-        Route::middleware(['check_module:indicadores_comerciales'])
+        Route::middleware(['check_module:indicadores_pit'])
+            ->controller(PitIndicatorController::class)
+            ->group(function () {
+                Route::get('pit-indicators', 'index');
+                Route::post('pit-indicators', 'store');
+                Route::put('pit-indicators/{id}', 'update');
+                Route::put('pit-indicators/{id}/status', 'changeStatus');
+                Route::delete('pit-indicators/{id}', 'destroy');
+            });
+
+        // -------------------------------------------------------
+        // Indicadores > Márgenes brutos
+        // -------------------------------------------------------
+        Route::middleware(['check_module:indicadores_gross_margins'])
+            ->controller(GrossMarginController::class)
+            ->group(function () {
+                Route::get('gross-margins', 'index');
+                Route::post('gross-margins', 'store');
+                Route::put('gross-margins/{id}', 'update');
+                Route::put('gross-margins/{id}/status', 'changeStatus');
+                Route::delete('gross-margins/{id}', 'destroy');
+            });
+
+        // -------------------------------------------------------
+        // Indicadores > Tendencia márgenes
+        // -------------------------------------------------------
+        Route::middleware(['check_module:indicadores_gross_margins_trend'])
+            ->controller(GrossMarginsTrendController::class)
+            ->group(function () {
+                Route::get('gross-margins-trend', 'index');
+                Route::post('gross-margins-trend', 'store');
+                Route::put('gross-margins-trend/{id}', 'update');
+                Route::put('gross-margins-trend/{id}/status', 'changeStatus');
+                Route::delete('gross-margins-trend/{id}', 'destroy');
+                Route::delete('gross-margins-trend/duplicates/delete', 'deleteDuplicates');
+            });
+
+        // -------------------------------------------------------
+        // Indicadores > Relación insumo-producto ganadera
+        // -------------------------------------------------------
+        Route::middleware(['check_module:indicadores_livestock'])
+            ->controller(LivestockInputOutputRatioController::class)
+            ->group(function () {
+                Route::get('livestock-input-output-ratios', 'index');
+                Route::post('livestock-input-output-ratios', 'store');
+                Route::put('livestock-input-output-ratios/{id}', 'update');
+                Route::put('livestock-input-output-ratios/{id}/status', 'changeStatus');
+                Route::delete('livestock-input-output-ratios/{id}', 'destroy');
+                Route::delete('livestock-input-output-ratios/duplicates/delete', 'deleteDuplicates');
+            });
+
+        // -------------------------------------------------------
+        // Indicadores > Relación insumo-producto agrícola
+        // -------------------------------------------------------
+        Route::middleware(['check_module:indicadores_agricultural'])
+            ->controller(AgriculturalInputOutputRelationshipController::class)
+            ->group(function () {
+                Route::get('agricultural-input-output-relationships', 'index');
+                Route::post('agricultural-input-output-relationships', 'store');
+                Route::put('agricultural-input-output-relationships/{id}', 'update');
+                Route::put('agricultural-input-output-relationships/{id}/status', 'changeStatus');
+                Route::delete('agricultural-input-output-relationships/{id}', 'destroy');
+                Route::delete('agricultural-input-output-relationships/duplicates/delete', 'deleteDuplicates');
+            });
+
+        // -------------------------------------------------------
+        // Indicadores > Precios productos
+        // -------------------------------------------------------
+        Route::middleware(['check_module:indicadores_product_prices'])
+            ->controller(ProductPriceController::class)
+            ->group(function () {
+                Route::get('product-prices', 'index');
+                Route::post('product-prices', 'store');
+                Route::put('product-prices/{id}', 'update');
+                Route::put('product-prices/{id}/status', 'changeStatus');
+                Route::delete('product-prices/{id}', 'destroy');
+            });
+
+        // -------------------------------------------------------
+        // Indicadores > Precios cosecha
+        // -------------------------------------------------------
+        Route::middleware(['check_module:indicadores_harvest_prices'])
+            ->controller(HarvestPricesController::class)
+            ->group(function () {
+                Route::get('harvest-prices', 'index');
+                Route::post('harvest-prices', 'store');
+                Route::put('harvest-prices/{id}', 'update');
+                Route::put('harvest-prices/{id}/status', 'changeStatus');
+                Route::delete('harvest-prices/{id}', 'destroy');
+                Route::delete('harvest-prices/duplicates/delete', 'deleteDuplicates');
+            });
+
+        // -------------------------------------------------------
+        // Indicadores > Semáforo compra/venta cultivos principales
+        // -------------------------------------------------------
+        Route::middleware(['check_module:indicadores_traffic_light'])
+            ->controller(MainCropsBuyingSellingTrafficLightController::class)
+            ->group(function () {
+                Route::get('main-crops-buying-selling-traffic-light', 'index');
+                Route::post('main-crops-buying-selling-traffic-light', 'store');
+                Route::put('main-crops-buying-selling-traffic-light/{id}', 'update');
+                Route::put('main-crops-buying-selling-traffic-light/{id}/status', 'changeStatus');
+                Route::delete('main-crops-buying-selling-traffic-light/{id}', 'destroy');
+            });
+
+        // -------------------------------------------------------
+        // Indicadores > Business indicator controls y datos (export/import)
+        // -------------------------------------------------------
+        Route::middleware(['check_module:indicadores_business_controls'])
             ->group(function () {
                 Route::controller(BusinessIndicatorControlController::class)->group(function () {
                     Route::get('business-indicator-controls', 'index');
@@ -383,7 +468,7 @@ Route::prefix('admin')
             ->group(function () {
                 Route::post('faqs', 'store');
                 Route::put('faqs/{id}', 'update');
-                Route::put('faqs/{id}/status', 'updateStatus');
+                Route::put('faqs/{id}/status', 'changeStatus');
                 Route::delete('faqs/{id}', 'destroy');
             });
 
@@ -395,7 +480,7 @@ Route::prefix('admin')
             ->group(function () {
                 Route::post('regions', 'store');
                 Route::put('regions/{id}', 'update');
-                Route::put('regions/{id}/status', 'updateStatus');
+                Route::put('regions/{id}/status', 'changeStatus');
                 Route::delete('regions/{id}', 'destroy');
             });
 
@@ -407,7 +492,7 @@ Route::prefix('admin')
             ->group(function () {
                 Route::post('user-profiles', 'store');
                 Route::put('user-profiles/{id}', 'update');
-                Route::put('user-profiles/{id}/status', 'updateStatus');
+                Route::put('user-profiles/{id}/status', 'changeStatus');
                 Route::delete('user-profiles/{id}', 'destroy');
             });
 
@@ -428,7 +513,7 @@ Route::prefix('admin')
             ->group(function () {
                 Route::post('classifications', 'store');
                 Route::put('classifications/{id}', 'update');
-                Route::put('classifications/{id}/status', 'updateStatus');
+                Route::put('classifications/{id}/status', 'changeStatus');
                 Route::delete('classifications/{id}', 'destroy');
             });
 
@@ -440,7 +525,7 @@ Route::prefix('admin')
             ->group(function () {
                 Route::post('products', 'store');
                 Route::put('products/{id}', 'update');
-                Route::put('products/{id}/status', 'updateStatus');
+                Route::put('products/{id}/status', 'changeStatus');
                 Route::delete('products/{id}', 'destroy');
             });
 

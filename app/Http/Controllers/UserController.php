@@ -233,7 +233,7 @@ class UserController extends Controller
     /**
      * Show the form for creating a new resource.
      */
-    public function create(Request $request)
+    public function store(Request $request)
     {
         $id_user = Auth::user()->id ?? null;
         $action = "Creación de usuario";
@@ -357,14 +357,6 @@ class UserController extends Controller
 
 
     /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        //
-    }
-
-    /**
      * Display the specified resource.
      */
     public function show(string $id)
@@ -424,10 +416,7 @@ class UserController extends Controller
         return response(compact("data"));
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Request $request, string $id)
+    public function update(Request $request, string $id)
     {
         $id_user = Auth::user()->id ?? null;
         $action = "Edición de usuario";
@@ -658,10 +647,7 @@ class UserController extends Controller
         return response(compact("data"));
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request)
+    public function updateProfile(Request $request)
     {
         $id = Auth::user()->id;
 
@@ -709,10 +695,7 @@ class UserController extends Controller
         return response(compact("message", "data"));
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy()
+    public function destroySelf()
     {
         $action = "Eliminación de usuario";
         $id_user = Auth::user()->id;
@@ -744,7 +727,7 @@ class UserController extends Controller
         return response()->json(compact("message"));
     }
 
-    public function destroy_by_id(string $id)
+    public function destroy(string $id)
     {
         $action = "Eliminación de usuario";
         $id_user = $id;
@@ -813,7 +796,7 @@ class UserController extends Controller
         return response(compact("data"));
     }
 
-    public function change_status(Request $request, $id)
+    public function changeStatus(Request $request, $id)
     {
         $validator = Validator::make($request->all(), [
             'id_status' => 'required|numeric|exists:users_status,id'
@@ -912,7 +895,7 @@ class UserController extends Controller
         return response(compact("message", "data"));
     }
 
-    public function profile_picture_admin(Request $request)
+    public function profilePictureAdmin(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'profile_picture' => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:2048',

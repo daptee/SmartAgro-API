@@ -243,7 +243,7 @@ class CompaniesAdvertisingController extends Controller
         }
     }
 
-    public function update_status(Request $request, $id)
+    public function changeStatus(Request $request, $id)
     {
         $message = "Error al actualizar el estado la publicidad contratada";
         $action = "Actualización de estado de publicidad contratada";

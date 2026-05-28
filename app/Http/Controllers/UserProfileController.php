@@ -115,7 +115,7 @@ class UserProfileController extends Controller
     }
 
     // PUT STATUS
-    public function updateStatus(Request $request, $id)
+    public function changeStatus(Request $request, $id)
     {
         $message = "Error al actualizar estado de perfil de usuario";
         $action = "Actualizar estado de perfil de usuario";

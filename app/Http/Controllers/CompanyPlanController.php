@@ -288,7 +288,7 @@ class CompanyPlanController extends Controller
         return response(compact("data"));
     }
 
-    public function updateCompanyPlanStatus(Request $request, $id)
+    public function changeStatus(Request $request, $id)
     {
         $message = "Error al actualizar estado de plan de empresa";
         $action = "Actualizar estado del plan de empresa";

@@ -180,7 +180,7 @@ class CompanyController extends Controller
         return response(compact("data"));
     }
 
-    public function update_logo(Request $request, $id)
+    public function updateLogo(Request $request, $id)
     {
         $message = "Error al actualizar logo de la empresa";
         $action = "Actualizar logo de la empresa";

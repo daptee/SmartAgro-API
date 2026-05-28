@@ -76,10 +76,10 @@ Route::group(['middleware' => ['token', 'update_last_activity']], function ($rou
 
     // Users
     Route::controller(UserController::class)->group(function () {
-        Route::post('users_change_status/{id}', 'change_status');
+        Route::post('users_change_status/{id}', 'changeStatus');
         Route::post('users_change_plan/{id}', 'change_plan');
-        Route::put('users/update', 'update');
-        Route::delete('users/delete', 'destroy');
+        Route::put('users/update', 'updateProfile');
+        Route::delete('users/delete', 'destroySelf');
         Route::post('users/update/profile_picture', 'profile_picture');
         Route::get('users/get_user_profile', 'get_user_profile');
     });

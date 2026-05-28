@@ -14,8 +14,22 @@ use Illuminate\Support\Facades\Log;
 class AdminRoleController extends Controller
 {
     /**
+     * Acciones (métodos del controller) que se usan en las rutas de escritura del panel admin.
+     * Se usa solo como referencia para la documentación; la validación acepta cualquier string.
+     * GET siempre está permitido si el módulo está asignado, por lo que no aparece aquí.
+     */
+    private const KNOWN_ACTIONS = [
+        'store', 'update', 'destroy',
+        'changeStatus',
+        'deleteDuplicates', 'deleteImage', 'updateImage', 'updateLogo',
+        'replicateAdditionalInfo', 'updateData',
+        'export', 'import',
+        'addMainAdminCompanyPlan', 'assignRole', 'profilePictureAdmin',
+    ];
+
+    /**
      * GET /admin/roles
-     * Lista todos los roles de administración con sus módulos asignados.
+     * Lista todos los roles de administración con sus módulos y acciones asignadas.
      */
     public function index()
     {
@@ -23,7 +37,20 @@ class AdminRoleController extends Controller
         $id_user = Auth::user()->id ?? null;
 
         try {
-            $data = Role::where('is_admin_role', 1)->with('modules')->get();
+            $data = Role::where('is_admin_role', 1)
+                ->with(['modules' => function ($q) {
+                    $q->select('admin_modules.id', 'admin_modules.slug', 'admin_modules.name')
+                      ->withPivot('actions');
+                }])
+                ->get()
+                ->each(function ($role) {
+                    $role->modules->each(function ($module) {
+                        $module->pivot->actions = is_string($module->pivot->actions)
+                            ? json_decode($module->pivot->actions, true)
+                            : $module->pivot->actions;
+                    });
+                });
+
             Audith::new($id_user, $action, null, 200, compact('data'));
             return response()->json(compact('data'), 200);
         } catch (Exception $e) {
@@ -36,7 +63,7 @@ class AdminRoleController extends Controller
 
     /**
      * GET /admin/roles/{id}
-     * Detalle de un rol con sus módulos asignados.
+     * Detalle de un rol con sus módulos y acciones asignadas.
      */
     public function show(string $id)
     {
@@ -44,11 +71,21 @@ class AdminRoleController extends Controller
         $id_user = Auth::user()->id ?? null;
 
         try {
-            $data = Role::with('modules')->find($id);
+            $data = Role::with(['modules' => function ($q) {
+                    $q->select('admin_modules.id', 'admin_modules.slug', 'admin_modules.name')
+                      ->withPivot('actions');
+                }])
+                ->find($id);
 
             if (!$data) {
                 return response()->json(['message' => 'Rol no encontrado'], 404);
             }
+
+            $data->modules->each(function ($module) {
+                $module->pivot->actions = is_string($module->pivot->actions)
+                    ? json_decode($module->pivot->actions, true)
+                    : $module->pivot->actions;
+            });
 
             Audith::new($id_user, $action, ['id' => $id], 200, compact('data'));
             return response()->json(compact('data'), 200);
@@ -83,9 +120,17 @@ class AdminRoleController extends Controller
 
     /**
      * POST /admin/roles
-     * Crea un nuevo rol de administración con módulos asignados.
+     * Crea un nuevo rol de administración con módulos y acciones asignadas.
      *
-     * Body: { "name": "editor", "description": "...", "module_ids": [1, 3, 5] }
+     * Body:
+     * {
+     *   "name": "editor",
+     *   "description": "...",
+     *   "modules": [
+     *     { "id": 6, "actions": ["read", "create"] },
+     *     { "id": 7, "actions": ["read"] }
+     *   ]
+     * }
      */
     public function store(Request $request)
     {
@@ -93,17 +138,18 @@ class AdminRoleController extends Controller
         $id_user = Auth::user()->id ?? null;
 
         $request->validate([
-            'name'         => 'required|string|max:50|unique:roles,name',
-            'description'  => 'nullable|string|max:255',
-            'module_ids'   => 'required|array|min:1',
-            'module_ids.*' => 'integer|exists:admin_modules,id',
+            'name'                => 'required|string|max:50|unique:roles,name',
+            'description'         => 'nullable|string|max:255',
+            'modules'             => 'required|array|min:1',
+            'modules.*.id'        => 'required|integer|exists:admin_modules,id',
+            'modules.*.actions'   => 'required|array|min:1',
+            'modules.*.actions.*' => 'string|max:60',
         ]);
 
         try {
             DB::beginTransaction();
 
-            $moduleIds = collect($request->module_ids)->sort()->values()->toArray();
-            $permissionsHash = hash('sha256', implode(',', $moduleIds));
+            $permissionsHash = $this->calculateHash($request->modules);
 
             $role = Role::create([
                 'name'             => $request->name,
@@ -112,8 +158,9 @@ class AdminRoleController extends Controller
                 'permissions_hash' => $permissionsHash,
             ]);
 
-            $role->modules()->sync($moduleIds);
-            $role->load('modules');
+            $this->syncModules($role, $request->modules);
+            $role->load(['modules' => fn($q) => $q->withPivot('actions')]);
+            $this->decodeActions($role);
 
             DB::commit();
 
@@ -131,10 +178,10 @@ class AdminRoleController extends Controller
 
     /**
      * PUT /admin/roles/{id}
-     * Actualiza nombre, descripción y módulos de un rol.
+     * Actualiza nombre, descripción, módulos y acciones de un rol.
      * El rol 'admin' (superadmin) no puede ser modificado.
      *
-     * Body: { "name": "editor", "description": "...", "module_ids": [1, 3, 5] }
+     * Body igual que store (todos los campos opcionales).
      */
     public function update(Request $request, string $id)
     {
@@ -151,10 +198,12 @@ class AdminRoleController extends Controller
         }
 
         $request->validate([
-            'name'         => 'sometimes|required|string|max:50|unique:roles,name,' . $id,
-            'description'  => 'nullable|string|max:255',
-            'module_ids'   => 'sometimes|required|array|min:1',
-            'module_ids.*' => 'integer|exists:admin_modules,id',
+            'name'                => 'sometimes|required|string|max:50|unique:roles,name,' . $id,
+            'description'         => 'nullable|string|max:255',
+            'modules'             => 'sometimes|required|array|min:1',
+            'modules.*.id'        => 'required_with:modules|integer|exists:admin_modules,id',
+            'modules.*.actions'   => 'required_with:modules|array|min:1',
+            'modules.*.actions.*' => 'string|max:60',
         ]);
 
         try {
@@ -165,14 +214,14 @@ class AdminRoleController extends Controller
                 'description' => $request->input('description', $role->description),
             ];
 
-            if ($request->has('module_ids')) {
-                $moduleIds = collect($request->module_ids)->sort()->values()->toArray();
-                $role->modules()->sync($moduleIds);
-                $updateData['permissions_hash'] = hash('sha256', implode(',', $moduleIds));
+            if ($request->has('modules')) {
+                $this->syncModules($role, $request->modules);
+                $updateData['permissions_hash'] = $this->calculateHash($request->modules);
             }
 
             $role->update($updateData);
-            $role->load('modules');
+            $role->load(['modules' => fn($q) => $q->withPivot('actions')]);
+            $this->decodeActions($role);
 
             DB::commit();
 
@@ -186,5 +235,52 @@ class AdminRoleController extends Controller
             Log::debug($response);
             return response()->json($response, 500);
         }
+    }
+
+    // -------------------------------------------------------
+    // Helpers privados
+    // -------------------------------------------------------
+
+    /**
+     * Calcula el hash SHA-256 a partir de los módulos y sus acciones.
+     * Formato: "id:action1,action2|id2:action1" (ordenado por id, acciones ordenadas).
+     */
+    private function calculateHash(array $modules): string
+    {
+        $parts = collect($modules)
+            ->sortBy('id')
+            ->map(function ($m) {
+                $actions = collect($m['actions'])->sort()->values()->implode(',');
+                return $m['id'] . ':' . $actions;
+            })
+            ->implode('|');
+
+        return hash('sha256', $parts);
+    }
+
+    /**
+     * Sincroniza la tabla role_modules con los módulos y acciones enviados.
+     * Usa sync con datos de pivot (actions como JSON).
+     */
+    private function syncModules(Role $role, array $modules): void
+    {
+        $syncData = [];
+        foreach ($modules as $m) {
+            $actions = collect($m['actions'])->unique()->sort()->values()->toArray();
+            $syncData[$m['id']] = ['actions' => json_encode($actions)];
+        }
+        $role->modules()->sync($syncData);
+    }
+
+    /**
+     * Decodifica el JSON de actions en el pivot para que la respuesta devuelva arrays, no strings.
+     */
+    private function decodeActions(Role $role): void
+    {
+        $role->modules->each(function ($module) {
+            $module->pivot->actions = is_string($module->pivot->actions)
+                ? json_decode($module->pivot->actions, true)
+                : $module->pivot->actions;
+        });
     }
 }
