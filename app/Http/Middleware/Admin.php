@@ -32,7 +32,12 @@ class Admin
         }
 
         $user = JWTAuth::parseToken()->authenticate();
-        if ($user->roles->isEmpty() || !$user->roles->contains('name', 'admin')) {       
+
+        // Permite el acceso a cualquier usuario con un rol de tipo admin (is_admin_role = 1)
+        // El rol 'admin' es superadmin; los nuevos roles también tienen is_admin_role = 1
+        $hasAdminRole = $user->roles()->where('is_admin_role', 1)->exists();
+
+        if (!$hasAdminRole) {
             return response()->json(['message' => 'No tienes permiso para acceder a este recurso'], 401);
         }
 

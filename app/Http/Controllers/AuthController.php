@@ -363,7 +363,7 @@ class AuthController extends Controller
 
             // Verificar si el usuario tiene el rol de administrador
 
-            $isAdmin = $user->roles()->where('name', 'admin')->exists();
+            $isAdmin = $user->roles()->where('is_admin_role', 1)->exists();
 
             if (!$isAdmin) {
                 $response = ['message' => 'Usuario no autorizado para acceder.'];
@@ -379,8 +379,27 @@ class AuthController extends Controller
                     ->first();
             }
 
-            Audith::new($user->id, $action, $credentials, 200, $this->respondWithToken($token, $company));
-            return $this->respondWithToken($token, $company);
+            $roles = $user->roles()->where('is_admin_role', 1)->with('modules')->get()->each->makeHidden('pivot');
+
+            $data = [
+                'access_token' => $token,
+                'user' => [
+                    'id'              => $user->id,
+                    'name'            => $user->name,
+                    'last_name'       => $user->last_name,
+                    'email'           => $user->email,
+                    'roles'           => $roles,
+                    'allowed_modules' => $user->getJWTCustomClaims()['allowed_modules'] ?? [],
+                ],
+            ];
+
+            if ($company) {
+                $data['company_plan'] = $company;
+            }
+
+            $response = ['message' => 'Login exitoso.', 'data' => $data];
+            Audith::new($user->id, $action, $credentials, 200, $response);
+            return response()->json($response, 200);
 
         } catch (Exception $e) {
             $response = ["message" => "Error al intentar autenticar al administrador.", "error" => $e->getMessage(), "line" => $e->getLine()];

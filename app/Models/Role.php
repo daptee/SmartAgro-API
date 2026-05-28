@@ -6,7 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 
 class Role extends Model
 {
-    protected $fillable = ['name', 'description'];
+    public $timestamps = false;
+
+    protected $fillable = ['name', 'description', 'is_admin_role', 'permissions_hash'];
 
     public function userRoles()
     {
@@ -16,5 +18,10 @@ class Role extends Model
     public function users()
     {
         return $this->belongsToMany(User::class, 'user_roles', 'id_role', 'id_user');
+    }
+
+    public function modules()
+    {
+        return $this->belongsToMany(AdminModule::class, 'role_modules', 'id_role', 'id_module');
     }
 }

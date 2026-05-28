@@ -1,0 +1,368 @@
+{
+  "info": {
+    "_postman_id": "sistema-perfiles-roles-admin-v1",
+    "name": "SmartAgro-API — Sistema de Perfiles",
+    "description": "Colección con los endpoints del Sistema de Roles y Perfiles para administradores.\n\nPermite gestionar roles de administración, asignar módulos a cada rol, y asignar roles a usuarios.\n\n---\n\n**Autenticación:** Todos los endpoints requieren token Bearer obtenido desde `POST /admin/auth`.\n\n**Middlewares aplicados a todas las rutas:**\n- `admin` → verifica que el usuario tenga un rol con `is_admin_role = 1`\n- `check_permissions_hash` → detecta cambios de permisos en el token; si los permisos del rol cambiaron en BD, devuelve `401` con `error_code: PERMISSIONS_CHANGED` y el frontend debe forzar re-login\n\n---\n\n**Módulos disponibles (slugs):**\n- `usuarios`\n- `gestion_empresas`\n- `planes_empresa`\n- `gestion_publicidades`\n- `espacios_publicitarios`\n- `mercado`\n- `indicadores_comerciales`\n- `config_planes`, `config_faqs`, `config_regiones`, `config_perfiles`\n- `config_iconos`, `config_imagenes`, `config_clasificaciones`\n- `config_productos`, `config_cultivos`, `config_unidades`, `config_variables`\n\n---\n\n**Códigos de respuesta:**\n- `200` Éxito\n- `201` Creado\n- `401` No autenticado / permisos cambiados\n- `403` Forbidden (sin acceso al módulo, o intento de editar rol admin)\n- `404` Recurso no encontrado\n- `422` Validación fallida\n- `500` Error de servidor",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Admin Auth",
+      "item": [
+        {
+          "name": "Login Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "let jsonData = pm.response.json();",
+                  "pm.environment.set(\"token\", jsonData.data.access_token);",
+                  "console.log(\"Token admin guardado:\", jsonData.data.access_token);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"admin@smartagro.com\",\n    \"password\": \"password\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/auth",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "auth"]
+            },
+            "description": "Login para administradores. Devuelve un JWT que incluye:\n- `allowed_modules`: `['*']` si es superadmin, o array de slugs de módulos permitidos\n- `roles_permissions_hash`: mapa `{role_id: hash}` usado por el middleware `check_permissions_hash`\n\nEl token se guarda automáticamente en la variable de entorno `{{token}}`."
+          },
+          "response": [
+            {
+              "name": "200 - Login exitoso",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n    \"message\": \"Login exitoso.\",\n    \"data\": {\n        \"access_token\": \"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...\",\n        \"user\": {\n            \"id\": 1,\n            \"name\": \"Admin\",\n            \"last_name\": \"Sistema\",\n            \"email\": \"admin@smartagro.com\",\n            \"roles\": [\n                {\n                    \"id\": 1,\n                    \"name\": \"admin\",\n                    \"description\": \"Administrador del sistema\",\n                    \"is_admin_role\": 1,\n                    \"modules\": []\n                }\n            ],\n            \"allowed_modules\": [\"*\"]\n        }\n    }\n}"
+            },
+            {
+              "name": "401 - Credenciales inválidas",
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n    \"message\": \"Credenciales inválidas\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Módulos",
+      "description": "Endpoints para consultar los módulos disponibles del panel de administración.\n\nLos módulos son el catálogo fijo de secciones del panel. Se usan al crear o editar roles para indicar a qué secciones tendrá acceso ese rol.",
+      "item": [
+        {
+          "name": "Listar módulos disponibles",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json", "type": "text" },
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/modules",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "modules"]
+            },
+            "description": "Devuelve el listado completo de módulos disponibles del panel admin.\n\nSe usa principalmente para poblar el selector de módulos al crear o editar un rol.\n\n**No requiere módulo específico** — accesible a cualquier admin autenticado."
+          },
+          "response": [
+            {
+              "name": "200 - Lista de módulos",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n    \"data\": [\n        { \"id\": 1,  \"slug\": \"usuarios\",               \"name\": \"Usuarios\" },\n        { \"id\": 2,  \"slug\": \"gestion_empresas\",       \"name\": \"Gestión de empresas\" },\n        { \"id\": 3,  \"slug\": \"planes_empresa\",         \"name\": \"Planes empresa\" },\n        { \"id\": 4,  \"slug\": \"gestion_publicidades\",   \"name\": \"Gestión de publicidades\" },\n        { \"id\": 5,  \"slug\": \"espacios_publicitarios\", \"name\": \"Espacios publicitarios\" },\n        { \"id\": 6,  \"slug\": \"mercado\",                \"name\": \"Mercado\" },\n        { \"id\": 7,  \"slug\": \"indicadores_comerciales\",\"name\": \"Indicadores comerciales\" },\n        { \"id\": 8,  \"slug\": \"config_planes\",          \"name\": \"Configuración > Planes\" },\n        { \"id\": 9,  \"slug\": \"config_faqs\",            \"name\": \"Configuración > FAQs\" },\n        { \"id\": 10, \"slug\": \"config_regiones\",        \"name\": \"Configuración > Regiones\" },\n        { \"id\": 11, \"slug\": \"config_perfiles\",        \"name\": \"Configuración > Perfiles\" },\n        { \"id\": 12, \"slug\": \"config_iconos\",          \"name\": \"Configuración > Iconos\" },\n        { \"id\": 13, \"slug\": \"config_imagenes\",        \"name\": \"Configuración > Imágenes\" },\n        { \"id\": 14, \"slug\": \"config_clasificaciones\", \"name\": \"Configuración > Clasificaciones\" },\n        { \"id\": 15, \"slug\": \"config_productos\",       \"name\": \"Configuración > Productos\" },\n        { \"id\": 16, \"slug\": \"config_cultivos\",        \"name\": \"Configuración > Cultivos\" },\n        { \"id\": 17, \"slug\": \"config_unidades\",        \"name\": \"Configuración > Unidades\" },\n        { \"id\": 18, \"slug\": \"config_variables\",       \"name\": \"Configuración > Variables\" }\n    ]\n}"
+            },
+            {
+              "name": "401 - No autenticado",
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n    \"message\": \"Token no válido o expirado\"\n}"
+            },
+            {
+              "name": "401 - Permisos cambiados",
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n    \"message\": \"Los permisos del usuario han cambiado. Por favor, vuelva a iniciar sesión.\",\n    \"error_code\": \"PERMISSIONS_CHANGED\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Roles",
+      "description": "Endpoints para gestionar los roles de administración.\n\nCada rol tiene un nombre, descripción opcional, y un conjunto de módulos asignados que determinan a qué secciones del panel puede acceder un usuario con ese rol.\n\n**Restricciones:**\n- El rol `admin` (superadmin) no puede ser editado.\n- Al editar los módulos de un rol, el `permissions_hash` se recalcula automáticamente. Los usuarios con ese rol recibirán un `401 PERMISSIONS_CHANGED` en su próximo request y deberán re-loguearse.",
+      "item": [
+        {
+          "name": "Listar roles",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json", "type": "text" },
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/roles",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "roles"]
+            },
+            "description": "Devuelve todos los roles de administración (`is_admin_role = 1`) con sus módulos asignados.\n\n**No requiere módulo específico** — accesible a cualquier admin autenticado."
+          },
+          "response": [
+            {
+              "name": "200 - Lista de roles",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n    \"data\": [\n        {\n            \"id\": 1,\n            \"name\": \"admin\",\n            \"description\": \"Superadministrador con acceso total\",\n            \"is_admin_role\": 1,\n            \"permissions_hash\": null,\n            \"modules\": []\n        },\n        {\n            \"id\": 2,\n            \"name\": \"operador_mercado\",\n            \"description\": \"Puede gestionar mercado e indicadores\",\n            \"is_admin_role\": 1,\n            \"permissions_hash\": \"a3f5c2d1e4b69f8c...\",\n            \"modules\": [\n                { \"id\": 6,  \"slug\": \"mercado\",                \"name\": \"Mercado\" },\n                { \"id\": 7,  \"slug\": \"indicadores_comerciales\", \"name\": \"Indicadores comerciales\" }\n            ]\n        }\n    ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Detalle de rol",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json", "type": "text" },
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/roles/:id",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "roles", ":id"],
+              "variable": [
+                { "key": "id", "value": "2", "description": "ID del rol" }
+              ]
+            },
+            "description": "Devuelve el detalle de un rol específico con sus módulos asignados."
+          },
+          "response": [
+            {
+              "name": "200 - Detalle de rol",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n    \"data\": {\n        \"id\": 2,\n        \"name\": \"operador_mercado\",\n        \"description\": \"Puede gestionar mercado e indicadores\",\n        \"is_admin_role\": 1,\n        \"permissions_hash\": \"a3f5c2d1e4b69f8c...\",\n        \"modules\": [\n            { \"id\": 6, \"slug\": \"mercado\",                \"name\": \"Mercado\" },\n            { \"id\": 7, \"slug\": \"indicadores_comerciales\", \"name\": \"Indicadores comerciales\" }\n        ]\n    }\n}"
+            },
+            {
+              "name": "404 - Rol no encontrado",
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n    \"message\": \"Rol no encontrado\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Crear rol",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json", "type": "text" },
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"operador_mercado\",\n    \"description\": \"Puede gestionar mercado e indicadores comerciales\",\n    \"module_ids\": [6, 7]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/roles",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "roles"]
+            },
+            "description": "Crea un nuevo rol de administración con los módulos especificados.\n\n**Body:**\n| Campo | Tipo | Requerido | Descripción |\n|---|---|---|---|\n| `name` | string | Sí | Nombre único del rol (max 50 chars) |\n| `description` | string | No | Descripción del rol (max 255 chars) |\n| `module_ids` | array<int> | Sí | IDs de módulos a asignar (min 1, deben existir en `admin_modules`) |\n\n**Proceso interno:**\n1. Valida que `name` sea único en la tabla `roles`\n2. Ordena los `module_ids` y calcula `permissions_hash = SHA256(ids_ordenados_separados_por_coma)`\n3. Crea el rol con `is_admin_role = 1`\n4. Sincroniza los módulos en `role_modules`"
+          },
+          "response": [
+            {
+              "name": "201 - Rol creado",
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n    \"message\": \"Rol creado con éxito\",\n    \"role\": {\n        \"id\": 3,\n        \"name\": \"operador_mercado\",\n        \"description\": \"Puede gestionar mercado e indicadores comerciales\",\n        \"is_admin_role\": 1,\n        \"permissions_hash\": \"a3f5c2d1e4b69f8c3a21...\",\n        \"modules\": [\n            { \"id\": 6, \"slug\": \"mercado\",                \"name\": \"Mercado\" },\n            { \"id\": 7, \"slug\": \"indicadores_comerciales\", \"name\": \"Indicadores comerciales\" }\n        ]\n    }\n}"
+            },
+            {
+              "name": "422 - Validación fallida (nombre duplicado)",
+              "status": "Unprocessable Entity",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n    \"message\": \"The name has already been taken.\",\n    \"errors\": {\n        \"name\": [\"The name has already been taken.\"]\n    }\n}"
+            },
+            {
+              "name": "422 - Validación fallida (module_ids inválidos)",
+              "status": "Unprocessable Entity",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n    \"message\": \"The selected module_ids.0 is invalid.\",\n    \"errors\": {\n        \"module_ids.0\": [\"The selected module_ids.0 is invalid.\"]\n    }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Editar rol",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Accept", "value": "application/json", "type": "text" },
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"operador_mercado\",\n    \"description\": \"Descripción actualizada\",\n    \"module_ids\": [6, 7, 1]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/roles/:id",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "roles", ":id"],
+              "variable": [
+                { "key": "id", "value": "2", "description": "ID del rol a editar" }
+              ]
+            },
+            "description": "Actualiza nombre, descripción y/o módulos de un rol existente.\n\n**Restricciones:**\n- El rol con `name = 'admin'` (superadmin) **no puede ser modificado** → devuelve `403`\n- Todos los campos son opcionales (`sometimes`), pero si se envía `module_ids` debe tener al menos 1 elemento\n\n**Efecto en usuarios con este rol:**\nSi se modifican los `module_ids`, el `permissions_hash` se recalcula. En el próximo request de cualquier usuario con este rol, el middleware `check_permissions_hash` detectará el cambio y devolverá:\n```json\n{ \"error_code\": \"PERMISSIONS_CHANGED\" }\n```\nForzando al usuario a re-loguearse con los permisos actualizados."
+          },
+          "response": [
+            {
+              "name": "200 - Rol actualizado",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n    \"message\": \"Rol actualizado con éxito\",\n    \"role\": {\n        \"id\": 2,\n        \"name\": \"operador_mercado\",\n        \"description\": \"Descripción actualizada\",\n        \"is_admin_role\": 1,\n        \"permissions_hash\": \"b7e3a1c5d2f4...\",\n        \"modules\": [\n            { \"id\": 1, \"slug\": \"usuarios\",               \"name\": \"Usuarios\" },\n            { \"id\": 6, \"slug\": \"mercado\",                \"name\": \"Mercado\" },\n            { \"id\": 7, \"slug\": \"indicadores_comerciales\", \"name\": \"Indicadores comerciales\" }\n        ]\n    }\n}"
+            },
+            {
+              "name": "403 - Intento de editar rol admin",
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n    \"message\": \"El rol admin no puede ser modificado\"\n}"
+            },
+            {
+              "name": "404 - Rol no encontrado",
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n    \"message\": \"Rol no encontrado\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Usuarios — Asignación de rol",
+      "description": "Endpoint para asignar o reemplazar el rol de administración de un usuario.\n\nCada usuario puede tener **un solo rol admin** a la vez. Al asignar uno nuevo, se eliminan automáticamente los anteriores roles admin del usuario (conservando roles no-admin).",
+      "item": [
+        {
+          "name": "Asignar rol a usuario",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json", "type": "text" },
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"id_role\": 2\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/users/:id/role",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "users", ":id", "role"],
+              "variable": [
+                { "key": "id", "value": "5", "description": "ID del usuario al que se le asigna el rol" }
+              ]
+            },
+            "description": "Asigna o reemplaza el rol de administración de un usuario.\n\n**Body:**\n| Campo | Tipo | Requerido | Descripción |\n|---|---|---|---|\n| `id_role` | int | Sí | ID del rol a asignar. Debe existir y tener `is_admin_role = 1` |\n\n**Proceso interno:**\n1. Verifica que el usuario exista\n2. Verifica que el rol exista y sea un rol admin (`is_admin_role = 1`)\n3. Elimina todos los roles admin actuales del usuario\n4. Crea el nuevo registro en `user_roles`\n\n**Efecto en el usuario:**\nEn el próximo request del usuario afectado, el middleware `check_permissions_hash` detectará que el hash del token ya no coincide con su nuevo rol (o que el rol cambió) y devolverá `401 PERMISSIONS_CHANGED`, forzando re-login con los nuevos permisos."
+          },
+          "response": [
+            {
+              "name": "200 - Rol asignado",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n    \"message\": \"Rol asignado con éxito\",\n    \"data\": {\n        \"id\": 5,\n        \"name\": \"Juan Pérez\",\n        \"email\": \"juan@example.com\",\n        \"roles\": [\n            {\n                \"id\": 2,\n                \"name\": \"operador_mercado\",\n                \"is_admin_role\": 1\n            }\n        ]\n    }\n}"
+            },
+            {
+              "name": "404 - Usuario no encontrado",
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n    \"message\": \"Usuario no encontrado\"\n}"
+            },
+            {
+              "name": "422 - Rol no es de tipo admin",
+              "status": "Unprocessable Entity",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n    \"message\": \"El rol seleccionado no es un rol de administración válido\"\n}"
+            },
+            {
+              "name": "422 - Validación fallida",
+              "status": "Unprocessable Entity",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n    \"message\": \"Alguna de las validaciones falló\",\n    \"errors\": {\n        \"id_role\": [\"The selected id_role is invalid.\"]\n    }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Referencia — Comportamiento de permisos",
+      "description": "Esta carpeta NO contiene requests ejecutables. Es documentación de referencia sobre cómo funciona el sistema de permisos en tiempo de ejecución.",
+      "item": [
+        {
+          "name": "[DOC] Flujo de permisos — PERMISSIONS_CHANGED",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/admin/any-protected-route",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "any-protected-route"]
+            },
+            "description": "## Flujo: Detección de cambio de permisos\n\nEste es el comportamiento esperado cuando los permisos de un rol son modificados:\n\n### 1. Situación inicial\n- Usuario logueado con token JWT que contiene:\n  ```json\n  {\n    \"roles_permissions_hash\": { \"2\": \"hash_viejo\" },\n    \"allowed_modules\": [\"mercado\", \"indicadores_comerciales\"]\n  }\n  ```\n\n### 2. Admin modifica el rol\n- `PUT /admin/roles/2` con nuevos `module_ids`\n- La BD actualiza `roles.permissions_hash` = nuevo hash\n\n### 3. Próximo request del usuario afectado\n- Middleware `check_permissions_hash` compara:\n  - Token: `{ \"2\": \"hash_viejo\" }`\n  - BD: `{ \"2\": \"hash_nuevo\" }`\n- Detecta diferencia → responde:\n  ```json\n  {\n    \"message\": \"Los permisos del usuario han cambiado. Por favor, vuelva a iniciar sesión.\",\n    \"error_code\": \"PERMISSIONS_CHANGED\"\n  }\n  ```\n  con HTTP `401`\n\n### 4. Frontend\n- Al recibir `error_code: PERMISSIONS_CHANGED`, debe forzar logout y redirigir al login\n- El nuevo token JWT al re-loguearse incluirá los módulos actualizados\n\n---\n\n## Flujo: Módulos en el token\n\n| Tipo de usuario | `allowed_modules` en JWT |\n|---|---|\n| Superadmin (rol `admin`) | `[\"*\"]` (acceso total) |\n| Rol con módulos asignados | `[\"mercado\", \"indicadores_comerciales\", ...]` |\n\n## Middleware `check_module:slug`\n\nCada grupo de rutas del panel tiene un middleware que verifica el acceso:\n```\nmiddleware(['check_module:mercado'])\n```\n- Si `allowed_modules` es `['*']` → pasa siempre\n- Si el slug está en `allowed_modules` → pasa\n- Si no → `403 Forbidden`"
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
