@@ -14,9 +14,29 @@ use Illuminate\Support\Facades\Log;
 class AdminRoleController extends Controller
 {
     /**
+     * Descripción legible de cada acción (en español).
+     * Se combina con MODULE_ACTIONS en el endpoint GET /admin/modules.
+     */
+    private const ACTION_LABELS = [
+        'store'                  => 'Crear',
+        'update'                 => 'Editar',
+        'destroy'                => 'Eliminar',
+        'changeStatus'           => 'Cambiar estado',
+        'deleteImage'            => 'Eliminar imagen',
+        'updateImage'            => 'Reemplazar imagen',
+        'updateLogo'             => 'Reemplazar logo',
+        'updateData'             => 'Actualizar datos específicos',
+        'export'                 => 'Exportar',
+        'import'                 => 'Importar',
+        'addMainAdminCompanyPlan'=> 'Asignar administrador principal a empresa',
+        'assignRole'             => 'Asignar rol',
+        'profilePictureAdmin'    => 'Actualizar foto de perfil',
+    ];
+
+    /**
      * Acciones disponibles por módulo.
      * GET siempre está permitido si el módulo está asignado, por lo que no aparece aquí.
-     * La validación acepta cualquier string; este mapa se expone en GET /admin/actions.
+     * La validación acepta cualquier string; las acciones se exponen en GET /admin/modules.
      */
     private const MODULE_ACTIONS = [
         'usuarios' => [
@@ -62,7 +82,7 @@ class AdminRoleController extends Controller
             'store', 'update', 'destroy', 'changeStatus',
         ],
         'mercado_general_control' => [
-            'store', 'update', 'destroy', 'changeStatus', 'replicateAdditionalInfo', 'updateData', 'export', 'import',
+            'store', 'update', 'destroy', 'changeStatus', 'updateData', 'export', 'import',
         ],
         'indicadores_pit' => [
             'store', 'update', 'destroy', 'changeStatus',
@@ -71,25 +91,25 @@ class AdminRoleController extends Controller
             'store', 'update', 'destroy', 'changeStatus',
         ],
         'indicadores_gross_margins_trend' => [
-            'store', 'update', 'destroy', 'changeStatus', 'deleteDuplicates',
+            'store', 'update', 'destroy', 'changeStatus',
         ],
         'indicadores_livestock' => [
-            'store', 'update', 'destroy', 'changeStatus', 'deleteDuplicates',
+            'store', 'update', 'destroy', 'changeStatus',
         ],
         'indicadores_agricultural' => [
-            'store', 'update', 'destroy', 'changeStatus', 'deleteDuplicates',
+            'store', 'update', 'destroy', 'changeStatus',
         ],
         'indicadores_product_prices' => [
             'store', 'update', 'destroy', 'changeStatus',
         ],
         'indicadores_harvest_prices' => [
-            'store', 'update', 'destroy', 'changeStatus', 'deleteDuplicates',
+            'store', 'update', 'destroy', 'changeStatus',
         ],
         'indicadores_traffic_light' => [
             'store', 'update', 'destroy', 'changeStatus',
         ],
         'indicadores_business_controls' => [
-            'store', 'update', 'destroy', 'changeStatus', 'replicateAdditionalInfo', 'updateData', 'export', 'import',
+            'store', 'update', 'destroy', 'changeStatus', 'updateData', 'export', 'import',
         ],
         'config_iconos' => [
             'store', 'update', 'destroy',
@@ -213,7 +233,10 @@ class AdminRoleController extends Controller
                     'id'      => $module->id,
                     'slug'    => $module->slug,
                     'name'    => $module->name,
-                    'actions' => self::MODULE_ACTIONS[$module->slug] ?? [],
+                    'actions' => array_map(
+                        fn($a) => ['action' => $a, 'label' => self::ACTION_LABELS[$a] ?? $a],
+                        self::MODULE_ACTIONS[$module->slug] ?? []
+                    ),
                 ]);
 
             Audith::new($id_user, $action, null, 200, compact('data'));
