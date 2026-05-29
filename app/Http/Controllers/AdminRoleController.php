@@ -198,7 +198,8 @@ class AdminRoleController extends Controller
 
     /**
      * GET /admin/modules
-     * Lista todos los módulos disponibles (para usar en formularios de creación/edición de roles).
+     * Lista todos los módulos disponibles con sus acciones permitidas.
+     * Se usa para poblar el formulario de creación/edición de roles.
      */
     public function modules()
     {
@@ -206,7 +207,15 @@ class AdminRoleController extends Controller
         $id_user = Auth::user()->id ?? null;
 
         try {
-            $data = AdminModule::orderBy('id')->get();
+            $data = AdminModule::orderBy('id')
+                ->get()
+                ->map(fn($module) => [
+                    'id'      => $module->id,
+                    'slug'    => $module->slug,
+                    'name'    => $module->name,
+                    'actions' => self::MODULE_ACTIONS[$module->slug] ?? [],
+                ]);
+
             Audith::new($id_user, $action, null, 200, compact('data'));
             return response()->json(compact('data'), 200);
         } catch (Exception $e) {
@@ -334,26 +343,6 @@ class AdminRoleController extends Controller
             Log::debug($response);
             return response()->json($response, 500);
         }
-    }
-
-    /**
-     * GET /admin/actions
-     * Devuelve las acciones disponibles agrupadas por slug de módulo.
-     */
-    public function actions()
-    {
-        $action  = "Listado de acciones por módulo";
-        $id_user = Auth::user()->id ?? null;
-
-        $data = collect(self::MODULE_ACTIONS)
-            ->map(fn($actions, $slug) => [
-                'slug'    => $slug,
-                'actions' => $actions,
-            ])
-            ->values();
-
-        Audith::new($id_user, $action, null, 200, compact('data'));
-        return response()->json(compact('data'), 200);
     }
 
     // -------------------------------------------------------
