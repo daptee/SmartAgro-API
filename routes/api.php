@@ -55,6 +55,9 @@ Route::get('/generate-payment-docs-pdf', [App\Http\Controllers\DocumentationCont
 // finalize expired plans and advertisings
 Route::get('/finalize-expired', [CompanyPlanController::class, 'finalizeExpired'])->name('finalize-expired');
 
+// notify companies with plans expiring in 30 days
+Route::get('/notify-expiring-plans', [CompanyPlanController::class, 'notifyExpiringPlans'])->name('notify-expiring-plans');
+
 // faq sin token
 Route::get('faqs', [FaqController::class, 'index']);
 
