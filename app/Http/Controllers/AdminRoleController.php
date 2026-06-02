@@ -154,10 +154,10 @@ class AdminRoleController extends Controller
     {
         $action  = "Listado de roles de administración";
         $id_user = Auth::user()->id ?? null;
-
+    
         try {
-            $data = Role::where('is_admin_role', 1)
-                ->with(['modules' => function ($q) {
+            // Se quitó ->where('is_admin_role', 1) para traer TODOS los roles
+            $data = Role::with(['modules' => function ($q) {
                     $q->select('admin_modules.id', 'admin_modules.slug', 'admin_modules.name')
                       ->withPivot('actions');
                 }])
@@ -169,7 +169,7 @@ class AdminRoleController extends Controller
                             : $module->pivot->actions;
                     });
                 });
-
+    
             Audith::new($id_user, $action, null, 200, compact('data'));
             return response()->json(compact('data'), 200);
         } catch (Exception $e) {
