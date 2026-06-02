@@ -14,9 +14,29 @@ use Illuminate\Support\Facades\Log;
 class AdminRoleController extends Controller
 {
     /**
+     * Descripción legible de cada acción (en español).
+     * Se combina con MODULE_ACTIONS en el endpoint GET /admin/modules.
+     */
+    private const ACTION_LABELS = [
+        'store'                  => 'Crear',
+        'update'                 => 'Editar',
+        'destroy'                => 'Eliminar',
+        'changeStatus'           => 'Cambiar estado',
+        'deleteImage'            => 'Eliminar imagen',
+        'updateImage'            => 'Reemplazar imagen',
+        'updateLogo'             => 'Reemplazar logo',
+        'updateData'             => 'Actualizar datos específicos',
+        'export'                 => 'Exportar',
+        'import'                 => 'Importar',
+        'addMainAdminCompanyPlan'=> 'Asignar administrador principal a empresa',
+        'assignRole'             => 'Asignar rol',
+        'profilePictureAdmin'    => 'Actualizar foto de perfil',
+    ];
+
+    /**
      * Acciones disponibles por módulo.
      * GET siempre está permitido si el módulo está asignado, por lo que no aparece aquí.
-     * La validación acepta cualquier string; este mapa se expone en GET /admin/actions.
+     * La validación acepta cualquier string; las acciones se exponen en GET /admin/modules.
      */
     private const MODULE_ACTIONS = [
         'usuarios' => [
@@ -62,7 +82,7 @@ class AdminRoleController extends Controller
             'store', 'update', 'destroy', 'changeStatus',
         ],
         'mercado_general_control' => [
-            'store', 'update', 'destroy', 'changeStatus', 'replicateAdditionalInfo', 'updateData', 'export', 'import',
+            'store', 'update', 'destroy', 'changeStatus', 'updateData', 'export', 'import',
         ],
         'indicadores_pit' => [
             'store', 'update', 'destroy', 'changeStatus',
@@ -71,25 +91,25 @@ class AdminRoleController extends Controller
             'store', 'update', 'destroy', 'changeStatus',
         ],
         'indicadores_gross_margins_trend' => [
-            'store', 'update', 'destroy', 'changeStatus', 'deleteDuplicates',
+            'store', 'update', 'destroy', 'changeStatus',
         ],
         'indicadores_livestock' => [
-            'store', 'update', 'destroy', 'changeStatus', 'deleteDuplicates',
+            'store', 'update', 'destroy', 'changeStatus',
         ],
         'indicadores_agricultural' => [
-            'store', 'update', 'destroy', 'changeStatus', 'deleteDuplicates',
+            'store', 'update', 'destroy', 'changeStatus',
         ],
         'indicadores_product_prices' => [
             'store', 'update', 'destroy', 'changeStatus',
         ],
         'indicadores_harvest_prices' => [
-            'store', 'update', 'destroy', 'changeStatus', 'deleteDuplicates',
+            'store', 'update', 'destroy', 'changeStatus',
         ],
         'indicadores_traffic_light' => [
             'store', 'update', 'destroy', 'changeStatus',
         ],
         'indicadores_business_controls' => [
-            'store', 'update', 'destroy', 'changeStatus', 'replicateAdditionalInfo', 'updateData', 'export', 'import',
+            'store', 'update', 'destroy', 'changeStatus', 'updateData', 'export', 'import',
         ],
         'config_iconos' => [
             'store', 'update', 'destroy',
@@ -198,7 +218,8 @@ class AdminRoleController extends Controller
 
     /**
      * GET /admin/modules
-     * Lista todos los módulos disponibles (para usar en formularios de creación/edición de roles).
+     * Lista todos los módulos disponibles con sus acciones permitidas.
+     * Se usa para poblar el formulario de creación/edición de roles.
      */
     public function modules()
     {
@@ -206,7 +227,18 @@ class AdminRoleController extends Controller
         $id_user = Auth::user()->id ?? null;
 
         try {
-            $data = AdminModule::orderBy('id')->get();
+            $data = AdminModule::orderBy('id')
+                ->get()
+                ->map(fn($module) => [
+                    'id'      => $module->id,
+                    'slug'    => $module->slug,
+                    'name'    => $module->name,
+                    'actions' => array_map(
+                        fn($a) => ['action' => $a, 'label' => self::ACTION_LABELS[$a] ?? $a],
+                        self::MODULE_ACTIONS[$module->slug] ?? []
+                    ),
+                ]);
+
             Audith::new($id_user, $action, null, 200, compact('data'));
             return response()->json(compact('data'), 200);
         } catch (Exception $e) {
@@ -231,130 +263,114 @@ class AdminRoleController extends Controller
      *   ]
      * }
      */
+    
     public function store(Request $request)
-    {
-        $action  = "Creación de rol de administración";
-        $id_user = Auth::user()->id ?? null;
+{
+    $action  = "Creación de rol de administración";
+    $id_user = Auth::user()->id ?? null;
 
-        $request->validate([
-            'name'                => 'required|string|max:50|unique:roles,name',
-            'description'         => 'nullable|string|max:255',
-            'modules'             => 'required|array|min:1',
-            'modules.*.id'        => 'required|integer|exists:admin_modules,id',
-            'modules.*.actions'   => 'required|array|min:1',
-            'modules.*.actions.*' => 'string|max:60',
+    $request->validate([
+        'name'                => 'required|string|max:50|unique:roles,name',
+        'description'         => 'nullable|string|max:255',
+        'modules'             => 'required|array|min:1',
+        'modules.*.id'        => 'required|integer|exists:admin_modules,id',
+        'modules.*.actions'   => 'required|array|min:1',
+        'modules.*.actions.*' => 'string|max:60',
+        'is_admin_role'       => 'required|boolean' // <-- Validación agregada y completada
+    ]);
+
+    try {
+        DB::beginTransaction();
+
+        $permissionsHash = $this->calculateHash($request->modules);
+
+        $role = Role::create([
+            'name'             => $request->name,
+            'description'      => $request->description,
+            'is_admin_role'    => $request->is_admin_role, // <-- Ahora es dinámico
+            'permissions_hash' => $permissionsHash,
         ]);
 
-        try {
-            DB::beginTransaction();
+        $this->syncModules($role, $request->modules);
+        $role->load(['modules' => fn($q) => $q->withPivot('actions')]);
+        $this->decodeActions($role);
 
-            $permissionsHash = $this->calculateHash($request->modules);
+        DB::commit();
 
-            $role = Role::create([
-                'name'             => $request->name,
-                'description'      => $request->description,
-                'is_admin_role'    => 1,
-                'permissions_hash' => $permissionsHash,
-            ]);
+        $message = "Rol creado con éxito";
+        Audith::new($id_user, $action, $request->all(), 201, compact('message', 'role'));
+        return response()->json(compact('message', 'role'), 201);
+    } catch (Exception $e) {
+        DB::rollBack();
+        $response = ['message' => 'Error al crear rol', 'error' => $e->getMessage(), 'line' => $e->getLine()];
+        Audith::new($id_user, $action, $request->all(), 500, $response);
+        Log::debug($response);
+        return response()->json($response, 500);
+    }
+}
 
+/**
+ * PUT /admin/roles/{id}
+ * Actualiza nombre, descripción, módulos y acciones de un rol.
+ * El rol 'admin' (superadmin) no puede ser modificado.
+ *
+ * Body igual que store (todos los campos opcionales).
+ */
+public function update(Request $request, string $id)
+{
+    $action  = "Actualización de rol de administración";
+    $id_user = Auth::user()->id ?? null;
+
+    $role = Role::find($id);
+    if (!$role) {
+        return response()->json(['message' => 'Rol no encontrado'], 404);
+    }
+
+    if ($role->name === 'admin') {
+        return response()->json(['message' => 'El rol admin no puede ser modificado'], 403);
+    }
+
+    $request->validate([
+        'name'                => 'sometimes|required|string|max:50|unique:roles,name,' . $id,
+        'description'         => 'nullable|string|max:255',
+        'modules'             => 'sometimes|required|array|min:1',
+        'modules.*.id'        => 'required_with:modules|integer|exists:admin_modules,id',
+        'modules.*.actions'   => 'required_with:modules|array|min:1',
+        'modules.*.actions.*' => 'string|max:60',
+        'is_admin_role'       => 'sometimes|required|boolean' // <-- Validación opcional para update
+    ]);
+
+    try {
+        DB::beginTransaction();
+
+        $updateData = [
+            'name'          => $request->input('name', $role->name),
+            'description'   => $request->input('description', $role->description),
+            'is_admin_role' => $request->input('is_admin_role', $role->is_admin_role), // <-- Captura el cambio si viene en el request
+        ];
+
+        if ($request->has('modules')) {
             $this->syncModules($role, $request->modules);
-            $role->load(['modules' => fn($q) => $q->withPivot('actions')]);
-            $this->decodeActions($role);
-
-            DB::commit();
-
-            $message = "Rol creado con éxito";
-            Audith::new($id_user, $action, $request->all(), 201, compact('message', 'role'));
-            return response()->json(compact('message', 'role'), 201);
-        } catch (Exception $e) {
-            DB::rollBack();
-            $response = ['message' => 'Error al crear rol', 'error' => $e->getMessage(), 'line' => $e->getLine()];
-            Audith::new($id_user, $action, $request->all(), 500, $response);
-            Log::debug($response);
-            return response()->json($response, 500);
+            $updateData['permissions_hash'] = $this->calculateHash($request->modules);
         }
+
+        $role->update($updateData);
+        $role->load(['modules' => fn($q) => $q->withPivot('actions')]);
+        $this->decodeActions($role);
+
+        DB::commit();
+
+        $message = "Rol actualizado con éxito";
+        Audith::new($id_user, $action, $request->all(), 200, compact('message', 'role'));
+        return response()->json(compact('message', 'role'), 200);
+    } catch (Exception $e) {
+        DB::rollBack();
+        $response = ['message' => 'Error al actualizar rol', 'error' => $e->getMessage(), 'line' => $e->getLine()];
+        Audith::new($id_user, $action, $request->all(), 500, $response);
+        Log::debug($response);
+        return response()->json($response, 500);
     }
-
-    /**
-     * PUT /admin/roles/{id}
-     * Actualiza nombre, descripción, módulos y acciones de un rol.
-     * El rol 'admin' (superadmin) no puede ser modificado.
-     *
-     * Body igual que store (todos los campos opcionales).
-     */
-    public function update(Request $request, string $id)
-    {
-        $action  = "Actualización de rol de administración";
-        $id_user = Auth::user()->id ?? null;
-
-        $role = Role::find($id);
-        if (!$role) {
-            return response()->json(['message' => 'Rol no encontrado'], 404);
-        }
-
-        if ($role->name === 'admin') {
-            return response()->json(['message' => 'El rol admin no puede ser modificado'], 403);
-        }
-
-        $request->validate([
-            'name'                => 'sometimes|required|string|max:50|unique:roles,name,' . $id,
-            'description'         => 'nullable|string|max:255',
-            'modules'             => 'sometimes|required|array|min:1',
-            'modules.*.id'        => 'required_with:modules|integer|exists:admin_modules,id',
-            'modules.*.actions'   => 'required_with:modules|array|min:1',
-            'modules.*.actions.*' => 'string|max:60',
-        ]);
-
-        try {
-            DB::beginTransaction();
-
-            $updateData = [
-                'name'        => $request->input('name', $role->name),
-                'description' => $request->input('description', $role->description),
-            ];
-
-            if ($request->has('modules')) {
-                $this->syncModules($role, $request->modules);
-                $updateData['permissions_hash'] = $this->calculateHash($request->modules);
-            }
-
-            $role->update($updateData);
-            $role->load(['modules' => fn($q) => $q->withPivot('actions')]);
-            $this->decodeActions($role);
-
-            DB::commit();
-
-            $message = "Rol actualizado con éxito";
-            Audith::new($id_user, $action, $request->all(), 200, compact('message', 'role'));
-            return response()->json(compact('message', 'role'), 200);
-        } catch (Exception $e) {
-            DB::rollBack();
-            $response = ['message' => 'Error al actualizar rol', 'error' => $e->getMessage(), 'line' => $e->getLine()];
-            Audith::new($id_user, $action, $request->all(), 500, $response);
-            Log::debug($response);
-            return response()->json($response, 500);
-        }
-    }
-
-    /**
-     * GET /admin/actions
-     * Devuelve las acciones disponibles agrupadas por slug de módulo.
-     */
-    public function actions()
-    {
-        $action  = "Listado de acciones por módulo";
-        $id_user = Auth::user()->id ?? null;
-
-        $data = collect(self::MODULE_ACTIONS)
-            ->map(fn($actions, $slug) => [
-                'slug'    => $slug,
-                'actions' => $actions,
-            ])
-            ->values();
-
-        Audith::new($id_user, $action, null, 200, compact('data'));
-        return response()->json(compact('data'), 200);
-    }
+}
 
     // -------------------------------------------------------
     // Helpers privados

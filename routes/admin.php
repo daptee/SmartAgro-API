@@ -65,7 +65,6 @@ Route::prefix('admin')
         // -------------------------------------------------------
         Route::controller(AdminRoleController::class)->group(function () {
             Route::get('modules', 'modules');
-            Route::get('actions', 'actions');
             Route::get('roles', 'index');
             Route::get('roles/{id}', 'show');
             Route::post('roles', 'store');

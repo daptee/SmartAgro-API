@@ -626,23 +626,77 @@ class SubscriptionController extends Controller
                 Log::channel('mercadopago')->info("Pago consultado - Usuario: $userId, Status: $status");
 
                 if ($data['action'] == 'payment.updated') {
-                    Log::channel('mercadopago')->info("Actualizando pago para preapproval_id: {$subscriptionData['metadata']['preapproval_id']}");
+                    $paymentId = $subscriptionData['id'] ?? null;
+                    $preapprovalForSearch = $subscriptionData['point_of_interaction']['transaction_data']['subscription_id']
+                        ?? $subscriptionData['metadata']['preapproval_id']
+                        ?? null;
 
-                    // Buscar el último PaymentHistory que coincida
-                    $paymentHistory = PaymentHistory::where('preapproval_id', $subscriptionData['point_of_interaction']['transaction_data']['subscription_id'])
-                        ->orderBy('created_at', 'desc')
-                        ->first();
+                    // Buscar por payment_id primero (más confiable), luego por preapproval
+                    $paymentHistory = $paymentId
+                        ? PaymentHistory::where('payment_id', $paymentId)->first()
+                        : null;
+
+                    if (!$paymentHistory && $preapprovalForSearch) {
+                        $paymentHistory = PaymentHistory::where('preapproval_id', $preapprovalForSearch)
+                            ->where('id_user', $userId)
+                            ->orderBy('created_at', 'desc')
+                            ->first();
+                    }
 
                     if ($paymentHistory) {
-                        // Actualizar los datos
+                        $oldType = $paymentHistory->type;
                         $paymentHistory->update([
-                            'data' => json_encode($subscriptionData), // Actualizas el campo `data`
-                            'error_message' => null, // Si quieres limpiar el error o actualizarlo
+                            'data' => json_encode($subscriptionData),
+                            'type' => $status,
+                            'error_message' => in_array($status, ['approved', 'authorized']) ? null : ($subscriptionData['status_detail'] ?? $paymentHistory->error_message),
                         ]);
+                        Log::channel('mercadopago')->info("PaymentHistory actualizado (tipo: $oldType → $status) para payment_id: $paymentId, usuario: $userId");
 
-                        Log::channel('mercadopago')->info("PaymentHistory actualizado correctamente para id: {$paymentHistory->id}");
+                        // Si el pago pasó a aprobado, actualizar estado del usuario
+                        if (in_array($status, ['approved', 'authorized']) && !in_array($oldType, ['approved', 'authorized'])) {
+                            $user = User::find($userId);
+                            if ($user) {
+                                $wasDebtor = $user->is_debtor;
+                                $hadGracePeriod = $user->grace_period_used;
+                                $user->update(['is_debtor' => false, 'id_plan' => 2]);
+                                if ($wasDebtor || $hadGracePeriod) {
+                                    $this->sendEmailSafely($user->email, new ServiceRegularized($user), 'payment.updated aprobado - usuario');
+                                } else {
+                                    $this->sendEmailSafely($user->email, new NewPayment($user), 'payment.updated aprobado - usuario');
+                                }
+                                Log::channel('mercadopago')->info("Pago aprobado via payment.updated para usuario $userId. wasDebtor=$wasDebtor.");
+                            }
+                        }
                     } else {
-                        Log::channel('mercadopago')->warning("No se encontró PaymentHistory para preapproval_id: {$subscriptionData['metadata']['preapproval_id']}");
+                        // No existe PaymentHistory previo — crear ahora (race condition: payment.created llegó
+                        // antes de que el pago fuera consultable en la API de MP y fue descartado)
+                        if ($userId && $preapprovalForSearch) {
+                            PaymentHistory::create([
+                                'id_user' => $userId,
+                                'type' => $status,
+                                'data' => json_encode($subscriptionData),
+                                'preapproval_id' => $preapprovalForSearch,
+                                'payment_id' => $paymentId,
+                                'error_message' => in_array($status, ['approved', 'authorized']) ? null : ($subscriptionData['status_detail'] ?? 'Pago no exitoso'),
+                            ]);
+                            Log::channel('mercadopago')->info("PaymentHistory creado via payment.updated (race condition resuelta) para usuario $userId, status: $status");
+
+                            if (in_array($status, ['approved', 'authorized'])) {
+                                $user = User::find($userId);
+                                if ($user) {
+                                    $wasDebtor = $user->is_debtor;
+                                    $hadGracePeriod = $user->grace_period_used;
+                                    $user->update(['is_debtor' => false, 'id_plan' => 2]);
+                                    if ($wasDebtor || $hadGracePeriod) {
+                                        $this->sendEmailSafely($user->email, new ServiceRegularized($user), 'payment.updated race condition - usuario');
+                                    } else {
+                                        $this->sendEmailSafely($user->email, new NewPayment($user), 'payment.updated race condition - usuario');
+                                    }
+                                }
+                            }
+                        } else {
+                            Log::channel('mercadopago')->warning("payment.updated sin PaymentHistory previo ni datos para crearlo. payment_id: $paymentId, preapproval: $preapprovalForSearch, usuario: $userId");
+                        }
                     }
 
                     return response()->json(['status' => 'payment updated']);
@@ -727,6 +781,10 @@ class SubscriptionController extends Controller
                         } else {
                             Log::channel('mercadopago')->error("Usuario no encontrado al procesar pago exitoso: $userId");
                         }
+                    } elseif (in_array($status, ['in_process', 'pending'])) {
+                        // Pago en proceso (procesamiento bancario en curso) — no es un fallo definitivo.
+                        // No se marca como deudor ni se envía email de fallo. Se resolverá via payment.updated.
+                        Log::channel('mercadopago')->info("Pago en proceso (status: $status) para usuario $userId. Esperando resolución via payment.updated.");
                     } else {
                         // Pago fallido durante los reintentos de MercadoPago
                         if ($user) {
@@ -789,6 +847,8 @@ class SubscriptionController extends Controller
                     Log::channel('mercadopago')->info("Webhook duplicado ignorado para usuario $userId con status $status (PaymentHistory ya existe)");
                     return response()->json(['status' => 'duplicate ignored']);
                 }
+            } else {
+                Log::channel('mercadopago')->error("No se pudo fetchear el pago $webhookDataId (tipo: $webhookType). HTTP " . $preapprovalResponse->status() . " — pago no registrado en PaymentHistory.");
             }
         }
 

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\CompanyPlan;
 use App\Models\CompanyPlanPublicitySetting;
 use App\Models\StatusCompanyPlan;
+use App\Services\ExpiringPlansNotificationService;
 use App\Services\PlanFinalizationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -15,9 +16,14 @@ use Illuminate\Support\Facades\Log;
 class CompanyPlanController extends Controller
 {
     protected $service;
-    public function __construct(PlanFinalizationService $service)
-    {
+    protected $notificationService;
+
+    public function __construct(
+        PlanFinalizationService $service,
+        ExpiringPlansNotificationService $notificationService
+    ) {
         $this->service = $service;
+        $this->notificationService = $notificationService;
     }
 
     public function finalizeExpired()
@@ -42,6 +48,29 @@ class CompanyPlanController extends Controller
 
         return response(compact("data"));
     }
+    public function notifyExpiringPlans()
+    {
+        $message = "Error al notificar planes de empresa próximos a vencer";
+        $action = "Notificar planes de empresa próximos a vencer (30 días)";
+        $data = null;
+        $id_user = Auth::user()->id ?? null;
+
+        try {
+            $result = $this->notificationService->notifyExpiring();
+
+            Log::info($result);
+
+            $data = $result;
+
+            Audith::new($id_user, $action, [], 200, compact("data"));
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, [], 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage(), "line" => $e->getLine()], 500);
+        }
+
+        return response(compact("data"));
+    }
+
     public function index(Request $request)
     {
         $message = "Error al obtener los planes de empresa";
