@@ -75,7 +75,9 @@ class UserController extends Controller
             $freeTrialUsed     = $request->input('free_trial_used');
             $emailConfirmation = $request->input('email_confirmation');
             // paid_siembra: 1 = Siembra con al menos un pago real; 0 = Siembra sin pagos (habilitados manualmente)
-            $paidSiembra       = $request->input('paid_siembra');
+            $paidSiembra          = $request->input('paid_siembra');
+            // subscription_manual: 1 = plan activado manualmente desde admin; 0 = activado por pago real
+            $subscriptionManual   = $request->input('subscription_manual');
             // active_free_trial: 1 = usuarios Siembra actualmente en período de prueba gratuito (free_trial_used=1, sin pagos reales aún)
             $activeFreeTrialFilter = $request->input('active_free_trial');
 
@@ -95,7 +97,8 @@ class UserController extends Controller
                 $search, $planId, $profileId, $countryId, $provinceId, $localityId,
                 $statusId, $referredBy, $eventId, $planStartFrom, $planStartTo,
                 $subscriptionType, $freeTrialUsed, $emailConfirmation,
-                $paidSiembra, $siembraConPagos, $activeFreeTrialFilter, $conRegistroFreeTrial
+                $paidSiembra, $siembraConPagos, $activeFreeTrialFilter, $conRegistroFreeTrial,
+                $subscriptionManual
             ) {
                 if (!empty($search)) {
                     $q->where(function ($sq) use ($search) {
@@ -128,6 +131,9 @@ class UserController extends Controller
                     } else {
                         $q->whereNull('email_confirmation');
                     }
+                }
+                if ($subscriptionManual !== null && $subscriptionManual !== '') {
+                    $q->where('subscription_manual', (bool) $subscriptionManual);
                 }
                 // Filtro Siembra reales vs habilitados manualmente
                 // Solo aplica si el filtro se envía explícitamente
@@ -164,7 +170,7 @@ class UserController extends Controller
                 'plan_semilla'               => (clone $metricsQuery)->where('id_plan', 1)->count(),
                 'plan_siembra'               => (clone $metricsQuery)->where('id_plan', 2)->count(),
                 'plan_siembra_pagos'         => (clone $metricsQuery)->where('id_plan', 2)->whereIn('id', $siembraConPagos)->count(),
-                'plan_siembra_manual'        => (clone $metricsQuery)->where('id_plan', 2)->whereNotIn('id', $siembraConPagos)->count(),
+                'plan_siembra_manual'        => (clone $metricsQuery)->where('id_plan', 2)->where('subscription_manual', true)->count(),
                 'siembra_mensual'            => (clone $metricsQuery)->where('id_plan', 2)->where('subscription_type', 'monthly')->count(),
                 'siembra_anual'              => (clone $metricsQuery)->where('id_plan', 2)->where('subscription_type', 'yearly')->count(),
                 'siembra_periodo_gratis'     => (clone $metricsQuery)->where('id_plan', 2)->where('free_trial_used', true)->count(),
@@ -904,7 +910,8 @@ class UserController extends Controller
                 return response()->json($response, 400);
             }
 
-            $user->id_plan = $request->id_plan;
+            $user->id_plan             = $request->id_plan;
+            $user->subscription_manual = ((int) $request->id_plan === 2);
             $user->save();
 
             UserPlan::save_history($user->id, $request->id_plan, null, null);

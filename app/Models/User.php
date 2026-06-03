@@ -43,6 +43,7 @@ class User extends Authenticatable implements JWTSubject
         'plan_start_date',
         'subscription_type',
         'free_trial_used',
+        'subscription_manual',
         'last_activity_at',
     ];
 
