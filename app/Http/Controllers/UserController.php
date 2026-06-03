@@ -161,19 +161,14 @@ class UserController extends Controller
             $applyFilters($metricsQuery);
 
             $metrics = [
-                'total_filtrado'        => $metricsQuery->count(),
-                'plan_semilla'          => (clone $metricsQuery)->where('id_plan', 1)->count(),
-                'plan_siembra'          => (clone $metricsQuery)->where('id_plan', 2)->count(),
-                'plan_siembra_pagos'    => (clone $metricsQuery)->where('id_plan', 2)->whereIn('id', $siembraConPagos)->count(),
-                'plan_siembra_manual'   => (clone $metricsQuery)->where('id_plan', 2)->whereNotIn('id', $siembraConPagos)->count(),
-                'plan_empresa'          => (clone $metricsQuery)->where('id_plan', 3)->count(),
-                'siembra_mensual'       => (clone $metricsQuery)->where('id_plan', 2)->where('subscription_type', 'monthly')->count(),
-                'siembra_anual'         => (clone $metricsQuery)->where('id_plan', 2)->where('subscription_type', 'yearly')->count(),
+                'plan_semilla'               => (clone $metricsQuery)->where('id_plan', 1)->count(),
+                'plan_siembra'               => (clone $metricsQuery)->where('id_plan', 2)->count(),
+                'plan_siembra_pagos'         => (clone $metricsQuery)->where('id_plan', 2)->whereIn('id', $siembraConPagos)->count(),
+                'plan_siembra_manual'        => (clone $metricsQuery)->where('id_plan', 2)->whereNotIn('id', $siembraConPagos)->count(),
+                'siembra_mensual'            => (clone $metricsQuery)->where('id_plan', 2)->where('subscription_type', 'monthly')->count(),
+                'siembra_anual'              => (clone $metricsQuery)->where('id_plan', 2)->where('subscription_type', 'yearly')->count(),
                 'siembra_periodo_gratis'     => (clone $metricsQuery)->where('id_plan', 2)->where('free_trial_used', true)->count(),
-                'siembra_free_trial_activo' => (clone $metricsQuery)->where('id_plan', 2)->where('free_trial_used', true)->whereIn('id', $conRegistroFreeTrial)->whereNotIn('id', $siembraConPagos)->count(),
-                'deudores'              => (clone $metricsQuery)->where('is_debtor', true)->count(),
-                'email_confirmado'      => (clone $metricsQuery)->whereNotNull('email_confirmation')->count(),
-                'email_sin_confirmar'   => (clone $metricsQuery)->whereNull('email_confirmation')->count(),
+                'siembra_free_trial_activo'  => (clone $metricsQuery)->where('id_plan', 2)->where('free_trial_used', true)->whereIn('id', $conRegistroFreeTrial)->whereNotIn('id', $siembraConPagos)->count(),
             ];
 
             // --- Query principal para datos paginados (solo campos básicos) ---
@@ -196,6 +191,27 @@ class UserController extends Controller
             $query->addSelect(DB::raw(
                 'CASE WHEN id_plan = 2 AND id IN (' . implode(',', $siembraConPagos->isEmpty() ? [0] : $siembraConPagos->toArray()) . ') THEN 1 ELSE 0 END AS is_paid_siembra'
             ));
+
+            // Último pago registrado
+            $query->addSelect(DB::raw('(
+                SELECT created_at
+                FROM payment_history
+                WHERE id_user = users.id AND type = \'payment\'
+                ORDER BY created_at DESC
+                LIMIT 1
+            ) AS last_payment_date'));
+
+            // Próximo pago: último pago + 1 mes o 1 año según subscription_type
+            $query->addSelect(DB::raw('(
+                SELECT CASE users.subscription_type
+                    WHEN \'yearly\' THEN DATE_ADD(ph.created_at, INTERVAL 1 YEAR)
+                    ELSE DATE_ADD(ph.created_at, INTERVAL 1 MONTH)
+                END
+                FROM payment_history ph
+                WHERE ph.id_user = users.id AND ph.type = \'payment\'
+                ORDER BY ph.created_at DESC
+                LIMIT 1
+            ) AS next_payment_date'));
 
             // --- Paginado o listado completo ---
             if ($perPage) {
