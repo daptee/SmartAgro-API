@@ -384,6 +384,18 @@ class UserController extends Controller
         try {
             $data = $this->model::getAllDataUser($id);
 
+            $lastPaymentDate = PaymentHistory::where('id_user', $id)
+                ->where('type', 'payment')
+                ->orderBy('created_at', 'desc')
+                ->value('created_at');
+
+            $data['last_payment_date'] = $lastPaymentDate;
+            $data['next_payment_date'] = $lastPaymentDate
+                ? Carbon::parse($lastPaymentDate)->add(
+                    $data['subscription_type'] === 'yearly' ? '1 year' : '1 month'
+                )
+                : null;
+
             if ($data['id_plan'] == 3) {
                 $company = UsersCompany::where('id_user', $data['id'])
                     ->with([
