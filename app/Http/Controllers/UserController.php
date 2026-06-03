@@ -182,7 +182,7 @@ class UserController extends Controller
                 ->select([
                     'id', 'name', 'last_name', 'email', 'phone',
                     'id_plan', 'id_status', 'id_user_profile',
-                    'plan_start_date', 'subscription_type', 'free_trial_used',
+                    'plan_start_date', 'subscription_type', 'subscription_manual', 'free_trial_used',
                     'is_debtor', 'grace_period_used',
                     'email_confirmation', 'profile_picture',
                     'locality_name', 'province_name',
