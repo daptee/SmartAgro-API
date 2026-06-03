@@ -392,7 +392,10 @@ class BusinessIndicatorControlController extends Controller
                 }
 
                 $results[$block] = $modelClass::where(function ($q) use ($month, $year) {
-                    $q->where('month', '!=', $month)->orWhere('year', '!=', $year);
+                    $q->where('year', '<', $year)
+                      ->orWhere(function ($q2) use ($month, $year) {
+                          $q2->where('year', $year)->where('month', '<', $month);
+                      });
                 })->update(['additional_info' => json_encode($reference->additional_info)]);
             }
 

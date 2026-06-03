@@ -404,14 +404,16 @@ class MarketGeneralControlController extends Controller
 
                 $additionalInfo = $reference->additional_info;
 
-                // Actualizar todos los registros excepto el de referencia (mes/año)
+                // Actualizar registros anteriores al mes/año de referencia
                 if ($filter === 'date') {
-                    $updateQuery = $modelClass::where(function ($q) use ($month, $year) {
-                        $q->whereMonth('date', '!=', $month)->orWhereYear('date', '!=', $year);
-                    });
+                    $startOfMonth = sprintf('%04d-%02d-01', $year, $month);
+                    $updateQuery  = $modelClass::where('date', '<', $startOfMonth);
                 } else {
                     $updateQuery = $modelClass::where(function ($q) use ($month, $year) {
-                        $q->where('month', '!=', $month)->orWhere('year', '!=', $year);
+                        $q->where('year', '<', $year)
+                          ->orWhere(function ($q2) use ($month, $year) {
+                              $q2->where('year', $year)->where('month', '<', $month);
+                          });
                     });
                 }
 
