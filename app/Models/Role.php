@@ -10,11 +10,6 @@ class Role extends Model
 
     protected $fillable = ['name', 'description', 'is_admin_role', 'admin_access', 'permissions_hash'];
 
-    protected $casts = [
-        'is_admin_role' => 'boolean',
-        'admin_access'  => 'boolean',
-    ];
-
     public function userRoles()
     {
         return $this->hasMany(UserRole::class, 'id_role');
