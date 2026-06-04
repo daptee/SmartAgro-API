@@ -382,7 +382,7 @@ class UserController extends Controller
      * GET admin/users/{id}/subscription-history
      * Historial de cambios de plan del usuario (alta / baja), ordenado más reciente primero.
      */
-    public function subscriptionHistory(string $id)
+    public function subscriptionHistory(Request $request, string $id)
     {
         $action  = "Historial de suscripción de usuario";
         $id_user = Auth::user()->id ?? null;
@@ -393,15 +393,29 @@ class UserController extends Controller
                 return response()->json(['message' => 'Usuario no encontrado'], 404);
             }
 
-            $plans = UserPlan::where('id_user', $id)
-                ->orderBy('created_at', 'desc')
-                ->get();
+            $perPage = $request->input('per_page');
 
-            $history = $plans->map(function ($plan) {
-                $data     = is_string($plan->data) ? json_decode($plan->data, true) : (array) ($plan->data ?? []);
-                $status   = $data['status'] ?? null;
-                $freqType = $data['auto_recurring']['frequency_type'] ?? null;
-                $freq     = (int) ($data['auto_recurring']['frequency'] ?? 0);
+            $query = UserPlan::where('id_user', $id)->orderBy('created_at', 'desc');
+
+            if ($perPage) {
+                $paginator = $query->paginate((int) $perPage);
+                $items     = $paginator->getCollection();
+                $meta      = [
+                    'total'        => $paginator->total(),
+                    'per_page'     => $paginator->perPage(),
+                    'current_page' => $paginator->currentPage(),
+                    'last_page'    => $paginator->lastPage(),
+                ];
+            } else {
+                $items = $query->get();
+                $meta  = null;
+            }
+
+            $data = $items->map(function ($plan) {
+                $raw      = is_string($plan->data) ? json_decode($plan->data, true) : (array) ($plan->data ?? []);
+                $status   = $raw['status'] ?? null;
+                $freqType = $raw['auto_recurring']['frequency_type'] ?? null;
+                $freq     = (int) ($raw['auto_recurring']['frequency'] ?? 0);
 
                 if ($freqType === 'months' && $freq === 12) {
                     $subscriptionType = 'yearly';
@@ -424,13 +438,13 @@ class UserController extends Controller
                     'status'            => $status,
                     'preapproval_id'    => $plan->preapproval_id,
                     'next_payment_date' => $plan->next_payment_date,
-                    'reason'            => $data['reason'] ?? $data['_note'] ?? null,
+                    'reason'            => $raw['reason'] ?? $raw['_note'] ?? null,
                     'date'              => $plan->created_at,
                 ];
             });
 
-            Audith::new($id_user, $action, ['user_id' => $id], 200, ['total' => $history->count()]);
-            return response()->json(['data' => $history], 200);
+            Audith::new($id_user, $action, ['user_id' => $id], 200, ['total' => $data->count()]);
+            return response()->json(compact('data', 'meta'), 200);
 
         } catch (Exception $e) {
             $response = ['message' => 'Error al obtener historial de suscripción', 'error' => $e->getMessage(), 'line' => $e->getLine()];
