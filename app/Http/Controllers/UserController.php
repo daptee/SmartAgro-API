@@ -1239,15 +1239,6 @@ class UserController extends Controller
             return response()->json(['message' => 'Usuario no encontrado'], 404);
         }
 
-        // Solo se pueden asignar roles de tipo admin
-        $role = Role::where('id', $request->input('id_role'))
-            ->where('is_admin_role', 1)
-            ->first();
-
-        if (!$role) {
-            return response()->json(['message' => 'El rol seleccionado no es un rol de administración válido'], 422);
-        }
-
         try {
             DB::beginTransaction();
 
