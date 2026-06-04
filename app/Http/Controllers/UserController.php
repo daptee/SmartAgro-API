@@ -380,7 +380,7 @@ class UserController extends Controller
 
     /**
      * GET admin/users/{id}/subscription-history
-     * Timeline unificado de suscripción: eventos de plan + cada pago individual.
+     * Historial de cambios de plan del usuario (alta / baja), ordenado más reciente primero.
      */
     public function subscriptionHistory(string $id)
     {
@@ -393,12 +393,11 @@ class UserController extends Controller
                 return response()->json(['message' => 'Usuario no encontrado'], 404);
             }
 
-            $timeline = collect();
+            $plans = UserPlan::where('id_user', $id)
+                ->orderBy('created_at', 'desc')
+                ->get();
 
-            // --- Eventos de cambio de plan (alta / baja) ---
-            $plans = UserPlan::where('id_user', $id)->get();
-
-            foreach ($plans as $plan) {
+            $history = $plans->map(function ($plan) {
                 $data     = is_string($plan->data) ? json_decode($plan->data, true) : (array) ($plan->data ?? []);
                 $status   = $data['status'] ?? null;
                 $freqType = $data['auto_recurring']['frequency_type'] ?? null;
@@ -417,8 +416,7 @@ class UserController extends Controller
                     $event = 'baja';
                 }
 
-                $timeline->push([
-                    'type'              => 'plan_event',
+                return [
                     'id'                => $plan->id,
                     'event'             => $event,
                     'id_plan'           => $plan->id_plan,
@@ -428,38 +426,11 @@ class UserController extends Controller
                     'next_payment_date' => $plan->next_payment_date,
                     'reason'            => $data['reason'] ?? $data['_note'] ?? null,
                     'date'              => $plan->created_at,
-                ]);
-            }
+                ];
+            });
 
-            // --- Cada pago individual como entrada propia ---
-            $payments = PaymentHistory::where('id_user', $id)->get();
-
-            foreach ($payments as $payment) {
-                $pd = is_string($payment->data) ? json_decode($payment->data, true) : (array) ($payment->data ?? []);
-
-                $timeline->push([
-                    'type'           => 'payment',
-                    'id'             => $payment->id,
-                    'event'          => $payment->type,  // 'payment', 'free_trial', 'approved', etc.
-                    'payment_id'     => $payment->payment_id,
-                    'preapproval_id' => $payment->preapproval_id,
-                    'amount'         => $pd['transaction_amount'] ?? null,
-                    'currency'       => $pd['currency_id'] ?? null,
-                    'status'         => $pd['status'] ?? null,
-                    'status_detail'  => $pd['status_detail'] ?? null,
-                    'payment_method' => $pd['payment_method']['type'] ?? null,
-                    'card_last_four' => $pd['card']['last_four_digits'] ?? null,
-                    'reason'         => $payment->error_message,
-                    'date'           => $payment->created_at,
-                    'date_approved'  => $pd['date_approved'] ?? null,
-                ]);
-            }
-
-            // Ordenar todo el timeline por fecha descendente
-            $sorted = $timeline->sortByDesc('date')->values();
-
-            Audith::new($id_user, $action, ['user_id' => $id], 200, ['total' => $sorted->count()]);
-            return response()->json(['data' => $sorted], 200);
+            Audith::new($id_user, $action, ['user_id' => $id], 200, ['total' => $history->count()]);
+            return response()->json(['data' => $history], 200);
 
         } catch (Exception $e) {
             $response = ['message' => 'Error al obtener historial de suscripción', 'error' => $e->getMessage(), 'line' => $e->getLine()];
