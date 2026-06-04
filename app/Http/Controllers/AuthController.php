@@ -361,11 +361,10 @@ class AuthController extends Controller
                 return response()->json($response, 401);
             }
 
-            // Verificar si el usuario tiene el rol de administrador
+            // Verificar si el usuario tiene acceso al panel de administración
+            $hasAdminAccess = $user->roles()->where('admin_access', 1)->exists();
 
-            $isAdmin = $user->roles()->where('is_admin_role', 1)->exists();
-
-            if (!$isAdmin) {
+            if (!$hasAdminAccess) {
                 $response = ['message' => 'Usuario no autorizado para acceder.'];
                 Audith::new($user->id, $action, $credentials, 403, $response);
                 return response()->json($response, 403);
@@ -379,7 +378,7 @@ class AuthController extends Controller
                     ->first();
             }
 
-            $roles = $user->roles()->where('is_admin_role', 1)->with('modules')->get()->each->makeHidden('pivot');
+            $roles = $user->roles()->where('admin_access', 1)->with('modules')->get()->each->makeHidden('pivot');
 
             $data = [
                 'access_token' => $token,

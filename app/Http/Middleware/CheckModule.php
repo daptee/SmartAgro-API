@@ -26,8 +26,8 @@ class CheckModule
     {
         $user = Auth::user();
 
-        // Superadmin: acceso irrestricto
-        if ($user->roles->contains('name', 'admin')) {
+        // Superadmin: acceso irrestricto a cualquier módulo/acción
+        if ($user->roles->contains('is_admin_role', true)) {
             return $next($request);
         }
 

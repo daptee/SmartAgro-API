@@ -276,7 +276,8 @@ class AdminRoleController extends Controller
         'modules.*.id'        => 'required|integer|exists:admin_modules,id',
         'modules.*.actions'   => 'nullable|array',
         'modules.*.actions.*' => 'string|max:60',
-        'is_admin_role'       => 'required|boolean' // <-- Validación agregada y completada
+        'is_admin_role'       => 'required|boolean',
+        'admin_access'        => 'required|boolean',
     ]);
 
     try {
@@ -287,7 +288,8 @@ class AdminRoleController extends Controller
         $role = Role::create([
             'name'             => $request->name,
             'description'      => $request->description,
-            'is_admin_role'    => $request->is_admin_role, // <-- Ahora es dinámico
+            'is_admin_role'    => $request->is_admin_role,
+            'admin_access'     => $request->admin_access,
             'permissions_hash' => $permissionsHash,
         ]);
 
@@ -337,7 +339,8 @@ public function update(Request $request, string $id)
         'modules.*.id'        => 'required_with:modules|integer|exists:admin_modules,id',
         'modules.*.actions'   => 'nullable|array',
         'modules.*.actions.*' => 'string|max:60',
-        'is_admin_role'       => 'sometimes|required|boolean' // <-- Validación opcional para update
+        'is_admin_role'       => 'sometimes|required|boolean',
+        'admin_access'        => 'sometimes|required|boolean',
     ]);
 
     try {
@@ -346,7 +349,8 @@ public function update(Request $request, string $id)
         $updateData = [
             'name'          => $request->input('name', $role->name),
             'description'   => $request->input('description', $role->description),
-            'is_admin_role' => $request->input('is_admin_role', $role->is_admin_role), // <-- Captura el cambio si viene en el request
+            'is_admin_role' => $request->input('is_admin_role', $role->is_admin_role),
+            'admin_access'  => $request->input('admin_access', $role->admin_access),
         ];
 
         if ($request->has('modules')) {

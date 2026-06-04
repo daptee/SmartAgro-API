@@ -44,6 +44,7 @@ class User extends Authenticatable implements JWTSubject
         'subscription_type',
         'free_trial_used',
         'subscription_manual',
+        'admin_access',
         'last_activity_at',
     ];
 
@@ -144,7 +145,7 @@ class User extends Authenticatable implements JWTSubject
         $roles = $this->roles;
 
         // Determinar módulos permitidos según el/los roles del usuario
-        if ($roles->contains('name', 'admin')) {
+        if ($roles->contains('is_admin_role', true)) {
             // Superadmin: acceso total, el frontend interpreta '*' como sin restricciones
             $allowedModules = ['*'];
         } else {
