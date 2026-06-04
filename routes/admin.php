@@ -59,20 +59,31 @@ Route::prefix('admin')
     ->group(function () {
 
         // -------------------------------------------------------
-        // Gestión de roles y módulos (solo superadmin puede operar)
-        // Sin check_module: el middleware 'admin' + la lógica del
-        // controlador protegen estas rutas.
+        // Módulo: Administración > Módulos
         // -------------------------------------------------------
-        Route::controller(AdminRoleController::class)->group(function () {
-            Route::get('modules', 'modules');
-            Route::get('roles', 'index');
-            Route::get('roles/{id}', 'show');
-            Route::post('roles', 'store');
-            Route::put('roles/{id}', 'update');
-        });
+        Route::middleware(['check_module:admin_modulos'])
+            ->controller(AdminRoleController::class)
+            ->group(function () {
+                Route::get('modules', 'modules');
+            });
 
-        // Asignación de rol admin a un usuario
-        Route::post('users/{id}/role', [UserController::class, 'assignRole']);
+        // -------------------------------------------------------
+        // Módulo: Administración > Roles
+        // -------------------------------------------------------
+        Route::middleware(['check_module:admin_roles'])
+            ->controller(AdminRoleController::class)
+            ->group(function () {
+                Route::get('roles', 'index');
+                Route::get('roles/{id}', 'show');
+                Route::post('roles', 'store');
+                Route::put('roles/{id}', 'update');
+            });
+
+        // -------------------------------------------------------
+        // Módulo: Administración > Asignación de rol
+        // -------------------------------------------------------
+        Route::middleware(['check_module:asignacion_rol'])
+            ->post('users/{id}/role', [UserController::class, 'assignRole']);
 
         // -------------------------------------------------------
         // Módulo: Usuarios

@@ -144,6 +144,14 @@ class AdminRoleController extends Controller
         'config_variables' => [
             'store', 'update', 'destroy', 'changeStatus',
         ],
+        // Administración del panel
+        'admin_roles' => [
+            'store', 'update',
+        ],
+        'admin_modulos' => [],
+        'asignacion_rol' => [
+            'assignRole',
+        ],
     ];
 
     /**
