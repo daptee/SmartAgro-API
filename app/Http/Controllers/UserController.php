@@ -1217,55 +1217,77 @@ class UserController extends Controller
      * Body: { "id_role": 2 }
      */
     public function assignRole(Request $request, string $id)
-    {
-        $action  = "Asignación de rol de administración a usuario";
-        $id_user = Auth::user()->id ?? null;
+{
+    $action  = "Asignación de rol a usuario"; // Se quitó "de administración" del texto
+    $id_user = Auth::user()->id ?? null;
 
-        $validator = Validator::make($request->all(), [
-            'id_role' => 'required|integer|exists:roles,id',
-        ]);
+    $validator = Validator::make($request->all(), [
+        'id_role' => 'required|integer|exists:roles,id',
+    ]);
 
-        if ($validator->fails()) {
-            $response = [
-                'message' => 'Alguna de las validaciones falló',
-                'errors'  => $validator->errors(),
-            ];
-            Audith::new($id_user, $action, $request->all(), 422, $response);
-            return response()->json($response, 422);
-        }
+    if ($validator->fails()) {
+        $response = [
+            'message' => 'Alguna de las validaciones falló',
+            'errors'  => $validator->errors(),
+        ];
+        Audith::new($id_user, $action, $request->all(), 422, $response);
+        return response()->json($response, 422);
+    }
 
-        $user = User::find($id);
-        if (!$user) {
-            return response()->json(['message' => 'Usuario no encontrado'], 404);
-        }
+    $user = User::find($id);
+    if (!$user) {
+        return response()->json(['message' => 'Usuario no encontrado'], 404);
+    }
 
-        try {
-            DB::beginTransaction();
+    // Se quitó la condición de que 'is_admin_role' sea 1. Ahora busca cualquier rol.
+    $role = Role::find($request->input('id_role'));
 
-            // Eliminar roles admin actuales del usuario, conservando otros roles
+    if (!$role) {
+        return response()->json(['message' => 'El rol seleccionado no es válido'], 422);
+    }
+
+    try {
+        DB::beginTransaction();
+
+        // OPCIÓN A: Si el usuario solo puede tener UN rol a la vez en el sistema:
+        // Eliminamos cualquier rol previo que tuviera asignado este usuario.
+        UserRole::where('id_user', $user->id)->delete();
+
+        /* // OPCIÓN B: Si quieres mantener el comportamiento original de respetar roles "no admin" 
+        // y que solo se reemplace si el nuevo también es admin, usa este bloque en su lugar:
+        
+        if ($role->is_admin_role == 1) {
             $adminRoleIds = Role::where('is_admin_role', 1)->pluck('id');
             UserRole::where('id_user', $user->id)
                 ->whereIn('id_role', $adminRoleIds)
                 ->delete();
-
-            // Asignar el nuevo rol
-            UserRole::create([
-                'id_user' => $user->id,
-                'id_role' => $role->id,
-            ]);
-
-            DB::commit();
-
-            $data    = User::getAllDataUser($user->id);
-            $message = "Rol asignado con éxito";
-            Audith::new($id_user, $action, $request->all(), 200, compact('message', 'data'));
-            return response()->json(compact('message', 'data'), 200);
-        } catch (Exception $e) {
-            DB::rollBack();
-            $response = ['message' => 'Error al asignar rol', 'error' => $e->getMessage(), 'line' => $e->getLine()];
-            Audith::new($id_user, $action, $request->all(), 500, $response);
-            Log::debug(json_encode($response));
-            return response()->json($response, 500);
+        } else {
+            // Si es un rol común, borramos los roles comunes previos
+            $commonRoleIds = Role::where('is_admin_role', 0)->pluck('id');
+            UserRole::where('id_user', $user->id)
+                ->whereIn('id_role', $commonRoleIds)
+                ->delete();
         }
+        */
+
+        // Asignar el nuevo rol (sea admin o común)
+        UserRole::create([
+            'id_user' => $user->id,
+            'id_role' => $role->id,
+        ]);
+
+        DB::commit();
+
+        $data    = User::getAllDataUser($user->id);
+        $message = "Rol asignado con éxito";
+        Audith::new($id_user, $action, $request->all(), 200, compact('message', 'data'));
+        return response()->json(compact('message', 'data'), 200);
+    } catch (Exception $e) {
+        DB::rollBack();
+        $response = ['message' => 'Error al asignar rol', 'error' => $e->getMessage(), 'line' => $e->getLine()];
+        Audith::new($id_user, $action, $request->all(), 500, $response);
+        Log::debug(json_encode($response));
+        return response()->json($response, 500);
     }
+}
 }
