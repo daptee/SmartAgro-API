@@ -274,7 +274,7 @@ class AdminRoleController extends Controller
         'description'         => 'nullable|string|max:255',
         'modules'             => 'required|array|min:1',
         'modules.*.id'        => 'required|integer|exists:admin_modules,id',
-        'modules.*.actions'   => 'required|array|min:1',
+        'modules.*.actions'   => 'nullable|array',
         'modules.*.actions.*' => 'string|max:60',
         'is_admin_role'       => 'required|boolean' // <-- Validación agregada y completada
     ]);
@@ -335,7 +335,7 @@ public function update(Request $request, string $id)
         'description'         => 'nullable|string|max:255',
         'modules'             => 'sometimes|required|array|min:1',
         'modules.*.id'        => 'required_with:modules|integer|exists:admin_modules,id',
-        'modules.*.actions'   => 'required_with:modules|array|min:1',
+        'modules.*.actions'   => 'nullable|array',
         'modules.*.actions.*' => 'string|max:60',
         'is_admin_role'       => 'sometimes|required|boolean' // <-- Validación opcional para update
     ]);
@@ -385,7 +385,7 @@ public function update(Request $request, string $id)
         $parts = collect($modules)
             ->sortBy('id')
             ->map(function ($m) {
-                $actions = collect($m['actions'])->sort()->values()->implode(',');
+                $actions = collect($m['actions'] ?? [])->sort()->values()->implode(',');
                 return $m['id'] . ':' . $actions;
             })
             ->implode('|');
@@ -401,7 +401,7 @@ public function update(Request $request, string $id)
     {
         $syncData = [];
         foreach ($modules as $m) {
-            $actions = collect($m['actions'])->unique()->sort()->values()->toArray();
+            $actions = collect($m['actions'] ?? [])->unique()->sort()->values()->toArray();
             $syncData[$m['id']] = ['actions' => json_encode($actions)];
         }
         $role->modules()->sync($syncData);
