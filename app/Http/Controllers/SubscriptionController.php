@@ -736,8 +736,9 @@ class SubscriptionController extends Controller
                             $hadGracePeriod = $user->grace_period_used;
 
                             $paymentUpdateData = [
-                                'is_debtor' => false,
-                                'id_plan'   => 2,
+                                'is_debtor'           => false,
+                                'id_plan'             => 2,
+                                'subscription_manual' => false,
                             ];
 
                             // Si aún no tiene fecha de alta al plan, la registramos ahora

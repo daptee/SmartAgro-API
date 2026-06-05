@@ -43,6 +43,8 @@ class User extends Authenticatable implements JWTSubject
         'plan_start_date',
         'subscription_type',
         'free_trial_used',
+        'subscription_manual',
+        'admin_access',
         'last_activity_at',
     ];
 
@@ -74,7 +76,7 @@ class User extends Authenticatable implements JWTSubject
         ];
     }
 
-    const DATA_WITH_ALL = ['locality', 'country', 'profile', 'plan', 'status', 'event'];
+    public const DATA_WITH_ALL = ['locality', 'country', 'profile', 'plan', 'status', 'event'];
 
     public static function getAllDataUser($id)
     {
@@ -138,15 +140,16 @@ class User extends Authenticatable implements JWTSubject
      */
     public function getJWTCustomClaims()
     {
-        // Eager load roles con sus módulos en una sola query
-        $this->load('roles.modules');
+        // Solo cargar módulos si el usuario no es superadmin (optimización)
+        $this->load('roles');
         $roles = $this->roles;
 
-        // Determinar módulos permitidos según el/los roles del usuario
-        if ($roles->contains('name', 'admin')) {
-            // Superadmin: acceso total, el frontend interpreta '*' como sin restricciones
+        $isSuperAdmin = $roles->contains('is_admin_role', true);
+
+        if ($isSuperAdmin) {
             $allowedModules = ['*'];
         } else {
+            $this->load('roles.modules');
             $allowedModules = $roles
                 ->flatMap(fn($role) => $role->modules->pluck('slug'))
                 ->unique()
@@ -154,42 +157,24 @@ class User extends Authenticatable implements JWTSubject
                 ->toArray();
         }
 
-        // Construir mapa de hashes de permisos por rol para detectar cambios tras el login
-        // Formato: { id_rol => permissions_hash }
+        // Mapa de hashes por rol — usado por CheckPermissionsHash en cada request
         $rolesPermissionsHash = $roles
             ->mapWithKeys(fn($role) => [(string) $role->id => $role->permissions_hash])
             ->toArray();
 
-        $claims = [
-            'id'                      => $this->id,
-            'name'                    => $this->name,
-            'last_name'               => $this->last_name,
-            'email'                   => $this->email,
-            'locality'                => $this->locality,
-            'profile'                 => $this->profile,
-            'plan'                    => $this->plan,
-            'status'                  => $this->status,
-            'profile_picture'         => $this->profile_picture,
-            'locality_name'           => $this->locality_name,
-            'province_name'           => $this->province_name,
-            'country'                 => $this->country,
-            'roles'                   => $roles,
-            'allowed_modules'         => $allowedModules,
-            'roles_permissions_hash'  => $rolesPermissionsHash,
+        // Claims mínimos: solo escalares + los dos arrays que usan los middlewares/frontend
+        // Los objetos relacionales (plan, locality, profile, etc.) se obtienen vía /user/me
+        return [
+            'id'                     => $this->id,
+            'name'                   => $this->name,
+            'last_name'              => $this->last_name,
+            'email'                  => $this->email,
+            'profile_picture'        => $this->profile_picture,
+            'locality_name'          => $this->locality_name,
+            'province_name'          => $this->province_name,
+            'allowed_modules'        => $allowedModules,
+            'roles_permissions_hash' => $rolesPermissionsHash,
         ];
-
-        // Solo si el plan es 3, buscar los datos de la empresa
-        if ($this->id_plan == 3) {
-            $company = UsersCompany::where('id_user', $this->id)
-                ->with('plan.company')
-                ->first();
-
-            if ($company && $company->plan && $company->plan->company) {
-                $claims['company_plan'] = $company;
-            }
-        }
-
-        return $claims;
     }
 
 }

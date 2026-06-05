@@ -75,7 +75,9 @@ class UserController extends Controller
             $freeTrialUsed     = $request->input('free_trial_used');
             $emailConfirmation = $request->input('email_confirmation');
             // paid_siembra: 1 = Siembra con al menos un pago real; 0 = Siembra sin pagos (habilitados manualmente)
-            $paidSiembra       = $request->input('paid_siembra');
+            $paidSiembra          = $request->input('paid_siembra');
+            // subscription_manual: 1 = plan activado manualmente desde admin; 0 = activado por pago real
+            $subscriptionManual   = $request->input('subscription_manual');
             // active_free_trial: 1 = usuarios Siembra actualmente en período de prueba gratuito (free_trial_used=1, sin pagos reales aún)
             $activeFreeTrialFilter = $request->input('active_free_trial');
 
@@ -95,7 +97,8 @@ class UserController extends Controller
                 $search, $planId, $profileId, $countryId, $provinceId, $localityId,
                 $statusId, $referredBy, $eventId, $planStartFrom, $planStartTo,
                 $subscriptionType, $freeTrialUsed, $emailConfirmation,
-                $paidSiembra, $siembraConPagos, $activeFreeTrialFilter, $conRegistroFreeTrial
+                $paidSiembra, $siembraConPagos, $activeFreeTrialFilter, $conRegistroFreeTrial,
+                $subscriptionManual
             ) {
                 if (!empty($search)) {
                     $q->where(function ($sq) use ($search) {
@@ -128,6 +131,9 @@ class UserController extends Controller
                     } else {
                         $q->whereNull('email_confirmation');
                     }
+                }
+                if ($subscriptionManual !== null && $subscriptionManual !== '') {
+                    $q->where('subscription_manual', (bool) $subscriptionManual);
                 }
                 // Filtro Siembra reales vs habilitados manualmente
                 // Solo aplica si el filtro se envía explícitamente
@@ -164,7 +170,7 @@ class UserController extends Controller
                 'plan_semilla'               => (clone $metricsQuery)->where('id_plan', 1)->count(),
                 'plan_siembra'               => (clone $metricsQuery)->where('id_plan', 2)->count(),
                 'plan_siembra_pagos'         => (clone $metricsQuery)->where('id_plan', 2)->whereIn('id', $siembraConPagos)->count(),
-                'plan_siembra_manual'        => (clone $metricsQuery)->where('id_plan', 2)->whereNotIn('id', $siembraConPagos)->count(),
+                'plan_siembra_manual'        => (clone $metricsQuery)->where('id_plan', 2)->where('subscription_manual', true)->count(),
                 'siembra_mensual'            => (clone $metricsQuery)->where('id_plan', 2)->where('subscription_type', 'monthly')->count(),
                 'siembra_anual'              => (clone $metricsQuery)->where('id_plan', 2)->where('subscription_type', 'yearly')->count(),
                 'siembra_periodo_gratis'     => (clone $metricsQuery)->where('id_plan', 2)->where('free_trial_used', true)->count(),
@@ -176,7 +182,7 @@ class UserController extends Controller
                 ->select([
                     'id', 'name', 'last_name', 'email', 'phone',
                     'id_plan', 'id_status', 'id_user_profile',
-                    'plan_start_date', 'subscription_type', 'free_trial_used',
+                    'plan_start_date', 'subscription_type', 'subscription_manual', 'free_trial_used',
                     'is_debtor', 'grace_period_used',
                     'email_confirmation', 'profile_picture',
                     'locality_name', 'province_name',
@@ -373,6 +379,82 @@ class UserController extends Controller
 
 
     /**
+     * GET admin/users/{id}/subscription-history
+     * Historial de cambios de plan del usuario (alta / baja), ordenado más reciente primero.
+     */
+    public function subscriptionHistory(Request $request, string $id)
+    {
+        $action  = "Historial de suscripción de usuario";
+        $id_user = Auth::user()->id ?? null;
+
+        try {
+            $user = User::find($id);
+            if (!$user) {
+                return response()->json(['message' => 'Usuario no encontrado'], 404);
+            }
+
+            $perPage = $request->input('per_page');
+
+            $query = UserPlan::where('id_user', $id)->orderBy('created_at', 'desc');
+
+            if ($perPage) {
+                $paginator = $query->paginate((int) $perPage);
+                $items     = $paginator->getCollection();
+                $meta      = [
+                    'total'        => $paginator->total(),
+                    'per_page'     => $paginator->perPage(),
+                    'current_page' => $paginator->currentPage(),
+                    'last_page'    => $paginator->lastPage(),
+                ];
+            } else {
+                $items = $query->get();
+                $meta  = null;
+            }
+
+            $data = $items->map(function ($plan) {
+                $raw      = is_string($plan->data) ? json_decode($plan->data, true) : (array) ($plan->data ?? []);
+                $status   = $raw['status'] ?? null;
+                $freqType = $raw['auto_recurring']['frequency_type'] ?? null;
+                $freq     = (int) ($raw['auto_recurring']['frequency'] ?? 0);
+
+                if ($freqType === 'months' && $freq === 12) {
+                    $subscriptionType = 'yearly';
+                } elseif ($freqType !== null) {
+                    $subscriptionType = 'monthly';
+                } else {
+                    $subscriptionType = null;
+                }
+
+                $event = $plan->id_plan == 2 ? 'alta' : 'baja';
+                if (in_array($status, ['paused', 'cancelled'])) {
+                    $event = 'baja';
+                }
+
+                return [
+                    'id'                => $plan->id,
+                    'event'             => $event,
+                    'id_plan'           => $plan->id_plan,
+                    'subscription_type' => $subscriptionType,
+                    'status'            => $status,
+                    'preapproval_id'    => $plan->preapproval_id,
+                    'next_payment_date' => $plan->next_payment_date,
+                    'reason'            => $raw['reason'] ?? $raw['_note'] ?? null,
+                    'date'              => $plan->created_at,
+                ];
+            });
+
+            Audith::new($id_user, $action, ['user_id' => $id], 200, ['total' => $data->count()]);
+            return response()->json(compact('data', 'meta'), 200);
+
+        } catch (Exception $e) {
+            $response = ['message' => 'Error al obtener historial de suscripción', 'error' => $e->getMessage(), 'line' => $e->getLine()];
+            Log::debug($response);
+            Audith::new($id_user, $action, ['user_id' => $id], 500, $response);
+            return response()->json($response, 500);
+        }
+    }
+
+    /**
      * Display the specified resource.
      */
     public function show(string $id)
@@ -383,6 +465,18 @@ class UserController extends Controller
 
         try {
             $data = $this->model::getAllDataUser($id);
+
+            $lastPaymentDate = PaymentHistory::where('id_user', $id)
+                ->where('type', 'payment')
+                ->orderBy('created_at', 'desc')
+                ->value('created_at');
+
+            $data['last_payment_date'] = $lastPaymentDate;
+            $data['next_payment_date'] = $lastPaymentDate
+                ? Carbon::parse($lastPaymentDate)->add(
+                    $data['subscription_type'] === 'yearly' ? '1 year' : '1 month'
+                )
+                : null;
 
             if ($data['id_plan'] == 3) {
                 $company = UsersCompany::where('id_user', $data['id'])
@@ -892,7 +986,8 @@ class UserController extends Controller
                 return response()->json($response, 400);
             }
 
-            $user->id_plan = $request->id_plan;
+            $user->id_plan             = $request->id_plan;
+            $user->subscription_manual = ((int) $request->id_plan === 2);
             $user->save();
 
             UserPlan::save_history($user->id, $request->id_plan, null, null);
@@ -1198,64 +1293,77 @@ class UserController extends Controller
      * Body: { "id_role": 2 }
      */
     public function assignRole(Request $request, string $id)
-    {
-        $action  = "Asignación de rol de administración a usuario";
-        $id_user = Auth::user()->id ?? null;
+{
+    $action  = "Asignación de rol a usuario"; // Se quitó "de administración" del texto
+    $id_user = Auth::user()->id ?? null;
 
-        $validator = Validator::make($request->all(), [
-            'id_role' => 'required|integer|exists:roles,id',
-        ]);
+    $validator = Validator::make($request->all(), [
+        'id_role' => 'required|integer|exists:roles,id',
+    ]);
 
-        if ($validator->fails()) {
-            $response = [
-                'message' => 'Alguna de las validaciones falló',
-                'errors'  => $validator->errors(),
-            ];
-            Audith::new($id_user, $action, $request->all(), 422, $response);
-            return response()->json($response, 422);
-        }
+    if ($validator->fails()) {
+        $response = [
+            'message' => 'Alguna de las validaciones falló',
+            'errors'  => $validator->errors(),
+        ];
+        Audith::new($id_user, $action, $request->all(), 422, $response);
+        return response()->json($response, 422);
+    }
 
-        $user = User::find($id);
-        if (!$user) {
-            return response()->json(['message' => 'Usuario no encontrado'], 404);
-        }
+    $user = User::find($id);
+    if (!$user) {
+        return response()->json(['message' => 'Usuario no encontrado'], 404);
+    }
 
-        // Solo se pueden asignar roles de tipo admin
-        $role = Role::where('id', $request->input('id_role'))
-            ->where('is_admin_role', 1)
-            ->first();
+    // Se quitó la condición de que 'is_admin_role' sea 1. Ahora busca cualquier rol.
+    $role = Role::find($request->input('id_role'));
 
-        if (!$role) {
-            return response()->json(['message' => 'El rol seleccionado no es un rol de administración válido'], 422);
-        }
+    if (!$role) {
+        return response()->json(['message' => 'El rol seleccionado no es válido'], 422);
+    }
 
-        try {
-            DB::beginTransaction();
+    try {
+        DB::beginTransaction();
 
-            // Eliminar roles admin actuales del usuario, conservando otros roles
+        // OPCIÓN A: Si el usuario solo puede tener UN rol a la vez en el sistema:
+        // Eliminamos cualquier rol previo que tuviera asignado este usuario.
+        UserRole::where('id_user', $user->id)->delete();
+
+        /* // OPCIÓN B: Si quieres mantener el comportamiento original de respetar roles "no admin" 
+        // y que solo se reemplace si el nuevo también es admin, usa este bloque en su lugar:
+        
+        if ($role->is_admin_role == 1) {
             $adminRoleIds = Role::where('is_admin_role', 1)->pluck('id');
             UserRole::where('id_user', $user->id)
                 ->whereIn('id_role', $adminRoleIds)
                 ->delete();
-
-            // Asignar el nuevo rol
-            UserRole::create([
-                'id_user' => $user->id,
-                'id_role' => $role->id,
-            ]);
-
-            DB::commit();
-
-            $data    = User::getAllDataUser($user->id);
-            $message = "Rol asignado con éxito";
-            Audith::new($id_user, $action, $request->all(), 200, compact('message', 'data'));
-            return response()->json(compact('message', 'data'), 200);
-        } catch (Exception $e) {
-            DB::rollBack();
-            $response = ['message' => 'Error al asignar rol', 'error' => $e->getMessage(), 'line' => $e->getLine()];
-            Audith::new($id_user, $action, $request->all(), 500, $response);
-            Log::debug(json_encode($response));
-            return response()->json($response, 500);
+        } else {
+            // Si es un rol común, borramos los roles comunes previos
+            $commonRoleIds = Role::where('is_admin_role', 0)->pluck('id');
+            UserRole::where('id_user', $user->id)
+                ->whereIn('id_role', $commonRoleIds)
+                ->delete();
         }
+        */
+
+        // Asignar el nuevo rol (sea admin o común)
+        UserRole::create([
+            'id_user' => $user->id,
+            'id_role' => $role->id,
+        ]);
+
+        DB::commit();
+
+        $data    = User::getAllDataUser($user->id);
+        $message = "Rol asignado con éxito";
+        Audith::new($id_user, $action, $request->all(), 200, compact('message', 'data'));
+        return response()->json(compact('message', 'data'), 200);
+    } catch (Exception $e) {
+        DB::rollBack();
+        $response = ['message' => 'Error al asignar rol', 'error' => $e->getMessage(), 'line' => $e->getLine()];
+        Audith::new($id_user, $action, $request->all(), 500, $response);
+        Log::debug(json_encode($response));
+        return response()->json($response, 500);
     }
+}
 }

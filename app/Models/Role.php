@@ -8,7 +8,7 @@ class Role extends Model
 {
     public $timestamps = false;
 
-    protected $fillable = ['name', 'description', 'is_admin_role', 'permissions_hash'];
+    protected $fillable = ['name', 'description', 'is_admin_role', 'admin_access', 'permissions_hash'];
 
     public function userRoles()
     {

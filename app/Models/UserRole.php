@@ -11,6 +11,9 @@ class UserRole extends Model
 
     protected $table = 'user_roles';
 
+    // Desactivar los timestamps automáticos (created_at y updated_at)
+    public $timestamps = false; // <-- AGREGA ESTA LÍNEA
+
     protected $fillable = [
         'id_user',
         'id_role',
