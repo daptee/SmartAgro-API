@@ -667,6 +667,17 @@ class SubscriptionController extends Controller
                                 Log::channel('mercadopago')->info("Pago aprobado via payment.updated para usuario $userId. wasDebtor=$wasDebtor.");
                             }
                         }
+
+                        // Si el pago pasó a rechazado/cancelado desde un estado no fallido, marcar como deudor
+                        if (in_array($status, ['rejected', 'cancelled']) && !in_array($oldType, ['rejected', 'cancelled', 'approved', 'authorized'])) {
+                            $user = User::find($userId);
+                            if ($user && !$user->is_debtor) {
+                                $user->update(['is_debtor' => true]);
+                                $this->sendEmailSafely($user->email, new FailedPayment($user), 'payment.updated rechazado - usuario');
+                                $this->sendEmailSafely(config('services.research_on_demand.email'), new NotificationFailedPayment($user), 'payment.updated rechazado - admin');
+                                Log::channel('mercadopago')->info("Pago rechazado via payment.updated para usuario $userId.");
+                            }
+                        }
                     } else {
                         // No existe PaymentHistory previo — crear ahora (race condition: payment.created llegó
                         // antes de que el pago fuera consultable en la API de MP y fue descartado)
@@ -849,7 +860,111 @@ class SubscriptionController extends Controller
                     return response()->json(['status' => 'duplicate ignored']);
                 }
             } else {
-                Log::channel('mercadopago')->error("No se pudo fetchear el pago $webhookDataId (tipo: $webhookType). HTTP " . $preapprovalResponse->status() . " — pago no registrado en PaymentHistory.");
+                Log::channel('mercadopago')->error("No se pudo fetchear el pago $webhookDataId (tipo: $webhookType). HTTP " . $preapprovalResponse->status() . " — intentando fallback con datos de authorized_payment.");
+
+                // Fallback para subscription_authorized_payment: /v1/payments/{id} devuelve 401
+                // consistentemente en pagos de suscripciones recurrentes. Usamos los datos del
+                // authorized_payment que ya tenemos — tiene todo lo necesario para registrar el pago.
+                if ($webhookType == 'subscription_authorized_payment' && isset($authorizedPaymentData) && $paymentId) {
+                    $apPaymentStatus = $authorizedPaymentData['payment']['status'] ?? null;
+                    $apUserId        = $authorizedPaymentData['external_reference'] ?? null;
+                    $apPreapprovalId = $authorizedPaymentData['preapproval_id'] ?? null;
+
+                    if ($apUserId && $apPaymentStatus) {
+                        $existingPayment = PaymentHistory::where('payment_id', $paymentId)->first();
+
+                        if (!$existingPayment) {
+                            $isSuccess = in_array($apPaymentStatus, ['approved', 'authorized']);
+                            PaymentHistory::create([
+                                'id_user'       => $apUserId,
+                                'type'          => $apPaymentStatus,
+                                'data'          => json_encode($authorizedPaymentData),
+                                'preapproval_id'=> $apPreapprovalId,
+                                'payment_id'    => $paymentId,
+                                'error_message' => $isSuccess ? null : ($authorizedPaymentData['payment']['status_detail'] ?? $authorizedPaymentData['rejection_code'] ?? 'Pago no exitoso'),
+                            ]);
+                            Log::channel('mercadopago')->info("PaymentHistory creado vía fallback (authorized_payment) para usuario $apUserId, payment_id: $paymentId, status: $apPaymentStatus");
+
+                            if ($isSuccess) {
+                                $apUser = User::find($apUserId);
+                                if ($apUser) {
+                                    $wasDebtor      = $apUser->is_debtor;
+                                    $hadGracePeriod = $apUser->grace_period_used;
+                                    $apUser->update(['is_debtor' => false, 'id_plan' => 2]);
+                                    if ($wasDebtor || $hadGracePeriod) {
+                                        $this->sendEmailSafely($apUser->email, new ServiceRegularized($apUser), 'authorized_payment fallback aprobado - usuario');
+                                    } else {
+                                        $this->sendEmailSafely($apUser->email, new NewPayment($apUser), 'authorized_payment fallback aprobado - usuario');
+                                    }
+                                    Log::channel('mercadopago')->info("Pago aprobado (fallback) para usuario $apUserId. wasDebtor=$wasDebtor.");
+                                }
+                            } elseif (in_array($apPaymentStatus, ['rejected', 'cancelled'])) {
+                                $apUser = User::find($apUserId);
+                                if ($apUser) {
+                                    $hasActiveSub = $apPreapprovalId
+                                        ? UserPlan::where('id_user', $apUserId)->where('preapproval_id', $apPreapprovalId)->exists()
+                                        : false;
+
+                                    if ($apUser->grace_period_used && $apUser->id_plan == 2 && $hasActiveSub) {
+                                        Http::withToken($accessToken)->put("https://api.mercadopago.com/preapproval/{$apPreapprovalId}", ['status' => 'cancelled']);
+                                        $apUser->update(['id_plan' => 1, 'is_debtor' => false]);
+                                        UserPlan::save_history($apUserId, 1, ['reason' => 'Baja definitiva por impago - fallback authorized_payment', 'is_system' => 'true'], now(), $apPreapprovalId);
+                                        $this->sendEmailSafely($apUser->email, new ExpiredSubscription($apUser), 'fallback baja definitiva - usuario');
+                                        $this->sendEmailSafely(config('services.research_on_demand.email'), new NotificationExpiredSubscription($apUser), 'fallback baja definitiva - admin');
+                                        Log::channel('mercadopago')->warning("Baja definitiva (fallback) para usuario $apUserId.");
+                                    } elseif (!$apUser->is_debtor) {
+                                        $apUser->update(['is_debtor' => true]);
+                                        $this->sendEmailSafely($apUser->email, new FailedPayment($apUser), 'authorized_payment fallback rechazado - usuario');
+                                        $this->sendEmailSafely(config('services.research_on_demand.email'), new NotificationFailedPayment($apUser), 'authorized_payment fallback rechazado - admin');
+                                        Log::channel('mercadopago')->info("Pago rechazado (fallback) para usuario $apUserId. Marcado como deudor.");
+                                    }
+                                }
+                            }
+                        } else {
+                            // Registro ya existe — actualizar si el estado cambió
+                            $oldType = $existingPayment->type;
+
+                            if (in_array($apPaymentStatus, ['approved', 'authorized']) && !in_array($oldType, ['approved', 'authorized'])) {
+                                $existingPayment->update([
+                                    'data'          => json_encode($authorizedPaymentData),
+                                    'type'          => $apPaymentStatus,
+                                    'error_message' => null,
+                                ]);
+                                Log::channel('mercadopago')->info("PaymentHistory actualizado vía fallback ($oldType → $apPaymentStatus) para usuario $apUserId");
+
+                                $apUser = User::find($apUserId);
+                                if ($apUser) {
+                                    $wasDebtor      = $apUser->is_debtor;
+                                    $hadGracePeriod = $apUser->grace_period_used;
+                                    $apUser->update(['is_debtor' => false, 'id_plan' => 2]);
+                                    if ($wasDebtor || $hadGracePeriod) {
+                                        $this->sendEmailSafely($apUser->email, new ServiceRegularized($apUser), 'authorized_payment fallback actualizado - usuario');
+                                    } else {
+                                        $this->sendEmailSafely($apUser->email, new NewPayment($apUser), 'authorized_payment fallback actualizado - usuario');
+                                    }
+                                }
+                            } elseif (in_array($apPaymentStatus, ['rejected', 'cancelled']) && !in_array($oldType, ['rejected', 'cancelled', 'approved', 'authorized'])) {
+                                $existingPayment->update([
+                                    'data'          => json_encode($authorizedPaymentData),
+                                    'type'          => $apPaymentStatus,
+                                    'error_message' => $authorizedPaymentData['payment']['status_detail'] ?? $authorizedPaymentData['rejection_code'] ?? 'Pago rechazado',
+                                ]);
+                                Log::channel('mercadopago')->info("PaymentHistory actualizado vía fallback ($oldType → $apPaymentStatus) para usuario $apUserId");
+
+                                $apUser = User::find($apUserId);
+                                if ($apUser && !$apUser->is_debtor) {
+                                    $apUser->update(['is_debtor' => true]);
+                                    $this->sendEmailSafely($apUser->email, new FailedPayment($apUser), 'authorized_payment fallback rechazado actualizado - usuario');
+                                    $this->sendEmailSafely(config('services.research_on_demand.email'), new NotificationFailedPayment($apUser), 'authorized_payment fallback rechazado actualizado - admin');
+                                }
+                            } else {
+                                Log::channel('mercadopago')->info("PaymentHistory ya existe para payment_id: $paymentId (status: {$existingPayment->type}). Fallback ignorado.");
+                            }
+                        }
+                    } else {
+                        Log::channel('mercadopago')->warning("Fallback no aplicable: authorized_payment sin external_reference o payment.status. payment_id: $paymentId");
+                    }
+                }
             }
         }
 
