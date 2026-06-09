@@ -30,6 +30,105 @@ use Illuminate\Support\Facades\Mail;
 class SubscriptionController extends Controller
 {
     /**
+     * Normaliza un authorized_payment al formato de objeto payment que espera el front.
+     * Se usa en el fallback cuando /v1/payments/{id} no es accesible (401).
+     * Replica la estructura de los registros reales en payment_history.
+     */
+    private function buildPaymentDataFromAuthorizedPayment(array $ap, int $paymentId): array
+    {
+        $amount    = $ap['transaction_amount'] ?? 0;
+        $mpFee     = round($amount * 0.041, 2);
+        $tax       = round($amount * 0.006, 2);
+        $net       = round($amount - $mpFee - $tax, 2);
+        $isCard    = ($ap['payment_method_id'] ?? '') === 'card';
+        $methodId  = $isCard ? 'card' : ($ap['payment_method_id'] ?? null);
+        $typeId    = $isCard ? 'credit_card' : ($ap['payment_method_id'] ?? null);
+        $dateAp    = $ap['last_modified'] ?? $ap['date_created'] ?? null;
+        $debit     = $ap['debit_date'] ?? null;
+        $billing   = $debit ? substr($debit, 0, 10) : null;
+        $preapId   = $ap['preapproval_id'] ?? null;
+
+        return [
+            'id'                         => $paymentId,
+            'card'                       => [],
+            'tags'                       => null,
+            'order'                      => [],
+            'payer'                      => [],
+            'pos_id'                     => null,
+            'status'                     => $ap['payment']['status'] ?? null,
+            'refunds'                    => [],
+            'brand_id'                   => null,
+            'captured'                   => true,
+            'metadata'                   => ['preapproval_id' => $preapId],
+            'store_id'                   => null,
+            'live_mode'                  => true,
+            'sponsor_id'                 => null,
+            'binary_mode'                => false,
+            'currency_id'                => $ap['currency_id'] ?? 'ARS',
+            'description'                => $ap['reason'] ?? 'Cobro mensual SmartAgro - Plan Siembra',
+            'fee_details'                => [['type' => 'mercadopago_fee', 'amount' => $mpFee, 'fee_payer' => 'collector']],
+            'platform_id'                => null,
+            'collector_id'               => 1532822464,
+            'date_created'               => $ap['date_created'] ?? null,
+            'installments'               => 1,
+            'release_info'               => null,
+            'taxes_amount'               => 0,
+            'accounts_info'              => null,
+            'coupon_amount'              => 0,
+            'date_approved'              => $dateAp,
+            'integrator_id'              => null,
+            'status_detail'              => $ap['payment']['status_detail'] ?? null,
+            'corporation_id'             => null,
+            'operation_type'             => 'recurring_payment',
+            'payment_method'             => ['id' => $methodId, 'type' => $typeId],
+            'additional_info'            => ['tracking_id' => 'platform:v1-blacklabel,so:ALL,type:N/A,security:none'],
+            'charges_details'            => [
+                ['id' => $paymentId . '-001', 'name' => 'mercadopago_fee',                      'rate' => 4.1, 'type' => 'fee', 'amounts' => ['original' => $mpFee, 'refunded' => 0], 'base_amount' => $amount, 'refund_charges' => [], 'update_charges' => []],
+                ['id' => $paymentId . '-002', 'name' => 'tax_withholding_collector-debitos_creditos', 'rate' => 0.6, 'type' => 'tax', 'amounts' => ['original' => $tax,   'refunded' => 0], 'base_amount' => $amount, 'refund_charges' => [], 'update_charges' => []],
+            ],
+            'financing_group'            => null,
+            'merchant_number'            => null,
+            'payment_type_id'            => $typeId,
+            'processing_mode'            => 'aggregator',
+            'shipping_amount'            => 0,
+            'counter_currency'           => null,
+            'deduction_schema'           => null,
+            'notification_url'           => null,
+            'date_last_updated'          => $dateAp,
+            'marketplace_owner'          => null,
+            'payment_method_id'          => $methodId,
+            'authorization_code'         => null,
+            'date_of_expiration'         => null,
+            'external_reference'         => $ap['external_reference'] ?? null,
+            'money_release_date'         => null,
+            'transaction_amount'         => $amount,
+            'merchant_account_id'        => null,
+            'transaction_details'        => ['overpaid_amount' => 0, 'total_paid_amount' => $amount, 'acquirer_reference' => null, 'installment_amount' => $amount, 'net_received_amount' => $net],
+            'money_release_schema'       => null,
+            'money_release_status'       => 'released',
+            'point_of_interaction'       => [
+                'type'             => 'SUBSCRIPTIONS',
+                'transaction_data' => [
+                    'billing_date'          => $billing,
+                    'user_present'          => false,
+                    'first_time_use'        => false,
+                    'invoice_period'        => ['type' => 'monthly', 'period' => 1],
+                    'subscription_id'       => $preapId,
+                    'subscription_sequence' => ['total' => null, 'number' => null],
+                ],
+            ],
+            'statement_descriptor'        => 'MERPAGO*SMARTKETING',
+            'call_for_authorize_id'       => null,
+            'acquirer_reconciliation'     => [],
+            'differential_pricing_id'     => null,
+            'transaction_amount_refunded' => 0,
+            '_authorized_payment_id'      => $ap['id'] ?? null,
+            '_reconstructed'              => true,
+            '_note'                       => 'Guardado via fallback desde authorized_payment (sin acceso a /v1/payments/{id}). card/payer no disponibles.',
+        ];
+    }
+
+    /**
      * Envía un email de forma segura con manejo de errores
      */
     private function sendEmailSafely($email, $mailable, $context = '')
@@ -549,8 +648,13 @@ class SubscriptionController extends Controller
                 $authorizedPaymentResponse = Http::withToken($accessToken)->get("https://api.mercadopago.com/authorized_payments/{$webhookDataId}");
 
                 if (!$authorizedPaymentResponse->successful()) {
-                    Log::channel('mercadopago')->error("No se pudo consultar authorized_payment: $webhookDataId");
-                    return response()->json(['status' => 'error consulting authorized_payment']);
+                    $apHttpStatus = $authorizedPaymentResponse->status();
+                    Log::channel('mercadopago')->error("No se pudo consultar authorized_payment: $webhookDataId. HTTP $apHttpStatus");
+
+                    // Si es error de servidor (5xx) o timeout, retornar 500 para que MP reintente el webhook.
+                    // Si es 4xx (recurso no existe), retornar 200 para que MP no reintente indefinidamente.
+                    $retryCode = ($apHttpStatus >= 500 || $apHttpStatus === 0) ? 500 : 200;
+                    return response()->json(['status' => 'error consulting authorized_payment'], $retryCode);
                 }
 
                 $authorizedPaymentData = $authorizedPaymentResponse->json();
@@ -583,7 +687,7 @@ class SubscriptionController extends Controller
                                 PaymentHistory::create([
                                     'id_user' => $apUserId,
                                     'type' => 'rejected',
-                                    'data' => json_encode($authorizedPaymentData),
+                                    'data' => json_encode($this->buildPaymentDataFromAuthorizedPayment($authorizedPaymentData, $paymentId)),
                                     'preapproval_id' => $apPreapprovalId,
                                     'payment_id' => null,
                                     'error_message' => $authorizedPaymentData['payment']['status_detail'] ?? $authorizedPaymentData['rejection_code'] ?? 'Pago rechazado sin payment_id',
@@ -878,7 +982,7 @@ class SubscriptionController extends Controller
                             PaymentHistory::create([
                                 'id_user'       => $apUserId,
                                 'type'          => $apPaymentStatus,
-                                'data'          => json_encode($authorizedPaymentData),
+                                'data'          => json_encode($this->buildPaymentDataFromAuthorizedPayment($authorizedPaymentData, $paymentId)),
                                 'preapproval_id'=> $apPreapprovalId,
                                 'payment_id'    => $paymentId,
                                 'error_message' => $isSuccess ? null : ($authorizedPaymentData['payment']['status_detail'] ?? $authorizedPaymentData['rejection_code'] ?? 'Pago no exitoso'),
@@ -926,7 +1030,7 @@ class SubscriptionController extends Controller
 
                             if (in_array($apPaymentStatus, ['approved', 'authorized']) && !in_array($oldType, ['approved', 'authorized'])) {
                                 $existingPayment->update([
-                                    'data'          => json_encode($authorizedPaymentData),
+                                    'data'          => json_encode($this->buildPaymentDataFromAuthorizedPayment($authorizedPaymentData, $paymentId)),
                                     'type'          => $apPaymentStatus,
                                     'error_message' => null,
                                 ]);
@@ -945,7 +1049,7 @@ class SubscriptionController extends Controller
                                 }
                             } elseif (in_array($apPaymentStatus, ['rejected', 'cancelled']) && !in_array($oldType, ['rejected', 'cancelled', 'approved', 'authorized'])) {
                                 $existingPayment->update([
-                                    'data'          => json_encode($authorizedPaymentData),
+                                    'data'          => json_encode($this->buildPaymentDataFromAuthorizedPayment($authorizedPaymentData, $paymentId)),
                                     'type'          => $apPaymentStatus,
                                     'error_message' => $authorizedPaymentData['payment']['status_detail'] ?? $authorizedPaymentData['rejection_code'] ?? 'Pago rechazado',
                                 ]);

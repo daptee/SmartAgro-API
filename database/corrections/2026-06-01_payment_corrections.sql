@@ -810,3 +810,359 @@ CAST('{
 SELECT id, type, payment_id, created_at,
        JSON_UNQUOTE(JSON_EXTRACT(data, '$.transaction_amount')) as monto
 FROM payment_history WHERE id_user = 702 ORDER BY id DESC LIMIT 10;
+
+
+-- =============================================================================
+-- 7. EDUARDO MACKREY (id=800) — Pagos abril y mayo 2026 faltantes
+--
+-- Suscripción creada 11/03/2026 con free_trial=1 mes + first_invoice_offset=30 días.
+-- Primer cobro real: 10/04/2026 (30 días desde inicio). Luego mensual el día 10.
+-- Ambos pagos confirmados via /authorized_payments/search (total=2, todos approved).
+-- No se guardaron por el bug del 401. El fallback ya está en el código para junio.
+-- Card/payer: payer_id=19683852, card_id=9495725883, visa — sin detalles de tarjeta
+-- disponibles (no accesible via /v1/payments/{id} por el 401 persistente).
+-- =============================================================================
+
+-- Verificar que no existen
+SELECT id, type, payment_id, created_at FROM payment_history WHERE id_user = 800 ORDER BY id DESC;
+
+-- Abril 2026 (primer cobro real, seq=2)
+INSERT INTO payment_history (id_user, type, preapproval_id, payment_id, error_message, data, created_at, updated_at)
+VALUES (800, 'approved', '2e6463d42f5b49f6b2e2f5660a2a8bce', 153378744751, NULL,
+CAST('{
+    "id": 153378744751,
+    "card": {"id": "9495725883","bin": null,"cardholder": null,"expiration_year": null,"expiration_month": null,"first_six_digits": null,"last_four_digits": null,"date_created": "2026-04-10T09:21:27.000-04:00","date_last_updated": "2026-04-10T09:21:27.000-04:00"},
+    "payer": {"id": "19683852","email": "edumack17@hotmail.com","identification": {"type": "CUIT","number": null}},
+    "status": "approved","status_detail": "accredited","currency_id": "ARS",
+    "description": "Cobro mensual SmartAgro - Plan Siembra",
+    "transaction_amount": 6884.5,"installments": 1,
+    "fee_details": [{"type": "mercadopago_fee","amount": 282.26,"fee_payer": "collector"}],
+    "charges_details": [
+        {"id": "153378744751-001","name": "mercadopago_fee","rate": 4.1,"type": "fee","amounts": {"original": 282.26,"refunded": 0},"base_amount": 6884.5,"date_created": "2026-04-10T09:23:11.000-04:00"},
+        {"id": "153378744751-002","name": "tax_withholding_collector-debitos_creditos","rate": 0.6,"type": "tax","amounts": {"original": 41.31,"refunded": 0},"base_amount": 6884.5,"date_created": "2026-04-10T09:23:11.000-04:00"}
+    ],
+    "transaction_details": {"total_paid_amount": 6884.5,"net_received_amount": 6560.93,"installment_amount": 6884.5,"overpaid_amount": 0},
+    "metadata": {"user_type": "registered","preapproval_id": "2e6463d42f5b49f6b2e2f5660a2a8bce","available_tries": 3},
+    "collector_id": 1532822464,"external_reference": "800","live_mode": true,"captured": true,
+    "payment_method_id": "visa","payment_type_id": "credit_card","operation_type": "recurring_payment","processing_mode": "aggregator",
+    "payment_method": {"id": "visa","type": "credit_card","issuer_id": "279"},
+    "date_created": "2026-04-10T09:23:11.291-04:00","date_approved": "2026-04-10T09:23:11.530-04:00","date_last_updated": "2026-04-10T09:23:11.530-04:00",
+    "debit_date": "2026-04-10T09:21:27.000-04:00","money_release_date": "2026-04-28T09:23:11.000-04:00","money_release_status": "released",
+    "taxes_amount": 0,"coupon_amount": 0,"shipping_amount": 0,"transaction_amount_refunded": 0,
+    "point_of_interaction": {"type": "SUBSCRIPTIONS","location": {"source": "payer"},"business_info": {"unit": "online_payments","sub_unit": "recurring"},"transaction_data": {"billing_date": "2026-04-10","first_time_use": false,"invoice_period": {"type": "monthly","period": 1},"subscription_id": "2e6463d42f5b49f6b2e2f5660a2a8bce","subscription_sequence": {"total": null,"number": 2}}},
+    "statement_descriptor": "MERPAGO*SMARTKETING      ","authorized_payment_id": 7027111357,
+    "_reconstructed": true,"_note": "Insertado manualmente 2026-06-09 desde authorized_payment 7027111357. Card/payer parciales (sin acceso a /v1/payments por 401). fee/tax/net aproximados."
+}' AS JSON),
+    '2026-04-10 13:23:11', NOW()
+);
+
+-- Mayo 2026 (segundo cobro, seq=3)
+INSERT INTO payment_history (id_user, type, preapproval_id, payment_id, error_message, data, created_at, updated_at)
+VALUES (800, 'approved', '2e6463d42f5b49f6b2e2f5660a2a8bce', 158628265634, NULL,
+CAST('{
+    "id": 158628265634,
+    "card": {"id": "9495725883","bin": null,"cardholder": null,"expiration_year": null,"expiration_month": null,"first_six_digits": null,"last_four_digits": null,"date_created": "2026-05-10T09:08:40.000-04:00","date_last_updated": "2026-05-10T09:08:40.000-04:00"},
+    "payer": {"id": "19683852","email": "edumack17@hotmail.com","identification": {"type": "CUIT","number": null}},
+    "status": "approved","status_detail": "accredited","currency_id": "ARS",
+    "description": "Cobro mensual SmartAgro - Plan Siembra",
+    "transaction_amount": 6958.0,"installments": 1,
+    "fee_details": [{"type": "mercadopago_fee","amount": 285.28,"fee_payer": "collector"}],
+    "charges_details": [
+        {"id": "158628265634-001","name": "mercadopago_fee","rate": 4.1,"type": "fee","amounts": {"original": 285.28,"refunded": 0},"base_amount": 6958.0,"date_created": "2026-05-10T09:10:19.000-04:00"},
+        {"id": "158628265634-002","name": "tax_withholding_collector-debitos_creditos","rate": 0.6,"type": "tax","amounts": {"original": 41.75,"refunded": 0},"base_amount": 6958.0,"date_created": "2026-05-10T09:10:19.000-04:00"}
+    ],
+    "transaction_details": {"total_paid_amount": 6958.0,"net_received_amount": 6630.97,"installment_amount": 6958.0,"overpaid_amount": 0},
+    "metadata": {"user_type": "registered","preapproval_id": "2e6463d42f5b49f6b2e2f5660a2a8bce","available_tries": 3},
+    "collector_id": 1532822464,"external_reference": "800","live_mode": true,"captured": true,
+    "payment_method_id": "visa","payment_type_id": "credit_card","operation_type": "recurring_payment","processing_mode": "aggregator",
+    "payment_method": {"id": "visa","type": "credit_card","issuer_id": "279"},
+    "date_created": "2026-05-10T09:10:19.614-04:00","date_approved": "2026-05-10T09:10:19.879-04:00","date_last_updated": "2026-05-10T09:10:19.879-04:00",
+    "debit_date": "2026-05-10T09:08:40.000-04:00","money_release_date": "2026-05-28T09:10:19.000-04:00","money_release_status": "released",
+    "taxes_amount": 0,"coupon_amount": 0,"shipping_amount": 0,"transaction_amount_refunded": 0,
+    "point_of_interaction": {"type": "SUBSCRIPTIONS","location": {"source": "payer"},"business_info": {"unit": "online_payments","sub_unit": "recurring"},"transaction_data": {"billing_date": "2026-05-10","first_time_use": false,"invoice_period": {"type": "monthly","period": 1},"subscription_id": "2e6463d42f5b49f6b2e2f5660a2a8bce","subscription_sequence": {"total": null,"number": 3}}},
+    "statement_descriptor": "MERPAGO*SMARTKETING      ","authorized_payment_id": 7027993324,
+    "_reconstructed": true,"_note": "Insertado manualmente 2026-06-09 desde authorized_payment 7027993324 + log 2026-05-10. Card/payer parciales (sin acceso a /v1/payments por 401). fee/tax/net aproximados."
+}' AS JSON),
+    '2026-05-10 13:10:19', NOW()
+);
+
+-- Verificar resultado
+SELECT id, type, payment_id, created_at,
+       JSON_UNQUOTE(JSON_EXTRACT(data, '$.transaction_amount')) as monto
+FROM payment_history WHERE id_user = 800 ORDER BY id DESC;
+
+
+-- =============================================================================
+-- 8. MATIAS PAOLASSO (id=544) — Pagos marzo/abril/mayo 2026 faltantes
+--
+-- Todos confirmados via /authorized_payments/search (total=9, todos approved).
+-- Feb 28 tiene duplicado (id=103 y id=104) — se elimina id=103.
+-- Template tomado del registro id=104 (feb 2026 con full data real).
+-- Card: DEBVISA (debito!) id=9568100364, ending 0149, exp 03/2030, PAOLASSO MATIAS ARI.
+-- Payer: matias_paolasso86@hotmail.com, CUIT 20326382036.
+-- subscription_sequence: feb=6, mar=7, abr=8, may=9.
+-- Bug en may27: /authorized_payments/{id} devolvió error (MP API caída ese día).
+--   El cobro del 28/05 fue procesado por MP normalmente y el fallback
+--   está en el código para el próximo cobro (28/06).
+-- =============================================================================
+
+-- Verificar estado antes
+SELECT id, type, payment_id, created_at FROM payment_history WHERE id_user = 544 ORDER BY id DESC;
+
+-- 1. Eliminar duplicado de febrero (id=103, más antiguo — id=104 tiene la data real)
+DELETE FROM payment_history WHERE id = 103;
+
+-- 2. Actualizar payment_ids en registros existentes
+UPDATE payment_history SET payment_id = 148259537606 WHERE id = 104;  -- Feb 2026
+UPDATE payment_history SET payment_id = 143184792081 WHERE id = 94;   -- Ene 2026
+UPDATE payment_history SET payment_id = 139788962456 WHERE id = 52;   -- Dic 2025
+UPDATE payment_history SET payment_id = 135027412753 WHERE id = 47;   -- Nov 2025
+UPDATE payment_history SET payment_id = 131018730449 WHERE id = 42;   -- Oct 2025
+UPDATE payment_history SET payment_id = 127855963034 WHERE id = 35;   -- Sep 2025
+
+-- 3. Insertar meses faltantes
+
+-- Marzo 2026 (seq=7)
+INSERT INTO payment_history (id_user, type, preapproval_id, payment_id, error_message, data, created_at, updated_at)
+VALUES (544, 'approved', '55168dcf975a4edc9cb85f8e9b0062d7', 152304257838, NULL,
+CAST('{
+    "id": 152304257838,
+    "card": {"id": "9568100364","bin": "48941224","tags": ["debit"],"country": "ARG","cardholder": {"name": "PAOLASSO MATIAS ARI","identification": {"type": "DNI","number": "32638203"}},"date_created": "2026-03-28T14:24:39.000-04:00","expiration_year": 2030,"expiration_month": 3,"first_six_digits": "489412","last_four_digits": "0149","date_last_updated": "2026-03-28T14:24:39.000-04:00"},
+    "tags": null,"order": [],"payer": {"id": "95797269","type": null,"email": "matias_paolasso86@hotmail.com","phone": {"number": null,"area_code": null,"extension": null},"last_name": null,"first_name": null,"entity_type": null,"operator_id": null,"identification": {"type": "CUIT","number": "20326382036"}},
+    "pos_id": null,"status": "approved","refunds": [],"brand_id": null,"captured": true,
+    "metadata": {"user_type": "registered","preapproval_id": "55168dcf975a4edc9cb85f8e9b0062d7","available_tries": 3},
+    "store_id": null,"issuer_id": "1","live_mode": true,"sponsor_id": null,"binary_mode": false,"currency_id": "ARS",
+    "description": "Cobro mensual SmartAgro - Plan Siembra",
+    "fee_details": [{"type": "mercadopago_fee","amount": 282.26,"fee_payer": "collector"}],
+    "platform_id": null,"collector_id": 1532822464,"date_created": "2026-03-28T14:26:20.881-04:00","installments": 1,
+    "release_info": null,"taxes_amount": 0,"accounts_info": null,"coupon_amount": 0,
+    "date_approved": "2026-03-28T14:28:01.471-04:00","integrator_id": null,"status_detail": "accredited","corporation_id": null,
+    "operation_type": "recurring_payment",
+    "payment_method": {"id": "debvisa","data": {"routing_data": {"merchant_account_id": "5912289894444"}},"type": "debit_card","issuer_id": "1"},
+    "additional_info": {"tracking_id": "platform:v1-blacklabel,so:ALL,type:N/A,security:none"},
+    "charges_details": [
+        {"id": "152304257838-001","name": "mercadopago_fee","rate": 4.1,"type": "fee","amounts": {"original": 282.26,"refunded": 0},"accounts": {"to": "mp","from": "collector"},"metadata": {"reason": "","source": "proc-svc-charges","source_detail": "processing_fee_charge"},"client_id": 0,"reserve_id": null,"base_amount": 6884.5,"date_created": "2026-03-28T14:26:20.000-04:00","last_updated": "2026-03-28T14:26:20.000-04:00","refund_charges": [],"update_charges": []},
+        {"id": "152304257838-002","name": "tax_withholding_collector-debitos_creditos","rate": 0.6,"type": "tax","amounts": {"original": 41.31,"refunded": 0},"accounts": {"to": "mp","from": "collector"},"metadata": {"source": "proc-svc-charges","mov_type": "expense","mov_detail": "tax_withholding_collector","tax_status": "applied","source_detail": "idc_collector_charge","mov_financial_entity": "debitos_creditos"},"client_id": 0,"reserve_id": null,"base_amount": 6884.5,"date_created": "2026-03-28T14:26:20.000-04:00","last_updated": "2026-03-28T14:26:20.000-04:00","refund_charges": [],"update_charges": []}
+    ],
+    "financing_group": null,"merchant_number": null,"payment_type_id": "debit_card","processing_mode": "aggregator",
+    "shipping_amount": 0,"counter_currency": null,"deduction_schema": null,"notification_url": null,
+    "date_last_updated": "2026-03-28T14:28:01.471-04:00","marketplace_owner": null,"payment_method_id": "debvisa",
+    "authorization_code": null,"date_of_expiration": null,"external_reference": "544",
+    "money_release_date": "2026-04-15T14:28:01.000-04:00","transaction_amount": 6884.5,"merchant_account_id": null,
+    "transaction_details": {"overpaid_amount": 0,"total_paid_amount": 6884.5,"acquirer_reference": null,"installment_amount": 6884.5,"net_received_amount": 6560.93,"external_resource_url": null,"financial_institution": null,"payable_deferral_period": null,"payment_method_reference_id": null},
+    "money_release_schema": null,"money_release_status": "released",
+    "point_of_interaction": {"type": "SUBSCRIPTIONS","location": {"source": "payer","state_id": "AR-C"},"references": [],"business_info": {"unit": "online_payments","branch": "Merchant Services","sub_unit": "recurring"},"application_data": {"name": null,"version": null,"operating_system": null},"transaction_data": {"plan_id": null,"processor": null,"billing_date": "2026-03-28","user_present": false,"first_time_use": false,"invoice_period": {"type": "monthly","period": 1},"subscription_id": "55168dcf975a4edc9cb85f8e9b0062d7","payment_reference": {"id": "127855963034","acquirer": null},"subscription_sequence": {"total": null,"number": 7}}},
+    "statement_descriptor": "MERPAGO*SMARTKETING","call_for_authorize_id": null,"acquirer_reconciliation": [],"differential_pricing_id": null,"transaction_amount_refunded": 0,
+    "authorized_payment_id": 7026734713,"_reconstructed": true,"_note": "Insertado manualmente 2026-06-09 desde authorized_payment 7026734713. fee/tax/net aproximados. authorization_code no disponible."
+}' AS JSON),
+    '2026-03-28 18:28:01', NOW()
+);
+
+-- Abril 2026 (seq=8)
+INSERT INTO payment_history (id_user, type, preapproval_id, payment_id, error_message, data, created_at, updated_at)
+VALUES (544, 'approved', '55168dcf975a4edc9cb85f8e9b0062d7', 156053042223, NULL,
+CAST('{
+    "id": 156053042223,
+    "card": {"id": "9568100364","bin": "48941224","tags": ["debit"],"country": "ARG","cardholder": {"name": "PAOLASSO MATIAS ARI","identification": {"type": "DNI","number": "32638203"}},"date_created": "2026-04-28T14:21:00.000-04:00","expiration_year": 2030,"expiration_month": 3,"first_six_digits": "489412","last_four_digits": "0149","date_last_updated": "2026-04-28T14:21:00.000-04:00"},
+    "tags": null,"order": [],"payer": {"id": "95797269","type": null,"email": "matias_paolasso86@hotmail.com","phone": {"number": null,"area_code": null,"extension": null},"last_name": null,"first_name": null,"entity_type": null,"operator_id": null,"identification": {"type": "CUIT","number": "20326382036"}},
+    "pos_id": null,"status": "approved","refunds": [],"brand_id": null,"captured": true,
+    "metadata": {"user_type": "registered","preapproval_id": "55168dcf975a4edc9cb85f8e9b0062d7","available_tries": 3},
+    "store_id": null,"issuer_id": "1","live_mode": true,"sponsor_id": null,"binary_mode": false,"currency_id": "ARS",
+    "description": "Cobro mensual SmartAgro - Plan Siembra",
+    "fee_details": [{"type": "mercadopago_fee","amount": 288.29,"fee_payer": "collector"}],
+    "platform_id": null,"collector_id": 1532822464,"date_created": "2026-04-28T14:22:43.674-04:00","installments": 1,
+    "release_info": null,"taxes_amount": 0,"accounts_info": null,"coupon_amount": 0,
+    "date_approved": "2026-04-28T14:26:42.107-04:00","integrator_id": null,"status_detail": "accredited","corporation_id": null,
+    "operation_type": "recurring_payment",
+    "payment_method": {"id": "debvisa","data": {"routing_data": {"merchant_account_id": "5912289894444"}},"type": "debit_card","issuer_id": "1"},
+    "additional_info": {"tracking_id": "platform:v1-blacklabel,so:ALL,type:N/A,security:none"},
+    "charges_details": [
+        {"id": "156053042223-001","name": "mercadopago_fee","rate": 4.1,"type": "fee","amounts": {"original": 288.29,"refunded": 0},"accounts": {"to": "mp","from": "collector"},"metadata": {"reason": "","source": "proc-svc-charges","source_detail": "processing_fee_charge"},"client_id": 0,"reserve_id": null,"base_amount": 7031.5,"date_created": "2026-04-28T14:22:43.000-04:00","last_updated": "2026-04-28T14:22:43.000-04:00","refund_charges": [],"update_charges": []},
+        {"id": "156053042223-002","name": "tax_withholding_collector-debitos_creditos","rate": 0.6,"type": "tax","amounts": {"original": 42.19,"refunded": 0},"accounts": {"to": "mp","from": "collector"},"metadata": {"source": "proc-svc-charges","mov_type": "expense","mov_detail": "tax_withholding_collector","tax_status": "applied","source_detail": "idc_collector_charge","mov_financial_entity": "debitos_creditos"},"client_id": 0,"reserve_id": null,"base_amount": 7031.5,"date_created": "2026-04-28T14:22:43.000-04:00","last_updated": "2026-04-28T14:22:43.000-04:00","refund_charges": [],"update_charges": []}
+    ],
+    "financing_group": null,"merchant_number": null,"payment_type_id": "debit_card","processing_mode": "aggregator",
+    "shipping_amount": 0,"counter_currency": null,"deduction_schema": null,"notification_url": null,
+    "date_last_updated": "2026-04-28T14:26:42.107-04:00","marketplace_owner": null,"payment_method_id": "debvisa",
+    "authorization_code": null,"date_of_expiration": null,"external_reference": "544",
+    "money_release_date": "2026-05-16T14:26:42.000-04:00","transaction_amount": 7031.5,"merchant_account_id": null,
+    "transaction_details": {"overpaid_amount": 0,"total_paid_amount": 7031.5,"acquirer_reference": null,"installment_amount": 7031.5,"net_received_amount": 6701.02,"external_resource_url": null,"financial_institution": null,"payable_deferral_period": null,"payment_method_reference_id": null},
+    "money_release_schema": null,"money_release_status": "released",
+    "point_of_interaction": {"type": "SUBSCRIPTIONS","location": {"source": "payer","state_id": "AR-C"},"references": [],"business_info": {"unit": "online_payments","branch": "Merchant Services","sub_unit": "recurring"},"application_data": {"name": null,"version": null,"operating_system": null},"transaction_data": {"plan_id": null,"processor": null,"billing_date": "2026-04-28","user_present": false,"first_time_use": false,"invoice_period": {"type": "monthly","period": 1},"subscription_id": "55168dcf975a4edc9cb85f8e9b0062d7","payment_reference": {"id": "127855963034","acquirer": null},"subscription_sequence": {"total": null,"number": 8}}},
+    "statement_descriptor": "MERPAGO*SMARTKETING","call_for_authorize_id": null,"acquirer_reconciliation": [],"differential_pricing_id": null,"transaction_amount_refunded": 0,
+    "authorized_payment_id": 7027603745,"_reconstructed": true,"_note": "Insertado manualmente 2026-06-09 desde authorized_payment 7027603745. fee/tax/net aproximados. authorization_code no disponible."
+}' AS JSON),
+    '2026-04-28 18:26:42', NOW()
+);
+
+-- Mayo 2026 (seq=9) — datos confirmados en log mercadopago-2026-05-28.log
+INSERT INTO payment_history (id_user, type, preapproval_id, payment_id, error_message, data, created_at, updated_at)
+VALUES (544, 'approved', '55168dcf975a4edc9cb85f8e9b0062d7', 160611110177, NULL,
+CAST('{
+    "id": 160611110177,
+    "card": {"id": "9568100364","bin": "48941224","tags": ["debit"],"country": "ARG","cardholder": {"name": "PAOLASSO MATIAS ARI","identification": {"type": "DNI","number": "32638203"}},"date_created": "2026-05-28T14:20:26.000-04:00","expiration_year": 2030,"expiration_month": 3,"first_six_digits": "489412","last_four_digits": "0149","date_last_updated": "2026-05-28T14:20:26.000-04:00"},
+    "tags": null,"order": [],"payer": {"id": "95797269","type": null,"email": "matias_paolasso86@hotmail.com","phone": {"number": null,"area_code": null,"extension": null},"last_name": null,"first_name": null,"entity_type": null,"operator_id": null,"identification": {"type": "CUIT","number": "20326382036"}},
+    "pos_id": null,"status": "approved","refunds": [],"brand_id": null,"captured": true,
+    "metadata": {"user_type": "registered","preapproval_id": "55168dcf975a4edc9cb85f8e9b0062d7","available_tries": 3},
+    "store_id": null,"issuer_id": "1","live_mode": true,"sponsor_id": null,"binary_mode": false,"currency_id": "ARS",
+    "description": "Cobro mensual SmartAgro - Plan Siembra",
+    "fee_details": [{"type": "mercadopago_fee","amount": 287.29,"fee_payer": "collector"}],
+    "platform_id": null,"collector_id": 1532822464,"date_created": "2026-05-28T14:22:00.732-04:00","installments": 1,
+    "release_info": null,"taxes_amount": 0,"accounts_info": null,"coupon_amount": 0,
+    "date_approved": "2026-05-28T14:22:00.901-04:00","integrator_id": null,"status_detail": "accredited","corporation_id": null,
+    "operation_type": "recurring_payment",
+    "payment_method": {"id": "debvisa","data": {"routing_data": {"merchant_account_id": "5912289894444"}},"type": "debit_card","issuer_id": "1"},
+    "additional_info": {"tracking_id": "platform:v1-blacklabel,so:ALL,type:N/A,security:none"},
+    "charges_details": [
+        {"id": "160611110177-001","name": "mercadopago_fee","rate": 4.1,"type": "fee","amounts": {"original": 287.29,"refunded": 0},"accounts": {"to": "mp","from": "collector"},"metadata": {"reason": "","source": "proc-svc-charges","source_detail": "processing_fee_charge"},"client_id": 0,"reserve_id": null,"base_amount": 7007.0,"date_created": "2026-05-28T14:22:00.000-04:00","last_updated": "2026-05-28T14:22:00.000-04:00","refund_charges": [],"update_charges": []},
+        {"id": "160611110177-002","name": "tax_withholding_collector-debitos_creditos","rate": 0.6,"type": "tax","amounts": {"original": 42.04,"refunded": 0},"accounts": {"to": "mp","from": "collector"},"metadata": {"source": "proc-svc-charges","mov_type": "expense","mov_detail": "tax_withholding_collector","tax_status": "applied","source_detail": "idc_collector_charge","mov_financial_entity": "debitos_creditos"},"client_id": 0,"reserve_id": null,"base_amount": 7007.0,"date_created": "2026-05-28T14:22:00.000-04:00","last_updated": "2026-05-28T14:22:00.000-04:00","refund_charges": [],"update_charges": []}
+    ],
+    "financing_group": null,"merchant_number": null,"payment_type_id": "debit_card","processing_mode": "aggregator",
+    "shipping_amount": 0,"counter_currency": null,"deduction_schema": null,"notification_url": null,
+    "date_last_updated": "2026-05-28T14:22:00.901-04:00","marketplace_owner": null,"payment_method_id": "debvisa",
+    "authorization_code": null,"date_of_expiration": null,"external_reference": "544",
+    "money_release_date": "2026-06-15T14:22:00.000-04:00","transaction_amount": 7007.0,"merchant_account_id": null,
+    "transaction_details": {"overpaid_amount": 0,"total_paid_amount": 7007.0,"acquirer_reference": null,"installment_amount": 7007.0,"net_received_amount": 6677.67,"external_resource_url": null,"financial_institution": null,"payable_deferral_period": null,"payment_method_reference_id": null},
+    "money_release_schema": null,"money_release_status": "released",
+    "point_of_interaction": {"type": "SUBSCRIPTIONS","location": {"source": "payer","state_id": "AR-C"},"references": [],"business_info": {"unit": "online_payments","branch": "Merchant Services","sub_unit": "recurring"},"application_data": {"name": null,"version": null,"operating_system": null},"transaction_data": {"plan_id": null,"processor": null,"billing_date": "2026-05-28","user_present": false,"first_time_use": false,"invoice_period": {"type": "monthly","period": 1},"subscription_id": "55168dcf975a4edc9cb85f8e9b0062d7","payment_reference": {"id": "127855963034","acquirer": null},"subscription_sequence": {"total": null,"number": 9}}},
+    "statement_descriptor": "MERPAGO*SMARTKETING","call_for_authorize_id": null,"acquirer_reconciliation": [],"differential_pricing_id": null,"transaction_amount_refunded": 0,
+    "authorized_payment_id": 7028494228,"_reconstructed": true,"_note": "Insertado manualmente 2026-06-09 desde authorized_payment 7028494228 + log 2026-05-28. fee/tax/net aproximados. authorization_code no disponible."
+}' AS JSON),
+    '2026-05-28 18:22:00', NOW()
+);
+
+-- Verificar resultado final
+SELECT id, type, payment_id, created_at,
+       JSON_UNQUOTE(JSON_EXTRACT(data, '$.transaction_amount')) as monto
+FROM payment_history WHERE id_user = 544 ORDER BY id DESC LIMIT 12;
+
+
+-- =============================================================================
+-- 9. GIANLUCA BARRETO (id=439) — Pagos marzo/abril/mayo 2026 faltantes
+--
+-- Todos confirmados via /authorized_payments/search (total=4, todos approved).
+-- El usuario canceló la suscripción el 26/05/2026 mismo día que pagó.
+-- El plan 1 (siembra) es el comportamiento CORRECTO por cancelación.
+-- Payment method: account_money (saldo MP) — sin tarjeta, sin authorization_code.
+-- subscription_sequence: feb=1, mar=2, abr=3, may=4.
+-- =============================================================================
+
+-- Verificar antes
+SELECT id, type, payment_id, created_at FROM payment_history WHERE id_user = 439 ORDER BY id DESC;
+
+-- 1. Actualizar payment_id del registro existente de febrero
+UPDATE payment_history SET payment_id = 147965022796 WHERE id = 102;
+
+-- 2. Insertar meses faltantes
+
+-- Marzo 2026 (seq=2)
+INSERT INTO payment_history (id_user, type, preapproval_id, payment_id, error_message, data, created_at, updated_at)
+VALUES (439, 'approved', '7625460a3d6e43b7b73ed2f3c95e251f', 151284554241, NULL,
+CAST('{
+    "id": 151284554241,
+    "card": [],"tags": null,"order": [],
+    "payer": {"id": "153461607","type": null,"email": "gianlucabarretook@gmail.com","phone": {"number": null,"area_code": null,"extension": null},"last_name": null,"first_name": null,"entity_type": null,"operator_id": null,"identification": {"type": "CUIT","number": "27400468899"}},
+    "pos_id": null,"status": "approved","refunds": [],"brand_id": null,"captured": true,
+    "metadata": {"user_type": "registered","preapproval_id": "7625460a3d6e43b7b73ed2f3c95e251f","available_tries": 3},
+    "store_id": null,"issuer_id": "2005","live_mode": true,"sponsor_id": null,"binary_mode": false,"currency_id": "ARS",
+    "description": "Cobro mensual SmartAgro - Plan Siembra",
+    "fee_details": [{"type": "mercadopago_fee","amount": 279.25,"fee_payer": "collector"}],
+    "platform_id": null,"collector_id": 1532822464,"date_created": "2026-03-26T14:08:17.577-04:00","installments": 1,
+    "release_info": null,"taxes_amount": 0,"accounts_info": null,"coupon_amount": 0,
+    "date_approved": "2026-03-26T14:13:11.228-04:00","integrator_id": null,"status_detail": "accredited","corporation_id": null,
+    "operation_type": "recurring_payment",
+    "payment_method": {"id": "account_money","type": "account_money","issuer_id": "2005"},
+    "additional_info": {"tracking_id": "platform:v1-blacklabel,so:ALL,type:N/A,security:none"},
+    "charges_details": [
+        {"id": "151284554241-001","name": "mercadopago_fee","rate": 4.1,"type": "fee","amounts": {"original": 279.25,"refunded": 0},"accounts": {"to": "mp","from": "collector"},"metadata": {"reason": "","source": "proc-svc-charges","source_detail": "processing_fee_charge"},"client_id": 0,"reserve_id": null,"base_amount": 6811.0,"date_created": "2026-03-26T14:08:17.000-04:00","last_updated": "2026-03-26T14:08:17.000-04:00","refund_charges": [],"update_charges": []},
+        {"id": "151284554241-002","name": "tax_withholding_collector-debitos_creditos","rate": 0.6,"type": "tax","amounts": {"original": 40.87,"refunded": 0},"accounts": {"to": "mp","from": "collector"},"metadata": {"source": "proc-svc-charges","mov_type": "expense","mov_detail": "tax_withholding_collector","tax_status": "applied","source_detail": "idc_collector_charge","mov_financial_entity": "debitos_creditos"},"client_id": 0,"reserve_id": null,"base_amount": 6811.0,"date_created": "2026-03-26T14:08:17.000-04:00","last_updated": "2026-03-26T14:08:17.000-04:00","refund_charges": [],"update_charges": []}
+    ],
+    "financing_group": null,"merchant_number": null,"payment_type_id": "account_money","processing_mode": "aggregator",
+    "shipping_amount": 0,"counter_currency": null,"deduction_schema": null,"notification_url": null,
+    "date_last_updated": "2026-03-26T14:13:11.228-04:00","marketplace_owner": null,"payment_method_id": "account_money",
+    "authorization_code": null,"date_of_expiration": null,"external_reference": "439",
+    "money_release_date": "2026-04-13T14:13:11.000-04:00","transaction_amount": 6811.0,"merchant_account_id": null,
+    "transaction_details": {"overpaid_amount": 0,"total_paid_amount": 6811.0,"acquirer_reference": null,"installment_amount": 0,"net_received_amount": 6490.88,"external_resource_url": null,"financial_institution": null,"payable_deferral_period": null,"payment_method_reference_id": null},
+    "money_release_schema": null,"money_release_status": "released",
+    "point_of_interaction": {"type": "SUBSCRIPTIONS","location": {"source": "payer","state_id": "AR-E"},"references": [],"business_info": {"unit": "online_payments","branch": "Merchant Services","sub_unit": "recurring"},"application_data": {"name": null,"version": null,"operating_system": null},"transaction_data": {"plan_id": null,"processor": null,"billing_date": "2026-03-26","user_present": false,"first_time_use": false,"invoice_period": {"type": "monthly","period": 1},"subscription_id": "7625460a3d6e43b7b73ed2f3c95e251f","payment_reference": null,"subscription_sequence": {"total": null,"number": 2}}},
+    "statement_descriptor": null,"call_for_authorize_id": null,"acquirer_reconciliation": [],"differential_pricing_id": null,"transaction_amount_refunded": 0,
+    "authorized_payment_id": 7026670786,"_reconstructed": true,"_note": "Insertado manualmente 2026-06-09. fee/tax/net aproximados."
+}' AS JSON),
+    '2026-03-26 18:13:11', NOW()
+);
+
+-- Abril 2026 (seq=3)
+INSERT INTO payment_history (id_user, type, preapproval_id, payment_id, error_message, data, created_at, updated_at)
+VALUES (439, 'approved', '7625460a3d6e43b7b73ed2f3c95e251f', 155772142775, NULL,
+CAST('{
+    "id": 155772142775,
+    "card": [],"tags": null,"order": [],
+    "payer": {"id": "153461607","type": null,"email": "gianlucabarretook@gmail.com","phone": {"number": null,"area_code": null,"extension": null},"last_name": null,"first_name": null,"entity_type": null,"operator_id": null,"identification": {"type": "CUIT","number": "27400468899"}},
+    "pos_id": null,"status": "approved","refunds": [],"brand_id": null,"captured": true,
+    "metadata": {"user_type": "registered","preapproval_id": "7625460a3d6e43b7b73ed2f3c95e251f","available_tries": 3},
+    "store_id": null,"issuer_id": "2005","live_mode": true,"sponsor_id": null,"binary_mode": false,"currency_id": "ARS",
+    "description": "Cobro mensual SmartAgro - Plan Siembra",
+    "fee_details": [{"type": "mercadopago_fee","amount": 285.28,"fee_payer": "collector"}],
+    "platform_id": null,"collector_id": 1532822464,"date_created": "2026-04-26T14:14:38.347-04:00","installments": 1,
+    "release_info": null,"taxes_amount": 0,"accounts_info": null,"coupon_amount": 0,
+    "date_approved": "2026-04-26T14:17:57.942-04:00","integrator_id": null,"status_detail": "accredited","corporation_id": null,
+    "operation_type": "recurring_payment",
+    "payment_method": {"id": "account_money","type": "account_money","issuer_id": "2005"},
+    "additional_info": {"tracking_id": "platform:v1-blacklabel,so:ALL,type:N/A,security:none"},
+    "charges_details": [
+        {"id": "155772142775-001","name": "mercadopago_fee","rate": 4.1,"type": "fee","amounts": {"original": 285.28,"refunded": 0},"accounts": {"to": "mp","from": "collector"},"metadata": {"reason": "","source": "proc-svc-charges","source_detail": "processing_fee_charge"},"client_id": 0,"reserve_id": null,"base_amount": 6958.0,"date_created": "2026-04-26T14:14:38.000-04:00","last_updated": "2026-04-26T14:14:38.000-04:00","refund_charges": [],"update_charges": []},
+        {"id": "155772142775-002","name": "tax_withholding_collector-debitos_creditos","rate": 0.6,"type": "tax","amounts": {"original": 41.75,"refunded": 0},"accounts": {"to": "mp","from": "collector"},"metadata": {"source": "proc-svc-charges","mov_type": "expense","mov_detail": "tax_withholding_collector","tax_status": "applied","source_detail": "idc_collector_charge","mov_financial_entity": "debitos_creditos"},"client_id": 0,"reserve_id": null,"base_amount": 6958.0,"date_created": "2026-04-26T14:14:38.000-04:00","last_updated": "2026-04-26T14:14:38.000-04:00","refund_charges": [],"update_charges": []}
+    ],
+    "financing_group": null,"merchant_number": null,"payment_type_id": "account_money","processing_mode": "aggregator",
+    "shipping_amount": 0,"counter_currency": null,"deduction_schema": null,"notification_url": null,
+    "date_last_updated": "2026-04-26T14:17:57.942-04:00","marketplace_owner": null,"payment_method_id": "account_money",
+    "authorization_code": null,"date_of_expiration": null,"external_reference": "439",
+    "money_release_date": "2026-05-14T14:17:57.000-04:00","transaction_amount": 6958.0,"merchant_account_id": null,
+    "transaction_details": {"overpaid_amount": 0,"total_paid_amount": 6958.0,"acquirer_reference": null,"installment_amount": 0,"net_received_amount": 6630.97,"external_resource_url": null,"financial_institution": null,"payable_deferral_period": null,"payment_method_reference_id": null},
+    "money_release_schema": null,"money_release_status": "released",
+    "point_of_interaction": {"type": "SUBSCRIPTIONS","location": {"source": "payer","state_id": "AR-E"},"references": [],"business_info": {"unit": "online_payments","branch": "Merchant Services","sub_unit": "recurring"},"application_data": {"name": null,"version": null,"operating_system": null},"transaction_data": {"plan_id": null,"processor": null,"billing_date": "2026-04-26","user_present": false,"first_time_use": false,"invoice_period": {"type": "monthly","period": 1},"subscription_id": "7625460a3d6e43b7b73ed2f3c95e251f","payment_reference": null,"subscription_sequence": {"total": null,"number": 3}}},
+    "statement_descriptor": null,"call_for_authorize_id": null,"acquirer_reconciliation": [],"differential_pricing_id": null,"transaction_amount_refunded": 0,
+    "authorized_payment_id": 7027540573,"_reconstructed": true,"_note": "Insertado manualmente 2026-06-09. fee/tax/net aproximados."
+}' AS JSON),
+    '2026-04-26 18:17:57', NOW()
+);
+
+-- Mayo 2026 (seq=4) — usuario canceló suscripción ese mismo día, plan 1 es correcto
+INSERT INTO payment_history (id_user, type, preapproval_id, payment_id, error_message, data, created_at, updated_at)
+VALUES (439, 'approved', '7625460a3d6e43b7b73ed2f3c95e251f', 161101457338, NULL,
+CAST('{
+    "id": 161101457338,
+    "card": [],"tags": null,"order": [],
+    "payer": {"id": "153461607","type": null,"email": "gianlucabarretook@gmail.com","phone": {"number": null,"area_code": null,"extension": null},"last_name": null,"first_name": null,"entity_type": null,"operator_id": null,"identification": {"type": "CUIT","number": "27400468899"}},
+    "pos_id": null,"status": "approved","refunds": [],"brand_id": null,"captured": true,
+    "metadata": {"user_type": "registered","preapproval_id": "7625460a3d6e43b7b73ed2f3c95e251f","available_tries": 3},
+    "store_id": null,"issuer_id": "2005","live_mode": true,"sponsor_id": null,"binary_mode": false,"currency_id": "ARS",
+    "description": "Cobro mensual SmartAgro - Plan Siembra",
+    "fee_details": [{"type": "mercadopago_fee","amount": 286.28,"fee_payer": "collector"}],
+    "platform_id": null,"collector_id": 1532822464,"date_created": "2026-05-26T14:16:13.026-04:00","installments": 1,
+    "release_info": null,"taxes_amount": 0,"accounts_info": null,"coupon_amount": 0,
+    "date_approved": "2026-05-26T14:20:12.649-04:00","integrator_id": null,"status_detail": "accredited","corporation_id": null,
+    "operation_type": "recurring_payment",
+    "payment_method": {"id": "account_money","type": "account_money","issuer_id": "2005"},
+    "additional_info": {"tracking_id": "platform:v1-blacklabel,so:ALL,type:N/A,security:none"},
+    "charges_details": [
+        {"id": "161101457338-001","name": "mercadopago_fee","rate": 4.1,"type": "fee","amounts": {"original": 286.28,"refunded": 0},"accounts": {"to": "mp","from": "collector"},"metadata": {"reason": "","source": "proc-svc-charges","source_detail": "processing_fee_charge"},"client_id": 0,"reserve_id": null,"base_amount": 6982.5,"date_created": "2026-05-26T14:16:13.000-04:00","last_updated": "2026-05-26T14:16:13.000-04:00","refund_charges": [],"update_charges": []},
+        {"id": "161101457338-002","name": "tax_withholding_collector-debitos_creditos","rate": 0.6,"type": "tax","amounts": {"original": 41.90,"refunded": 0},"accounts": {"to": "mp","from": "collector"},"metadata": {"source": "proc-svc-charges","mov_type": "expense","mov_detail": "tax_withholding_collector","tax_status": "applied","source_detail": "idc_collector_charge","mov_financial_entity": "debitos_creditos"},"client_id": 0,"reserve_id": null,"base_amount": 6982.5,"date_created": "2026-05-26T14:16:13.000-04:00","last_updated": "2026-05-26T14:16:13.000-04:00","refund_charges": [],"update_charges": []}
+    ],
+    "financing_group": null,"merchant_number": null,"payment_type_id": "account_money","processing_mode": "aggregator",
+    "shipping_amount": 0,"counter_currency": null,"deduction_schema": null,"notification_url": null,
+    "date_last_updated": "2026-05-26T14:20:12.649-04:00","marketplace_owner": null,"payment_method_id": "account_money",
+    "authorization_code": null,"date_of_expiration": null,"external_reference": "439",
+    "money_release_date": "2026-06-13T14:20:12.000-04:00","transaction_amount": 6982.5,"merchant_account_id": null,
+    "transaction_details": {"overpaid_amount": 0,"total_paid_amount": 6982.5,"acquirer_reference": null,"installment_amount": 0,"net_received_amount": 6654.32,"external_resource_url": null,"financial_institution": null,"payable_deferral_period": null,"payment_method_reference_id": null},
+    "money_release_schema": null,"money_release_status": "released",
+    "point_of_interaction": {"type": "SUBSCRIPTIONS","location": {"source": "payer","state_id": "AR-E"},"references": [],"business_info": {"unit": "online_payments","branch": "Merchant Services","sub_unit": "recurring"},"application_data": {"name": null,"version": null,"operating_system": null},"transaction_data": {"plan_id": null,"processor": null,"billing_date": "2026-05-26","user_present": false,"first_time_use": false,"invoice_period": {"type": "monthly","period": 1},"subscription_id": "7625460a3d6e43b7b73ed2f3c95e251f","payment_reference": null,"subscription_sequence": {"total": null,"number": 4}}},
+    "statement_descriptor": null,"call_for_authorize_id": null,"acquirer_reconciliation": [],"differential_pricing_id": null,"transaction_amount_refunded": 0,
+    "authorized_payment_id": 7028431115,"_reconstructed": true,"_note": "Insertado manualmente 2026-06-09 desde authorized_payment 7028431115 + log 2026-05-26. Usuario canceló la suscripcion ese mismo dia — plan 1 es correcto."
+}' AS JSON),
+    '2026-05-26 18:20:12', NOW()
+);
+
+-- Verificar resultado
+SELECT id, type, payment_id, created_at,
+       JSON_UNQUOTE(JSON_EXTRACT(data, '$.transaction_amount')) as monto
+FROM payment_history WHERE id_user = 439 ORDER BY id DESC;
