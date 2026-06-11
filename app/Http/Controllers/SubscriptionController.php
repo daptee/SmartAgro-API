@@ -232,12 +232,13 @@ class SubscriptionController extends Controller
             "status" => "pending"
         ];
 
-        // Agregar mes gratis si corresponde
+        // Agregar mes gratis solo si corresponde Y el usuario no lo usó antes
         if (
             strtolower($request->frequency_type) === 'months' &&
             intval($request->frequency) === 1 &&
             $request->has('free_trial') &&
-            filter_var($request->free_trial, FILTER_VALIDATE_BOOLEAN)
+            filter_var($request->free_trial, FILTER_VALIDATE_BOOLEAN) &&
+            !Auth::user()->free_trial_used
         ) {
             $subscriptionPayload['auto_recurring']['free_trial'] = [
                 "frequency" => 1,
@@ -458,6 +459,9 @@ class SubscriptionController extends Controller
                         // monthly: frequency_type=months y frequency=1 | yearly: frequency_type=months y frequency=12
                         $subscriptionTypeDerived = ($frequencyType === 'months' && $frequency === 12) ? 'yearly' : 'monthly';
 
+                        // Capturar ANTES del update para saber si ya usó el free trial previamente
+                        $alreadyUsedFreeTrial = (bool) $user->free_trial_used;
+
                         if ($user->id_plan != 2) {
                             $planUpdateData = ['id_plan' => 2];
 
@@ -466,7 +470,7 @@ class SubscriptionController extends Controller
                                 $planUpdateData['plan_start_date'] = now();
                             }
                             $planUpdateData['subscription_type'] = $subscriptionTypeDerived;
-                            if ($hasFreeTrialInPayload) {
+                            if ($hasFreeTrialInPayload && !$alreadyUsedFreeTrial) {
                                 $planUpdateData['free_trial_used'] = true;
                             }
 
@@ -495,16 +499,19 @@ class SubscriptionController extends Controller
                             Log::channel('mercadopago')->info('Historial guardado correctamente');
 
                             if ($hasFreeTrialInPayload) {
-                                // Log completo de la suscripción
-                                Log::channel('mercadopago')->info('Datos de suscripción recibidos:', $subscriptionData);
-                                Log::channel('mercadopago')->info('Mes gratis aplicado correctamente');
-                                PaymentHistory::create([
-                                    'id_user' => $userId,
-                                    'type' => 'free_trial',
-                                    'data' => json_encode($subscriptionData),
-                                    'preapproval_id' => $subscriptionData['id'],
-                                    'error_message' => "Primer mes gratuito aplicado",
-                                ]);
+                                if (!$alreadyUsedFreeTrial) {
+                                    Log::channel('mercadopago')->info('Datos de suscripción recibidos:', $subscriptionData);
+                                    Log::channel('mercadopago')->info('Mes gratis aplicado correctamente');
+                                    PaymentHistory::create([
+                                        'id_user' => $userId,
+                                        'type' => 'free_trial',
+                                        'data' => json_encode($subscriptionData),
+                                        'preapproval_id' => $subscriptionData['id'],
+                                        'error_message' => "Primer mes gratuito aplicado",
+                                    ]);
+                                } else {
+                                    Log::channel('mercadopago')->warning("Usuario $userId solicitó free_trial en nueva suscripción pero ya fue utilizado anteriormente. No se crea registro duplicado.");
+                                }
                             } else {
                                 Log::channel('mercadopago')->info('Mes gratis no aplicado');
                             }
@@ -518,9 +525,29 @@ class SubscriptionController extends Controller
 
                     $user = User::find($userId);
                     if ($user) {
+                        // Ignorar cancelaciones de preapprovals viejos que llegan tarde desde MP
+                        // y no corresponden a la suscripción activa registrada en user_plans
+                        $hasActiveSubscription = UserPlan::where('id_user', $userId)
+                            ->where('preapproval_id', $this->preapprovalId)
+                            ->exists();
+
+                        if (!$hasActiveSubscription) {
+                            Log::channel('mercadopago')->warning("Cancelación ignorada para usuario $userId: preapproval_id {$this->preapprovalId} no registrado en user_plans (suscripción antigua).");
+
+                            PaymentHistory::create([
+                                'id_user' => $userId,
+                                'type' => 'cancelled',
+                                'data' => $subscriptionData,
+                                'preapproval_id' => $this->preapprovalId,
+                                'error_message' => "Cancelación ignorada - preapproval antiguo sin suscripción MP activa",
+                            ]);
+
+                            return response()->json(['message' => 'Cancelación ignorada - preapproval antiguo'], 200);
+                        }
+
                         $user->update([
                             'id_plan' => 1,
-                            'is_debtor' => false  // Ya no es deudor porque se canceló la suscripción
+                            'is_debtor' => false,
                         ]);
 
                         // Guardar registro en UserPlan
@@ -689,6 +716,7 @@ class SubscriptionController extends Controller
                                     'data' => json_encode($this->buildPaymentDataFromAuthorizedPayment($authorizedPaymentData, $apAuthorizedId)),
                                     'preapproval_id' => $apPreapprovalId,
                                     'payment_id' => $apAuthorizedId,
+                                    'amount' => $authorizedPaymentData['transaction_amount'] ?? null,
                                     'error_message' => $authorizedPaymentData['payment']['status_detail'] ?? $authorizedPaymentData['rejection_code'] ?? 'Pago rechazado sin payment_id',
                                 ]);
 
@@ -751,6 +779,7 @@ class SubscriptionController extends Controller
                         $paymentHistory->update([
                             'data' => json_encode($subscriptionData),
                             'type' => $status,
+                            'amount' => $subscriptionData['transaction_amount'] ?? null,
                             'error_message' => in_array($status, ['approved', 'authorized']) ? null : ($subscriptionData['status_detail'] ?? $paymentHistory->error_message),
                         ]);
                         Log::channel('mercadopago')->info("PaymentHistory actualizado (tipo: $oldType → $status) para payment_id: $paymentId, usuario: $userId");
@@ -791,6 +820,7 @@ class SubscriptionController extends Controller
                                 'data' => json_encode($subscriptionData),
                                 'preapproval_id' => $preapprovalForSearch,
                                 'payment_id' => $paymentId,
+                                'amount' => $subscriptionData['transaction_amount'] ?? null,
                                 'error_message' => in_array($status, ['approved', 'authorized']) ? null : ($subscriptionData['status_detail'] ?? 'Pago no exitoso'),
                             ]);
                             Log::channel('mercadopago')->info("PaymentHistory creado via payment.updated (race condition resuelta) para usuario $userId, status: $status");
@@ -836,6 +866,7 @@ class SubscriptionController extends Controller
                         'data' => json_encode($subscriptionData),
                         'preapproval_id' => $preapprovalIdForHistory,
                         'payment_id' => $paymentId,
+                        'amount' => $subscriptionData['transaction_amount'] ?? null,
                         'error_message' => ($status == 'approved' || $status == 'authorized') ? null : ($subscriptionData['status_detail'] ?? 'Pago no exitoso'),
                     ]);
                     Log::channel('mercadopago')->info("PaymentHistory creado para usuario $userId con status $status");
@@ -984,6 +1015,7 @@ class SubscriptionController extends Controller
                                 'data'          => json_encode($this->buildPaymentDataFromAuthorizedPayment($authorizedPaymentData, $paymentId)),
                                 'preapproval_id'=> $apPreapprovalId,
                                 'payment_id'    => $paymentId,
+                                'amount'        => $authorizedPaymentData['transaction_amount'] ?? null,
                                 'error_message' => $isSuccess ? null : ($authorizedPaymentData['payment']['status_detail'] ?? $authorizedPaymentData['rejection_code'] ?? 'Pago no exitoso'),
                             ]);
                             Log::channel('mercadopago')->info("PaymentHistory creado vía fallback (authorized_payment) para usuario $apUserId, payment_id: $paymentId, status: $apPaymentStatus");
@@ -1332,6 +1364,7 @@ class SubscriptionController extends Controller
                         'type' => $payment['status'],
                         'data' => json_encode($payment),
                         'preapproval_id' => $preapprovalId,
+                        'amount' => $payment['transaction_amount'] ?? null,
                         'error_message' => ($payment['status'] == 'approved' || $payment['status'] == 'authorized')
                             ? null
                             : ($payment['status_detail'] ?? 'Pago no exitoso'),
