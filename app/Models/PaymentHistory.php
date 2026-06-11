@@ -14,6 +14,8 @@ class PaymentHistory extends Model
         'data',
         'preapproval_id',
         'payment_id',
+        'amount',
+        'subscription_type',
         'error_message'
     ];
 }
