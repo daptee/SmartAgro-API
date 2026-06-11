@@ -676,20 +676,19 @@ class SubscriptionController extends Controller
 
                         $apUser = User::find($apUserId);
                         if ($apUser) {
-                            // Deduplicar: mismo authorized_payment id + status rejected
-                            $apExisting = PaymentHistory::where('id_user', $apUserId)
-                                ->where('preapproval_id', $apPreapprovalId)
-                                ->where('type', 'rejected')
-                                ->where('created_at', '>=', now()->subMinutes(5))
-                                ->first();
+                            // Deduplicar usando el authorized_payment.id como payment_id único.
+                            // MP puede reenviar el mismo evento muchas horas después; la ventana de
+                            // 5 minutos no es suficiente. El UNIQUE index en payment_id lo previene a nivel DB.
+                            $apAuthorizedId = $authorizedPaymentData['id'];
+                            $apExisting = PaymentHistory::where('payment_id', $apAuthorizedId)->first();
 
                             if (!$apExisting) {
                                 PaymentHistory::create([
                                     'id_user' => $apUserId,
                                     'type' => 'rejected',
-                                    'data' => json_encode($this->buildPaymentDataFromAuthorizedPayment($authorizedPaymentData, $paymentId)),
+                                    'data' => json_encode($this->buildPaymentDataFromAuthorizedPayment($authorizedPaymentData, $apAuthorizedId)),
                                     'preapproval_id' => $apPreapprovalId,
-                                    'payment_id' => null,
+                                    'payment_id' => $apAuthorizedId,
                                     'error_message' => $authorizedPaymentData['payment']['status_detail'] ?? $authorizedPaymentData['rejection_code'] ?? 'Pago rechazado sin payment_id',
                                 ]);
 
