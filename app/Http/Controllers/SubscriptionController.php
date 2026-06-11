@@ -34,6 +34,22 @@ class SubscriptionController extends Controller
      * Se usa en el fallback cuando /v1/payments/{id} no es accesible (401).
      * Replica la estructura de los registros reales en payment_history.
      */
+    private function deriveSubscriptionType(array $data): string
+    {
+        // Payment object: $.point_of_interaction.transaction_data.invoice_period.period
+        $period = $data['point_of_interaction']['transaction_data']['invoice_period']['period'] ?? null;
+        if ($period !== null) {
+            return intval($period) === 12 ? 'yearly' : 'monthly';
+        }
+        // Preapproval object: $.auto_recurring.frequency + frequency_type
+        $freq = $data['auto_recurring']['frequency'] ?? null;
+        if ($freq !== null) {
+            return intval($freq) === 12 && ($data['auto_recurring']['frequency_type'] ?? '') === 'months'
+                ? 'yearly' : 'monthly';
+        }
+        return 'monthly';
+    }
+
     private function buildPaymentDataFromAuthorizedPayment(array $ap, int $paymentId): array
     {
         $amount    = $ap['transaction_amount'] ?? 0;
@@ -507,6 +523,7 @@ class SubscriptionController extends Controller
                                         'type' => 'free_trial',
                                         'data' => json_encode($subscriptionData),
                                         'preapproval_id' => $subscriptionData['id'],
+                                        'subscription_type' => $this->deriveSubscriptionType($subscriptionData),
                                         'error_message' => "Primer mes gratuito aplicado",
                                     ]);
                                 } else {
@@ -539,6 +556,7 @@ class SubscriptionController extends Controller
                                 'type' => 'cancelled',
                                 'data' => $subscriptionData,
                                 'preapproval_id' => $this->preapprovalId,
+                                'subscription_type' => $this->deriveSubscriptionType($subscriptionData),
                                 'error_message' => "Cancelación ignorada - preapproval antiguo sin suscripción MP activa",
                             ]);
 
@@ -569,6 +587,7 @@ class SubscriptionController extends Controller
                         'type' => $status,
                         'data' => ['reason' => 'Fallo de suscripción'],
                         'preapproval_id' => $this->preapprovalId,
+                        'subscription_type' => $this->deriveSubscriptionType($subscriptionData),
                         'error_message' => "Fallo de suscripción",
                     ]);
                     return response()->json(['message' => 'Pago fallido registrado'], 200);
@@ -593,6 +612,7 @@ class SubscriptionController extends Controller
                                 'type' => $status,
                                 'data' => $subscriptionData,
                                 'preapproval_id' => $this->preapprovalId,
+                                'subscription_type' => $this->deriveSubscriptionType($subscriptionData),
                                 'error_message' => "Suscripción pausada - ignorada (plan asignado manualmente, sin suscripción MP activa)",
                             ]);
 
@@ -620,6 +640,7 @@ class SubscriptionController extends Controller
                                 'type' => $status,
                                 'data' => $subscriptionData,
                                 'preapproval_id' => $this->preapprovalId,
+                                'subscription_type' => $this->deriveSubscriptionType($subscriptionData),
                                 'error_message' => "Suscripción pausada - Usuario bajado a plan gratuito (período de gracia ya usado)",
                             ]);
 
@@ -636,6 +657,7 @@ class SubscriptionController extends Controller
                                 'type' => $status,
                                 'data' => $subscriptionData,
                                 'preapproval_id' => $this->preapprovalId,
+                                'subscription_type' => $this->deriveSubscriptionType($subscriptionData),
                                 'error_message' => "Suscripción pausada - Período de gracia otorgado (se intentará cobrar en próximo ciclo)",
                             ]);
 
@@ -653,6 +675,7 @@ class SubscriptionController extends Controller
                             'type' => $status,
                             'data' => $subscriptionData,
                             'preapproval_id' => $this->preapprovalId,
+                            'subscription_type' => $this->deriveSubscriptionType($subscriptionData),
                             'error_message' => "Suscripción pausada - Usuario no encontrado",
                         ]);
 
@@ -717,6 +740,7 @@ class SubscriptionController extends Controller
                                     'preapproval_id' => $apPreapprovalId,
                                     'payment_id' => $apAuthorizedId,
                                     'amount' => $authorizedPaymentData['transaction_amount'] ?? null,
+                                    'subscription_type' => $this->deriveSubscriptionType($authorizedPaymentData),
                                     'error_message' => $authorizedPaymentData['payment']['status_detail'] ?? $authorizedPaymentData['rejection_code'] ?? 'Pago rechazado sin payment_id',
                                 ]);
 
@@ -780,6 +804,7 @@ class SubscriptionController extends Controller
                             'data' => json_encode($subscriptionData),
                             'type' => $status,
                             'amount' => $subscriptionData['transaction_amount'] ?? null,
+                            'subscription_type' => $this->deriveSubscriptionType($subscriptionData),
                             'error_message' => in_array($status, ['approved', 'authorized']) ? null : ($subscriptionData['status_detail'] ?? $paymentHistory->error_message),
                         ]);
                         Log::channel('mercadopago')->info("PaymentHistory actualizado (tipo: $oldType → $status) para payment_id: $paymentId, usuario: $userId");
@@ -821,6 +846,7 @@ class SubscriptionController extends Controller
                                 'preapproval_id' => $preapprovalForSearch,
                                 'payment_id' => $paymentId,
                                 'amount' => $subscriptionData['transaction_amount'] ?? null,
+                                'subscription_type' => $this->deriveSubscriptionType($subscriptionData),
                                 'error_message' => in_array($status, ['approved', 'authorized']) ? null : ($subscriptionData['status_detail'] ?? 'Pago no exitoso'),
                             ]);
                             Log::channel('mercadopago')->info("PaymentHistory creado via payment.updated (race condition resuelta) para usuario $userId, status: $status");
@@ -867,6 +893,7 @@ class SubscriptionController extends Controller
                         'preapproval_id' => $preapprovalIdForHistory,
                         'payment_id' => $paymentId,
                         'amount' => $subscriptionData['transaction_amount'] ?? null,
+                        'subscription_type' => $this->deriveSubscriptionType($subscriptionData),
                         'error_message' => ($status == 'approved' || $status == 'authorized') ? null : ($subscriptionData['status_detail'] ?? 'Pago no exitoso'),
                     ]);
                     Log::channel('mercadopago')->info("PaymentHistory creado para usuario $userId con status $status");
@@ -1010,13 +1037,14 @@ class SubscriptionController extends Controller
                         if (!$existingPayment) {
                             $isSuccess = in_array($apPaymentStatus, ['approved', 'authorized']);
                             PaymentHistory::create([
-                                'id_user'       => $apUserId,
-                                'type'          => $apPaymentStatus,
-                                'data'          => json_encode($this->buildPaymentDataFromAuthorizedPayment($authorizedPaymentData, $paymentId)),
-                                'preapproval_id'=> $apPreapprovalId,
-                                'payment_id'    => $paymentId,
-                                'amount'        => $authorizedPaymentData['transaction_amount'] ?? null,
-                                'error_message' => $isSuccess ? null : ($authorizedPaymentData['payment']['status_detail'] ?? $authorizedPaymentData['rejection_code'] ?? 'Pago no exitoso'),
+                                'id_user'           => $apUserId,
+                                'type'              => $apPaymentStatus,
+                                'data'              => json_encode($this->buildPaymentDataFromAuthorizedPayment($authorizedPaymentData, $paymentId)),
+                                'preapproval_id'    => $apPreapprovalId,
+                                'payment_id'        => $paymentId,
+                                'amount'            => $authorizedPaymentData['transaction_amount'] ?? null,
+                                'subscription_type' => $this->deriveSubscriptionType($authorizedPaymentData),
+                                'error_message'     => $isSuccess ? null : ($authorizedPaymentData['payment']['status_detail'] ?? $authorizedPaymentData['rejection_code'] ?? 'Pago no exitoso'),
                             ]);
                             Log::channel('mercadopago')->info("PaymentHistory creado vía fallback (authorized_payment) para usuario $apUserId, payment_id: $paymentId, status: $apPaymentStatus");
 
@@ -1061,9 +1089,11 @@ class SubscriptionController extends Controller
 
                             if (in_array($apPaymentStatus, ['approved', 'authorized']) && !in_array($oldType, ['approved', 'authorized'])) {
                                 $existingPayment->update([
-                                    'data'          => json_encode($this->buildPaymentDataFromAuthorizedPayment($authorizedPaymentData, $paymentId)),
-                                    'type'          => $apPaymentStatus,
-                                    'error_message' => null,
+                                    'data'              => json_encode($this->buildPaymentDataFromAuthorizedPayment($authorizedPaymentData, $paymentId)),
+                                    'type'              => $apPaymentStatus,
+                                    'amount'            => $authorizedPaymentData['transaction_amount'] ?? null,
+                                    'subscription_type' => $this->deriveSubscriptionType($authorizedPaymentData),
+                                    'error_message'     => null,
                                 ]);
                                 Log::channel('mercadopago')->info("PaymentHistory actualizado vía fallback ($oldType → $apPaymentStatus) para usuario $apUserId");
 
@@ -1080,9 +1110,11 @@ class SubscriptionController extends Controller
                                 }
                             } elseif (in_array($apPaymentStatus, ['rejected', 'cancelled']) && !in_array($oldType, ['rejected', 'cancelled', 'approved', 'authorized'])) {
                                 $existingPayment->update([
-                                    'data'          => json_encode($this->buildPaymentDataFromAuthorizedPayment($authorizedPaymentData, $paymentId)),
-                                    'type'          => $apPaymentStatus,
-                                    'error_message' => $authorizedPaymentData['payment']['status_detail'] ?? $authorizedPaymentData['rejection_code'] ?? 'Pago rechazado',
+                                    'data'              => json_encode($this->buildPaymentDataFromAuthorizedPayment($authorizedPaymentData, $paymentId)),
+                                    'type'              => $apPaymentStatus,
+                                    'amount'            => $authorizedPaymentData['transaction_amount'] ?? null,
+                                    'subscription_type' => $this->deriveSubscriptionType($authorizedPaymentData),
+                                    'error_message'     => $authorizedPaymentData['payment']['status_detail'] ?? $authorizedPaymentData['rejection_code'] ?? 'Pago rechazado',
                                 ]);
                                 Log::channel('mercadopago')->info("PaymentHistory actualizado vía fallback ($oldType → $apPaymentStatus) para usuario $apUserId");
 
@@ -1360,16 +1392,17 @@ class SubscriptionController extends Controller
                 // Guardar el pago
                 try {
                     PaymentHistory::create([
-                        'id_user' => $userId,
-                        'type' => $payment['status'],
-                        'data' => json_encode($payment),
-                        'preapproval_id' => $preapprovalId,
-                        'amount' => $payment['transaction_amount'] ?? null,
-                        'error_message' => ($payment['status'] == 'approved' || $payment['status'] == 'authorized')
+                        'id_user'           => $userId,
+                        'type'              => $payment['status'],
+                        'data'              => json_encode($payment),
+                        'preapproval_id'    => $preapprovalId,
+                        'amount'            => $payment['transaction_amount'] ?? null,
+                        'subscription_type' => $this->deriveSubscriptionType($payment),
+                        'error_message'     => ($payment['status'] == 'approved' || $payment['status'] == 'authorized')
                             ? null
                             : ($payment['status_detail'] ?? 'Pago no exitoso'),
-                        'created_at' => $payment['date_created'],
-                        'updated_at' => $payment['date_last_updated'] ?? $payment['date_created']
+                        'created_at'        => $payment['date_created'],
+                        'updated_at'        => $payment['date_last_updated'] ?? $payment['date_created']
                     ]);
 
                     $paymentsAdded++;
