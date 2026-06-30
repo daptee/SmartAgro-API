@@ -1561,6 +1561,13 @@ class SubscriptionController extends Controller
                 if ($frequency && $preapprovalId && $status != "cancelled" && $status) {
                     $newAmount = $frequency == 1 ? $priceMonthly : $priceYearly;
 
+                    Log::channel('mercadopago')->info("Actualizando monto de suscripción para usuario $userId", [
+                        'preapproval_id'  => $preapprovalId,
+                        'frequency'       => $frequency,
+                        'dollar_rate'     => $dollarRate,
+                        'new_amount_ars'  => $newAmount,
+                    ]);
+
                     $payload = [
                         'auto_recurring' => [
                             'transaction_amount' => $newAmount
@@ -1600,6 +1607,12 @@ class SubscriptionController extends Controller
                             $data['reactivation_success'] = true;
                         }
                     } else {
+                        Log::channel('mercadopago')->error("PATCH de monto fallido para usuario $userId", [
+                            'preapproval_id' => $preapprovalId,
+                            'new_amount_ars'  => $newAmount,
+                            'http_status'    => $response->status(),
+                            'response'       => $response->json(),
+                        ]);
                         // Si falló la reactivación de una suscripción pausada
                         if ($status == "paused") {
                             $user = User::find($userId);

@@ -82,8 +82,8 @@ class UserController extends Controller
             // active_free_trial: 1 = usuarios Siembra actualmente en período de prueba gratuito (free_trial_used=1, sin pagos reales aún)
             $activeFreeTrialFilter = $request->input('active_free_trial');
 
-            // IDs de usuarios Siembra con pagos reales (type = 'payment' en payment_history)
-            $siembraConPagos = PaymentHistory::where('type', 'payment')
+            // IDs de usuarios Siembra con pagos reales (type payment o approved en payment_history)
+            $siembraConPagos = PaymentHistory::whereIn('type', ['payment', 'approved'])
                 ->distinct()
                 ->pluck('id_user');
 
@@ -498,24 +498,32 @@ class UserController extends Controller
                     ['status' => 'cancelled']
                 );
 
+                $respBody = $resp->json();
+                $alreadyCancelled = !$resp->successful()
+                    && str_contains($respBody['message'] ?? '', 'You can not modify a cancelled preapproval');
+
                 if ($resp->successful()) {
                     Log::channel('mercadopago')->info("Admin canceló suscripción duplicada para usuario {$id}: {$preapprovalId} (admin: {$adminId})");
                     $results[] = ['preapproval_id' => $preapprovalId, 'action' => 'cancelada'];
+                } elseif ($alreadyCancelled) {
+                    Log::channel('mercadopago')->info("Suscripción {$preapprovalId} ya estaba cancelada en MP (usuario {$id})");
+                    $results[] = ['preapproval_id' => $preapprovalId, 'action' => 'ya_cancelada'];
                 } else {
-                    Log::channel('mercadopago')->warning("Admin: no se pudo cancelar {$preapprovalId} para usuario {$id}", ['response' => $resp->json()]);
-                    $results[] = ['preapproval_id' => $preapprovalId, 'action' => 'error', 'detail' => $resp->json()];
+                    Log::channel('mercadopago')->warning("Admin: no se pudo cancelar {$preapprovalId} para usuario {$id}", ['response' => $respBody]);
+                    $results[] = ['preapproval_id' => $preapprovalId, 'action' => 'error', 'detail' => $respBody];
                 }
             }
 
-            $cancelled = collect($results)->where('action', 'cancelada')->count();
-            $errors    = collect($results)->where('action', 'error')->count();
+            $cancelled      = collect($results)->where('action', 'cancelada')->count();
+            $alreadyDone    = collect($results)->where('action', 'ya_cancelada')->count();
+            $errors         = collect($results)->where('action', 'error')->count();
 
-            Audith::new($adminId, $action, ['user_id' => $id, 'keep' => $keepId], 200, ['cancelled' => $cancelled, 'errors' => $errors]);
+            Audith::new($adminId, $action, ['user_id' => $id, 'keep' => $keepId], 200, ['cancelled' => $cancelled, 'already_cancelled' => $alreadyDone, 'errors' => $errors]);
 
             return response()->json([
-                'message'   => "Proceso finalizado: {$cancelled} canceladas, {$errors} errores",
-                'conserved' => $keepId,
-                'results'   => $results,
+                'message'          => "Proceso finalizado: {$cancelled} canceladas, {$alreadyDone} ya estaban canceladas, {$errors} errores",
+                'conserved'        => $keepId,
+                'results'          => $results,
             ], 200);
 
         } catch (Exception $e) {
