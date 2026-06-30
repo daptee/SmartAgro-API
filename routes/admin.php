@@ -98,6 +98,7 @@ Route::prefix('admin')
                 Route::get('users/send-welcome-email/{id}', 'send_welcome_email');
                 Route::get('users/{id}', 'show');
                 Route::get('users/{id}/subscription-history', 'subscriptionHistory');
+                Route::post('users/{id}/cancel-duplicate-subscriptions', 'cancelDuplicateSubscriptions');
                 Route::post('users/create', 'store');
                 Route::post('users/edit/profile_picture', 'profilePictureAdmin');
                 Route::put('users/edit/{id}', 'update');

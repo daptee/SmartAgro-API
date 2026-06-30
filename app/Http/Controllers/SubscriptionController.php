@@ -233,6 +233,28 @@ class SubscriptionController extends Controller
             'transaction_amount' => number_format($request->transaction_amount, 2, '.', ''),
         ]);
 
+        // Cancelar todas las suscripciones activas anteriores para evitar cobros duplicados
+        $existingPreapprovals = UserPlan::where('id_user', $user_id)
+            ->where('id_plan', 2)
+            ->whereNotNull('preapproval_id')
+            ->orderBy('created_at', 'desc')
+            ->pluck('preapproval_id')
+            ->unique();
+
+        foreach ($existingPreapprovals as $existingPreapprovalId) {
+            $cancelResp = Http::withToken($accessToken)->put(
+                "https://api.mercadopago.com/preapproval/{$existingPreapprovalId}",
+                ['status' => 'cancelled']
+            );
+            if ($cancelResp->successful()) {
+                Log::channel('mercadopago')->info("Suscripción anterior cancelada para usuario {$user_id}: {$existingPreapprovalId}");
+            } else {
+                Log::channel('mercadopago')->warning("No se pudo cancelar suscripción anterior para usuario {$user_id}: {$existingPreapprovalId}", [
+                    'response' => $cancelResp->json()
+                ]);
+            }
+        }
+
         // Preparar cuerpo de la solicitud a MercadoPago
         $subscriptionPayload = [
             "auto_recurring" => [
