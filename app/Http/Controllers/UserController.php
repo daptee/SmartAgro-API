@@ -19,6 +19,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
@@ -450,6 +451,77 @@ class UserController extends Controller
             $response = ['message' => 'Error al obtener historial de suscripción', 'error' => $e->getMessage(), 'line' => $e->getLine()];
             Log::debug($response);
             Audith::new($id_user, $action, ['user_id' => $id], 500, $response);
+            return response()->json($response, 500);
+        }
+    }
+
+    /**
+     * POST admin/users/{id}/cancel-duplicate-subscriptions
+     * Cancela en MercadoPago todas las suscripciones activas del usuario excepto la indicada.
+     * Body param (opcional): keep_preapproval_id — si se omite, se conserva la más reciente en users_plans.
+     */
+    public function cancelDuplicateSubscriptions(Request $request, string $id)
+    {
+        $action  = "Cancelar suscripciones duplicadas";
+        $adminId = Auth::user()->id ?? null;
+
+        try {
+            $user = User::find($id);
+            if (!$user) {
+                return response()->json(['message' => 'Usuario no encontrado'], 404);
+            }
+
+            $accessToken = config('app.mercadopago_token');
+
+            $allPreapprovals = UserPlan::where('id_user', $id)
+                ->whereNotNull('preapproval_id')
+                ->orderBy('created_at', 'desc')
+                ->pluck('preapproval_id')
+                ->unique()
+                ->values();
+
+            if ($allPreapprovals->isEmpty()) {
+                return response()->json(['message' => 'No se encontraron suscripciones para este usuario'], 200);
+            }
+
+            $keepId = $request->input('keep_preapproval_id') ?? $allPreapprovals->first();
+
+            $results = [];
+            foreach ($allPreapprovals as $preapprovalId) {
+                if ($preapprovalId === $keepId) {
+                    $results[] = ['preapproval_id' => $preapprovalId, 'action' => 'conservada'];
+                    continue;
+                }
+
+                $resp = Http::withToken($accessToken)->put(
+                    "https://api.mercadopago.com/preapproval/{$preapprovalId}",
+                    ['status' => 'cancelled']
+                );
+
+                if ($resp->successful()) {
+                    Log::channel('mercadopago')->info("Admin canceló suscripción duplicada para usuario {$id}: {$preapprovalId} (admin: {$adminId})");
+                    $results[] = ['preapproval_id' => $preapprovalId, 'action' => 'cancelada'];
+                } else {
+                    Log::channel('mercadopago')->warning("Admin: no se pudo cancelar {$preapprovalId} para usuario {$id}", ['response' => $resp->json()]);
+                    $results[] = ['preapproval_id' => $preapprovalId, 'action' => 'error', 'detail' => $resp->json()];
+                }
+            }
+
+            $cancelled = collect($results)->where('action', 'cancelada')->count();
+            $errors    = collect($results)->where('action', 'error')->count();
+
+            Audith::new($adminId, $action, ['user_id' => $id, 'keep' => $keepId], 200, ['cancelled' => $cancelled, 'errors' => $errors]);
+
+            return response()->json([
+                'message'   => "Proceso finalizado: {$cancelled} canceladas, {$errors} errores",
+                'conserved' => $keepId,
+                'results'   => $results,
+            ], 200);
+
+        } catch (Exception $e) {
+            $response = ['message' => 'Error al cancelar suscripciones duplicadas', 'error' => $e->getMessage(), 'line' => $e->getLine()];
+            Log::debug($response);
+            Audith::new($adminId, $action, ['user_id' => $id], 500, $response);
             return response()->json($response, 500);
         }
     }
