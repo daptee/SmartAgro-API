@@ -109,7 +109,7 @@ Route::group(['middleware' => ['token', 'update_last_activity']], function ($rou
         Route::get('company/{id}', 'show');
         Route::post('company', 'store');
         Route::post('company/{id}', 'update');
-        Route::post('company/logo/{id}', 'update_logo');
+        Route::post('company/logo/{id}', 'updateLogo');
         Route::get('company/permissions/all', 'allPermissions');
     });
 
