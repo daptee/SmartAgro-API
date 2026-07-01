@@ -155,13 +155,28 @@ class SubscriptionController extends Controller
         }
 
         try {
+            $subject = method_exists($mailable, 'envelope')
+                ? ($mailable->envelope()->subject ?? class_basename($mailable))
+                : class_basename($mailable);
+
+            $userId = property_exists($mailable, 'user') && isset($mailable->user->id)
+                ? $mailable->user->id
+                : null;
+
             Mail::to($email)->send($mailable);
-            Log::info("Email enviado exitosamente a $email. Contexto: $context");
+
+            Log::channel('mails')->info('Email enviado', [
+                'subject' => $subject,
+                'to'      => $email,
+                'user_id' => $userId,
+                'context' => $context,
+            ]);
+
             return true;
         } catch (Exception $e) {
             Log::error("Error al enviar email a $email. Contexto: $context", [
                 'error' => $e->getMessage(),
-                'line' => $e->getLine()
+                'line'  => $e->getLine(),
             ]);
             return false;
         }
@@ -643,7 +658,13 @@ class SubscriptionController extends Controller
 
                         // Verificar si ya usó su período de gracia
                         if ($user->grace_period_used) {
-                            // Ya usó su período de gracia, bajar a plan gratuito inmediatamente
+                            // Solo bajar si sigue en plan 2 — evita repetir downgrade y mail
+                            // si el CRON ya actuó antes que este webhook
+                            if ($user->id_plan != 2) {
+                                Log::channel('mercadopago')->info("Webhook pausa: usuario $userId ya en plan 1, omitiendo downgrade duplicado para {$this->preapprovalId}.");
+                                return response()->json(['message' => 'Suscripción pausada — downgrade ya aplicado'], 200);
+                            }
+
                             Log::channel('mercadopago')->warning("Suscripción pausada para usuario $userId que ya usó su período de gracia. Bajando a plan gratuito.");
 
                             $user->update([
@@ -668,6 +689,13 @@ class SubscriptionController extends Controller
 
                             return response()->json(['message' => 'Suscripción pausada y usuario bajado a plan gratuito'], 200);
                         } else {
+                            // Solo otorgar gracia si sigue en plan 2 — evita que el webhook repita
+                            // lo que el CRON ya hizo (otorgó gracia y luego el webhook lo baja)
+                            if ($user->id_plan != 2) {
+                                Log::channel('mercadopago')->info("Webhook pausa: usuario $userId ya en plan 1, omitiendo gracia duplicada para {$this->preapprovalId}.");
+                                return response()->json(['message' => 'Suscripción pausada — gracia ya aplicada'], 200);
+                            }
+
                             // Primera vez pausada, mantener plan (período de gracia)
                             Log::channel('mercadopago')->info("Suscripción pausada para usuario $userId. Otorgando período de gracia (manteniendo Plan Siembra).");
 
@@ -1618,41 +1646,41 @@ class SubscriptionController extends Controller
                             $user = User::find($userId);
 
                             if ($user) {
-                                // Verificar si ya usó su período de gracia
                                 if ($user->grace_period_used) {
-                                    // Ya usó el período de gracia, bajar a plan gratuito
-                                    Log::channel('mercadopago')->error("No se pudo reactivar suscripción pausada: $preapprovalId. Usuario ya usó período de gracia. Cambiando a plan gratuito.");
+                                    // Solo bajar si sigue en plan 2 — evita repetir downgrade y mail
+                                    // si el webhook ya actuó antes que esta corrida del CRON
+                                    if ($user->id_plan == 2) {
+                                        Log::channel('mercadopago')->error("CRON: No se pudo reactivar $preapprovalId. Usuario $userId ya usó período de gracia. Bajando a plan gratuito.");
 
-                                    $user->update([
-                                        'id_plan' => 1,
-                                        'is_debtor' => false  // Ya no es deudor porque se le cambió a plan gratuito
-                                        // Mantener grace_period_used = true para evitar que vuelva a tener período de gracia
-                                    ]);
+                                        $user->update(['id_plan' => 1, 'is_debtor' => false]);
+                                        UserPlan::save_history($userId, 1, ['reason' => 'Suscripción vencida después de período de gracia', 'is_system' => 'true'], now(), $preapprovalId);
 
-                                    // Guardar en historial
-                                    UserPlan::save_history($userId, 1, ['reason' => 'Suscripción vencida después de período de gracia', 'is_system' => 'true'], now(), $preapprovalId);
+                                        $this->sendEmailSafely($user->email, new ExpiredSubscription($user), 'Suscripción vencida - usuario');
+                                        $this->sendEmailSafely(config('services.research_on_demand.email'), new NotificationExpiredSubscription($user), 'Suscripción vencida - admin');
 
-                                    // Enviar emails de notificación de forma segura
-                                    $this->sendEmailSafely($user->email, new ExpiredSubscription($user), 'Suscripción vencida - usuario');
-                                    $this->sendEmailSafely(config('services.research_on_demand.email'), new NotificationExpiredSubscription($user), 'Suscripción vencida - admin');
-
-                                    $data['downgraded_to_free'] = true;
-                                    $data['reason'] = 'grace_period_expired';
+                                        $data['downgraded_to_free'] = true;
+                                        $data['reason'] = 'grace_period_expired';
+                                    } else {
+                                        Log::channel('mercadopago')->info("CRON: Usuario $userId ya en plan 1, omitiendo downgrade duplicado para $preapprovalId.");
+                                        $data['reason'] = 'already_downgraded';
+                                    }
                                 } else {
-                                    // Primera vez que falla, otorgar período de gracia (mantener plan)
-                                    Log::channel('mercadopago')->warning("No se pudo reactivar suscripción pausada: $preapprovalId. Otorgando período de gracia al usuario $userId.");
+                                    // Solo otorgar gracia si sigue en plan 2 — el webhook pudo
+                                    // haber otorgado la gracia y bajado al usuario antes que el CRON
+                                    if ($user->id_plan == 2) {
+                                        Log::channel('mercadopago')->warning("CRON: No se pudo reactivar $preapprovalId. Otorgando período de gracia al usuario $userId.");
 
-                                    $user->update([
-                                        'grace_period_used' => true,
-                                        'is_debtor' => true
-                                    ]);
+                                        $user->update(['grace_period_used' => true, 'is_debtor' => true]);
 
-                                    // Enviar emails de período de gracia
-                                    $this->sendEmailSafely($user->email, new GracePeriodGranted($user), 'CRON - Período de gracia otorgado - usuario');
-                                    $this->sendEmailSafely(config('services.research_on_demand.email'), new NotificationGracePeriodGranted($user), 'CRON - Período de gracia otorgado - admin');
+                                        $this->sendEmailSafely($user->email, new GracePeriodGranted($user), 'CRON - Período de gracia otorgado - usuario');
+                                        $this->sendEmailSafely(config('services.research_on_demand.email'), new NotificationGracePeriodGranted($user), 'CRON - Período de gracia otorgado - admin');
 
-                                    $data['grace_period_granted'] = true;
-                                    $data['reason'] = 'grace_period_granted';
+                                        $data['grace_period_granted'] = true;
+                                        $data['reason'] = 'grace_period_granted';
+                                    } else {
+                                        Log::channel('mercadopago')->info("CRON: Usuario $userId ya en plan 1, webhook actuó primero. Omitiendo gracia para $preapprovalId.");
+                                        $data['reason'] = 'already_downgraded_by_webhook';
+                                    }
                                 }
                             } else {
                                 Log::channel('mercadopago')->error("Usuario no encontrado al procesar vencimiento: $userId");
