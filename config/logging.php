@@ -140,6 +140,14 @@ return [
             'days' => 30,
             'replace_placeholders' => true,
         ],
+
+        'mails' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/mails/mails.log'),
+            'level' => 'info',
+            'days' => 60,
+            'replace_placeholders' => true,
+        ],
     ],
 
 ];
