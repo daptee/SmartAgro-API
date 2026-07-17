@@ -45,7 +45,7 @@ Todos los filtros son opcionales y se combinan entre sí (AND). Se envían como 
 | `subscription_manual` | `1` \| `0` | 1 = plan activado manualmente desde admin, 0 = activado por pago real |
 | `paid_siembra` | `1` \| `0` | Fuerza `id_plan=2`. 1 = Siembra con al menos un pago real; 0 = Siembra habilitado manualmente (sin pagos) |
 | `active_free_trial` | `1` \| `0` | 1 = Siembra actualmente en período de prueba gratuito (sin pagos reales aún); 0 = Siembra que ya superó el período gratuito (con al menos un pago real) |
-| `paid_churned` | `1` \| `0` | 1 = pagaron al menos una vez y **hoy están en plan gratuito** (dados de baja); 0 = el resto |
+| `paid_churned` | `1` \| `0` | 1 = pagaron al menos una vez y tuvieron **alguna** baja (por app, por Mercado Pago o automática por deudor), sin importar si hoy volvieron a suscribirse; 0 = el resto |
 | `cancelled_via_app` | `1` \| `0` | 1 = cancelaron la suscripción con el botón de la app; 0 = el resto |
 | `cancelled_via_mercadopago` | `1` \| `0` | 1 = cancelaron la suscripción directamente en Mercado Pago (no desde la app); 0 = el resto |
 | `auto_cancelled_debtor` | `1` \| `0` | 1 = el sistema los dio de baja automáticamente por impago (deudor); 0 = el resto |
@@ -103,7 +103,7 @@ Todos los filtros son opcionales y se combinan entre sí (AND). Se envían como 
 | `siembra_anual` | Plan de pago con suscripción anual |
 | `siembra_periodo_gratis` | Plan de pago que usó el período de prueba gratuito |
 | `siembra_free_trial_activo` | Plan de pago actualmente en período de prueba gratuito, sin pagos reales aún |
-| `pagaron_y_se_dieron_de_baja` | Pagaron al menos una vez y **hoy** están de vuelta en plan gratuito |
+| `pagaron_y_se_dieron_de_baja` | Pagaron al menos una vez y tuvieron **alguna** baja (unión de `baja_por_app`, `baja_por_mercadopago` y `baja_automatica_deudor`), aunque hoy hayan vuelto a suscribirse |
 | `baja_por_app` | Cancelaron la suscripción desde el botón de la app |
 | `baja_por_mercadopago` | Cancelaron la suscripción directamente en Mercado Pago (no desde la app) |
 | `baja_automatica_deudor` | El sistema los bajó automáticamente a plan gratuito por impago |
