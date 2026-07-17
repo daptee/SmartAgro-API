@@ -145,13 +145,16 @@ class UserController extends Controller
                 ->distinct()
                 ->pluck('id_user');
 
+            // Unión de las 3 fuentes de baja, sin importar si el usuario está hoy en plan 1 o volvió a suscribirse
+            $bajaAnyIds = $bajaAppIds->merge($bajaMercadoPagoIds)->merge($bajaDeudorIds)->unique();
+
             // --- Closure para aplicar los mismos filtros a cualquier query ---
             $applyFilters = function ($q) use (
                 $search, $planId, $profileId, $countryId, $provinceId, $localityId,
                 $statusId, $referredBy, $eventId, $planStartFrom, $planStartTo,
                 $subscriptionType, $freeTrialUsed, $emailConfirmation,
                 $paidSiembra, $siembraConPagos, $activeFreeTrialFilter, $conRegistroFreeTrial,
-                $subscriptionManual, $paidChurnedFilter,
+                $subscriptionManual, $paidChurnedFilter, $bajaAnyIds,
                 $cancelledViaAppFilter, $bajaAppIds,
                 $cancelledViaMercadoPagoFilter, $bajaMercadoPagoIds,
                 $autoCancelledDebtorFilter, $bajaDeudorIds
@@ -219,10 +222,10 @@ class UserController extends Controller
                 // Filtro pagaron y se dieron de baja: tuvieron al menos un pago real y hoy están en plan gratuito
                 if ($paidChurnedFilter !== null && $paidChurnedFilter !== '') {
                     if ((bool) $paidChurnedFilter) {
-                        $q->where('id_plan', 1)->whereIn('id', $siembraConPagos);
+                        $q->whereIn('id', $bajaAnyIds)->whereIn('id', $siembraConPagos);
                     } else {
-                        $q->where(function ($sq) use ($siembraConPagos) {
-                            $sq->where('id_plan', '!=', 1)->orWhereNotIn('id', $siembraConPagos);
+                        $q->where(function ($sq) use ($siembraConPagos, $bajaAnyIds) {
+                            $sq->whereNotIn('id', $bajaAnyIds)->orWhereNotIn('id', $siembraConPagos);
                         });
                     }
                 }
@@ -263,7 +266,7 @@ class UserController extends Controller
                 'siembra_anual'              => (clone $metricsQuery)->where('id_plan', 2)->where('subscription_type', 'yearly')->count(),
                 'siembra_periodo_gratis'     => (clone $metricsQuery)->where('id_plan', 2)->where('free_trial_used', true)->count(),
                 'siembra_free_trial_activo'  => (clone $metricsQuery)->where('id_plan', 2)->where('free_trial_used', true)->whereIn('id', $conRegistroFreeTrial)->whereNotIn('id', $siembraConPagos)->count(),
-                'pagaron_y_se_dieron_de_baja' => (clone $metricsQuery)->where('id_plan', 1)->whereIn('id', $siembraConPagos)->count(),
+                'pagaron_y_se_dieron_de_baja' => (clone $metricsQuery)->whereIn('id', $bajaAnyIds)->whereIn('id', $siembraConPagos)->count(),
                 'baja_por_app'               => (clone $metricsQuery)->whereIn('id', $bajaAppIds)->count(),
                 'baja_por_mercadopago'       => (clone $metricsQuery)->whereIn('id', $bajaMercadoPagoIds)->count(),
                 'baja_automatica_deudor'     => (clone $metricsQuery)->whereIn('id', $bajaDeudorIds)->count(),
