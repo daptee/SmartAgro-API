@@ -34,6 +34,7 @@ use App\Http\Controllers\ResearchOnDemand;
 use App\Http\Controllers\UserCompanyController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\UserProfileController;
+use App\Http\Controllers\WeatherController;
 use App\Http\Middleware\CheckPlan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -223,6 +224,9 @@ Route::get('localities', [LocalityProvinceController::class, 'get_localities']);
 
 // Provinces
 Route::get('provinces', [LocalityProvinceController::class, 'get_provinces']);
+
+// Weather (sin token)
+Route::get('weather/forecast', [WeatherController::class, 'weekly_forecast']);
 
 Route::controller(GetsFunctionsController::class)->group(function () {
     Route::get('/countries', 'countries');
