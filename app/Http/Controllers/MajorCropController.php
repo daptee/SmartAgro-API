@@ -330,6 +330,30 @@ class MajorCropController extends Controller
         return response(compact("data"));
     }
 
+    // GET LATEST - Retorna el último mes publicado (público, sin token)
+    public function latest(Request $request)
+    {
+        $message = "Error al obtener el último mes de perspectivas de principales cultivos";
+        $action = "Último mes de perspectivas de principales cultivos (público)";
+        $data = null;
+
+        try {
+            $data = MajorCrop::published()
+                ->orderBy('year', 'desc')
+                ->orderByRaw('CAST(month AS UNSIGNED) DESC')
+                ->with(['plan'])
+                ->first();
+
+            Audith::new(Auth::user()->id ?? null, $action, $request->all(), 200, compact("data"));
+
+        } catch (Exception $e) {
+            Audith::new(Auth::user()->id ?? null, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage()], 500);
+        }
+
+        return response(compact("data"));
+    }
+
     // DELETE - Soft delete del registro
     public function destroy(Request $request, $id)
     {

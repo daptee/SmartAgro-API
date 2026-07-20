@@ -22,6 +22,7 @@ use App\Http\Controllers\GeneralImportController;
 use App\Http\Controllers\GetsFunctionsController;
 use App\Http\Controllers\IconController;
 use App\Http\Controllers\LocalityProvinceController;
+use App\Http\Controllers\MajorCropController;
 use App\Http\Controllers\NewsController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\ProductController;
@@ -231,6 +232,9 @@ Route::get('weather/today', [WeatherController::class, 'hourly_today']);
 
 // Últimas noticias (sin token)
 Route::get('news/latest', [NewsController::class, 'latest']);
+
+// Último mes de principales cultivos (sin token)
+Route::get('major-crops/latest', [MajorCropController::class, 'latest']);
 
 Route::controller(GetsFunctionsController::class)->group(function () {
     Route::get('/countries', 'countries');
