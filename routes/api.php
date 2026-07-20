@@ -169,7 +169,6 @@ Route::group(['middleware' => ['token', 'update_last_activity']], function ($rou
     // Icons
     Route::controller(IconController::class)->group(function () {
         Route::get('icons', 'index');
-        Route::get('icons/{id}', 'show');
     });
 
     // Images
@@ -235,6 +234,9 @@ Route::get('news/latest', [NewsController::class, 'latest']);
 
 // Último mes de principales cultivos (sin token)
 Route::get('major-crops/latest', [MajorCropController::class, 'latest']);
+
+// Ícono por id (sin token)
+Route::get('icons/{id}', [IconController::class, 'show']);
 
 Route::controller(GetsFunctionsController::class)->group(function () {
     Route::get('/countries', 'countries');
