@@ -227,6 +227,7 @@ Route::get('provinces', [LocalityProvinceController::class, 'get_provinces']);
 
 // Weather (sin token)
 Route::get('weather/forecast', [WeatherController::class, 'weekly_forecast']);
+Route::get('weather/today', [WeatherController::class, 'hourly_today']);
 
 Route::controller(GetsFunctionsController::class)->group(function () {
     Route::get('/countries', 'countries');
