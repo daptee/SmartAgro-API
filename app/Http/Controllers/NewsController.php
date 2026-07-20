@@ -282,6 +282,30 @@ class NewsController extends Controller
         return response(["message" => "Noticia eliminada correctamente"]);
     }
 
+    // GET LATEST - Retorna las últimas 9 noticias publicadas (público, sin token)
+    public function latest(Request $request)
+    {
+        $message = "Error al obtener las últimas noticias";
+        $action = "Últimas noticias (público)";
+        $data = null;
+
+        try {
+            $data = News::where('status_id', 1)
+                ->orderBy('date', 'desc')
+                ->with(['plan'])
+                ->take(9)
+                ->get();
+
+            Audith::new(Auth::user()->id ?? null, $action, $request->all(), 200, compact("data"));
+
+        } catch (Exception $e) {
+            Audith::new(Auth::user()->id ?? null, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage()], 500);
+        }
+
+        return response(compact("data"));
+    }
+
     // GET GALLERY - Retorna galería de imágenes de noticias
     public function gallery(Request $request)
     {

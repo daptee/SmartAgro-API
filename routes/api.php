@@ -229,6 +229,9 @@ Route::get('provinces', [LocalityProvinceController::class, 'get_provinces']);
 Route::get('weather/forecast', [WeatherController::class, 'weekly_forecast']);
 Route::get('weather/today', [WeatherController::class, 'hourly_today']);
 
+// Últimas noticias (sin token)
+Route::get('news/latest', [NewsController::class, 'latest']);
+
 Route::controller(GetsFunctionsController::class)->group(function () {
     Route::get('/countries', 'countries');
     Route::get('/plans', 'plans');
