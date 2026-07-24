@@ -25,6 +25,9 @@ class LocalityProvinceController extends Controller
                     ->when($request->province_id, function ($query) use ($request) {
                         return $query->where('province_id', '<=', $request->province_id);
                     })
+                    ->when($request->search, function ($query) use ($request) {
+                        return $query->where('name', 'like', '%' . $request->search . '%');
+                    })
                     ->get();
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
         } catch (Exception $e) {
