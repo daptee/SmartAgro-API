@@ -70,7 +70,7 @@ Todos los filtros son opcionales y se combinan entre sí (AND). Se envían como 
 ```
 
 - `meta` es `null` si no se envía `per_page`.
-- `metrics` **siempre** se calcula sobre el total de usuarios que matchean los filtros aplicados (no sobre la página actual).
+- `metrics` se calcula sobre el total de usuarios que matchean los filtros **genéricos** aplicados (no sobre la página actual). Los filtros "selector de métrica" (ver sección 5) acotan `data`/`meta` pero **no** recalculan `metrics` — el panel de métricas debe mantenerse estable al clickear una tarjeta.
 
 ---
 
@@ -114,22 +114,24 @@ Todos los filtros son opcionales y se combinan entre sí (AND). Se envían como 
 
 Cuando el usuario hace click en una tarjeta de métrica en el panel, hay que repetir el request a `/admin/users` agregando el filtro correspondiente (manteniendo los demás filtros ya aplicados, si los hubiera):
 
-| Tarjeta / métrica | Filtro a agregar |
-|---|---|
-| Plan Semilla | `id_plan=1` |
-| Plan Siembra | `id_plan=2` |
-| Siembra con pagos | `id_plan=2&paid_siembra=1` |
-| Siembra manual | `id_plan=2&subscription_manual=1` |
-| Siembra mensual | `subscription_type=monthly` |
-| Siembra anual | `subscription_type=yearly` |
-| Con período de prueba usado | `free_trial_used=1` |
-| Free trial activo | `active_free_trial=1` |
-| Pagaron y se dieron de baja | `paid_churned=1` |
-| Baja por la app | `cancelled_via_app=1` |
-| Baja por Mercado Pago | `cancelled_via_mercadopago=1` |
-| Baja automática por deudor | `auto_cancelled_debtor=1` |
+| Tarjeta / métrica | Filtro a agregar | ¿Recalcula `metrics`? |
+|---|---|---|
+| Plan Semilla | `id_plan=1` | Sí |
+| Plan Siembra | `id_plan=2` | Sí |
+| Siembra con pagos | `id_plan=2&paid_siembra=1` | `id_plan` sí, `paid_siembra` no |
+| Siembra manual | `id_plan=2&subscription_manual=1` | `id_plan` sí, `subscription_manual` no |
+| Siembra mensual | `subscription_type=monthly` | Sí |
+| Siembra anual | `subscription_type=yearly` | Sí |
+| Con período de prueba usado | `free_trial_used=1` | Sí |
+| Free trial activo | `active_free_trial=1` | No |
+| Pagaron y se dieron de baja | `paid_churned=1` | No |
+| Baja por la app | `cancelled_via_app=1` | No |
+| Baja por Mercado Pago | `cancelled_via_mercadopago=1` | No |
+| Baja automática por deudor | `auto_cancelled_debtor=1` | No |
 
-Con esto, `data` (y `meta`, si hay `per_page`) devuelve **solo** los usuarios de esa métrica, y `metrics` se recalcula sobre ese mismo subconjunto.
+Con esto, `data` (y `meta`, si hay `per_page`) devuelve **solo** los usuarios de esa métrica.
+
+`metrics` solo se recalcula cuando el filtro agregado es uno de los filtros genéricos (los listados en la sección 2 sin ser exclusivos de una tarjeta: `id_plan`, `subscription_type`, `free_trial_used`, y el resto de filtros de la sección 2). Los filtros exclusivos de una tarjeta de métrica (`paid_siembra`, `subscription_manual`, `active_free_trial`, `paid_churned`, `cancelled_via_app`, `cancelled_via_mercadopago`, `auto_cancelled_debtor`, `unsubscribed`) **no** alteran los valores de `metrics` — el panel se mantiene estable y solo cambia el listado (`data`).
 
 ---
 
