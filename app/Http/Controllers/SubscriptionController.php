@@ -1575,9 +1575,19 @@ class SubscriptionController extends Controller
 
                 $currentData = $preapprovalResponse->json();
                 $status = $currentData['status'] ?? null;
-                $frequency = $currentData['auto_recurring']['frequency'] ?? null;
+                // MercadoPago no siempre devuelve auto_recurring.frequency en el GET de preapproval
+                // (ver deriveSubscriptionType() y línea ~511 para el mismo problema). Si falta, usamos
+                // el valor guardado en la corrida anterior y, si tampoco está, asumimos mensual (frequency=1),
+                // igual que el resto del código. Antes esto dejaba $frequency en null y el if de abajo
+                // saltaba la actualización de precio sin loguear nada.
+                $frequency = $currentData['auto_recurring']['frequency']
+                    ?? $data['auto_recurring']['frequency']
+                    ?? 1;
 
-                Log::channel('mercadopago')->info("Estado actual de MercadoPago para usuario $userId: $status");
+                Log::channel('mercadopago')->info("Estado actual de MercadoPago para usuario $userId: $status", [
+                    'auto_recurring_raw' => $currentData['auto_recurring'] ?? null,
+                    'frequency_resuelto' => $frequency,
+                ]);
 
                 // Actualizar los datos en la BD con el estado actual
                 $plan->data = json_encode($currentData);
@@ -1586,7 +1596,7 @@ class SubscriptionController extends Controller
                 }
                 $plan->save();
 
-                if ($frequency && $preapprovalId && $status != "cancelled" && $status) {
+                if ($preapprovalId && $status != "cancelled" && $status) {
                     $newAmount = $frequency == 1 ? $priceMonthly : $priceYearly;
 
                     Log::channel('mercadopago')->info("Actualizando monto de suscripción para usuario $userId", [
