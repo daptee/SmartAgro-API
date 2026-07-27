@@ -151,17 +151,11 @@ class UserController extends Controller
             // Unión de las 3 fuentes de baja, sin importar si el usuario está hoy en plan 1 o volvió a suscribirse
             $bajaAnyIds = $bajaAppIds->merge($bajaMercadoPagoIds)->merge($bajaDeudorIds)->unique();
 
-            // --- Closure para aplicar los mismos filtros a cualquier query ---
-            $applyFilters = function ($q) use (
+            // --- Closure con los filtros "genéricos" de datos (afectan tanto data como metrics) ---
+            $applyBaseFilters = function ($q) use (
                 $search, $planId, $profileId, $countryId, $provinceId, $localityId,
                 $statusId, $referredBy, $eventId, $planStartFrom, $planStartTo,
-                $subscriptionType, $freeTrialUsed, $emailConfirmation,
-                $paidSiembra, $siembraConPagos, $activeFreeTrialFilter, $conRegistroFreeTrial,
-                $subscriptionManual, $paidChurnedFilter, $bajaAnyIds,
-                $cancelledViaAppFilter, $bajaAppIds,
-                $cancelledViaMercadoPagoFilter, $bajaMercadoPagoIds,
-                $autoCancelledDebtorFilter, $bajaDeudorIds,
-                $unsubscribedFilter
+                $subscriptionType, $freeTrialUsed, $emailConfirmation
             ) {
                 if (!empty($search)) {
                     $q->where(function ($sq) use ($search) {
@@ -195,6 +189,17 @@ class UserController extends Controller
                         $q->whereNull('email_confirmation');
                     }
                 }
+            };
+
+            // --- Closure con los filtros "selector de métrica" (solo acotan data, NO recalculan metrics) ---
+            $applyMetricFilters = function ($q) use (
+                $paidSiembra, $siembraConPagos, $activeFreeTrialFilter, $conRegistroFreeTrial,
+                $subscriptionManual, $paidChurnedFilter, $bajaAnyIds,
+                $cancelledViaAppFilter, $bajaAppIds,
+                $cancelledViaMercadoPagoFilter, $bajaMercadoPagoIds,
+                $autoCancelledDebtorFilter, $bajaDeudorIds,
+                $unsubscribedFilter
+            ) {
                 if ($subscriptionManual !== null && $subscriptionManual !== '') {
                     $q->where('subscription_manual', (bool) $subscriptionManual);
                 }
@@ -264,9 +269,11 @@ class UserController extends Controller
                 }
             };
 
-            // --- Query para métricas (sin paginación, sobre todos los resultados del filtro) ---
+            // --- Query para métricas (sin paginación, sobre los resultados de los filtros genéricos) ---
+            // No se le aplican los filtros "selector de métrica": clickear una tarjeta de métrica
+            // no debe cambiar los valores del propio panel de métricas, solo acotar el listado.
             $metricsQuery = User::query();
-            $applyFilters($metricsQuery);
+            $applyBaseFilters($metricsQuery);
 
             $metrics = [
                 'plan_semilla'               => (clone $metricsQuery)->where('id_plan', 1)->count(),
@@ -298,7 +305,8 @@ class UserController extends Controller
                 ])
                 ->orderBy('name', 'asc');
 
-            $applyFilters($query);
+            $applyBaseFilters($query);
+            $applyMetricFilters($query);
 
             // Agregar campo virtual: indica si el usuario Siembra tiene pagos reales
             $query->addSelect(DB::raw(
