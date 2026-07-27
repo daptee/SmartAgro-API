@@ -22,6 +22,7 @@ use App\Http\Controllers\GeneralImportController;
 use App\Http\Controllers\GetsFunctionsController;
 use App\Http\Controllers\IconController;
 use App\Http\Controllers\LocalityProvinceController;
+use App\Http\Controllers\MajorCropController;
 use App\Http\Controllers\NewsController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\ProductController;
@@ -34,6 +35,7 @@ use App\Http\Controllers\ResearchOnDemand;
 use App\Http\Controllers\UserCompanyController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\UserProfileController;
+use App\Http\Controllers\WeatherController;
 use App\Http\Middleware\CheckPlan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -167,7 +169,6 @@ Route::group(['middleware' => ['token', 'update_last_activity']], function ($rou
     // Icons
     Route::controller(IconController::class)->group(function () {
         Route::get('icons', 'index');
-        Route::get('icons/{id}', 'show');
     });
 
     // Images
@@ -223,6 +224,20 @@ Route::get('localities', [LocalityProvinceController::class, 'get_localities']);
 
 // Provinces
 Route::get('provinces', [LocalityProvinceController::class, 'get_provinces']);
+
+// Weather (sin token)
+Route::get('weather/forecast', [WeatherController::class, 'weekly_forecast']);
+Route::get('weather/today', [WeatherController::class, 'hourly_today']);
+Route::get('weather/forecast/by-locality', [WeatherController::class, 'by_locality']);
+
+// Últimas noticias (sin token)
+Route::get('news/latest', [NewsController::class, 'latest']);
+
+// Último mes de principales cultivos (sin token)
+Route::get('major-crops/latest', [MajorCropController::class, 'latest']);
+
+// Ícono por id (sin token)
+Route::get('icons/{id}', [IconController::class, 'show']);
 
 Route::controller(GetsFunctionsController::class)->group(function () {
     Route::get('/countries', 'countries');
