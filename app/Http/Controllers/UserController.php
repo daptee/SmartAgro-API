@@ -155,7 +155,7 @@ class UserController extends Controller
             $applyBaseFilters = function ($q) use (
                 $search, $planId, $profileId, $countryId, $provinceId, $localityId,
                 $statusId, $referredBy, $eventId, $planStartFrom, $planStartTo,
-                $subscriptionType, $freeTrialUsed, $emailConfirmation
+                $emailConfirmation
             ) {
                 if (!empty($search)) {
                     $q->where(function ($sq) use ($search) {
@@ -178,10 +178,6 @@ class UserController extends Controller
                 if (!empty($eventId))         { $q->where('event_id', $eventId); }
                 if (!empty($planStartFrom))   { $q->where('plan_start_date', '>=', $planStartFrom . ' 00:00:00'); }
                 if (!empty($planStartTo))     { $q->where('plan_start_date', '<=', $planStartTo . ' 23:59:59'); }
-                if (!empty($subscriptionType)) { $q->where('subscription_type', $subscriptionType); }
-                if ($freeTrialUsed !== null && $freeTrialUsed !== '') {
-                    $q->where('free_trial_used', (bool) $freeTrialUsed);
-                }
                 if ($emailConfirmation !== null && $emailConfirmation !== '') {
                     if ((bool) $emailConfirmation) {
                         $q->whereNotNull('email_confirmation');
@@ -193,6 +189,7 @@ class UserController extends Controller
 
             // --- Closure con los filtros "selector de métrica" (solo acotan data, NO recalculan metrics) ---
             $applyMetricFilters = function ($q) use (
+                $subscriptionType, $freeTrialUsed,
                 $paidSiembra, $siembraConPagos, $activeFreeTrialFilter, $conRegistroFreeTrial,
                 $subscriptionManual, $paidChurnedFilter, $bajaAnyIds,
                 $cancelledViaAppFilter, $bajaAppIds,
@@ -200,6 +197,10 @@ class UserController extends Controller
                 $autoCancelledDebtorFilter, $bajaDeudorIds,
                 $unsubscribedFilter
             ) {
+                if (!empty($subscriptionType)) { $q->where('subscription_type', $subscriptionType); }
+                if ($freeTrialUsed !== null && $freeTrialUsed !== '') {
+                    $q->where('free_trial_used', (bool) $freeTrialUsed);
+                }
                 if ($subscriptionManual !== null && $subscriptionManual !== '') {
                     $q->where('subscription_manual', (bool) $subscriptionManual);
                 }

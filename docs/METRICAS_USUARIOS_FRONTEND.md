@@ -120,9 +120,9 @@ Cuando el usuario hace click en una tarjeta de métrica en el panel, hay que rep
 | Plan Siembra | `id_plan=2` | Sí |
 | Siembra con pagos | `id_plan=2&paid_siembra=1` | `id_plan` sí, `paid_siembra` no |
 | Siembra manual | `id_plan=2&subscription_manual=1` | `id_plan` sí, `subscription_manual` no |
-| Siembra mensual | `subscription_type=monthly` | Sí |
-| Siembra anual | `subscription_type=yearly` | Sí |
-| Con período de prueba usado | `free_trial_used=1` | Sí |
+| Siembra mensual | `subscription_type=monthly` | No |
+| Siembra anual | `subscription_type=yearly` | No |
+| Con período de prueba usado | `free_trial_used=1` | No |
 | Free trial activo | `active_free_trial=1` | No |
 | Pagaron y se dieron de baja | `paid_churned=1` | No |
 | Baja por la app | `cancelled_via_app=1` | No |
@@ -131,7 +131,7 @@ Cuando el usuario hace click en una tarjeta de métrica en el panel, hay que rep
 
 Con esto, `data` (y `meta`, si hay `per_page`) devuelve **solo** los usuarios de esa métrica.
 
-`metrics` solo se recalcula cuando el filtro agregado es uno de los filtros genéricos (los listados en la sección 2 sin ser exclusivos de una tarjeta: `id_plan`, `subscription_type`, `free_trial_used`, y el resto de filtros de la sección 2). Los filtros exclusivos de una tarjeta de métrica (`paid_siembra`, `subscription_manual`, `active_free_trial`, `paid_churned`, `cancelled_via_app`, `cancelled_via_mercadopago`, `auto_cancelled_debtor`, `unsubscribed`) **no** alteran los valores de `metrics` — el panel se mantiene estable y solo cambia el listado (`data`).
+`metrics` solo se recalcula con los filtros verdaderamente genéricos (`search`, `id_plan`, `id_user_profile`, `id_country`, `id_province`, `id_locality`, `id_status`, `referred_by`, `event_id`, `plan_start_from`, `plan_start_to`, `email_confirmation`). El resto — `subscription_type`, `free_trial_used`, `paid_siembra`, `subscription_manual`, `active_free_trial`, `paid_churned`, `cancelled_via_app`, `cancelled_via_mercadopago`, `auto_cancelled_debtor`, `unsubscribed` — son exclusivos de una tarjeta de métrica y **no** alteran los valores de `metrics`: el panel se mantiene estable y solo cambia el listado (`data`).
 
 ---
 
