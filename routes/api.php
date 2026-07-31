@@ -228,6 +228,7 @@ Route::get('provinces', [LocalityProvinceController::class, 'get_provinces']);
 // Weather (sin token)
 Route::get('weather/forecast', [WeatherController::class, 'weekly_forecast']);
 Route::get('weather/today', [WeatherController::class, 'hourly_today']);
+Route::get('weather/by-date', [WeatherController::class, 'hourly_by_date']);
 Route::get('weather/forecast/by-locality', [WeatherController::class, 'by_locality']);
 
 // Últimas noticias (sin token)
