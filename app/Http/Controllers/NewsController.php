@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 use Exception;
+use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
 
 class NewsController extends Controller
 {
@@ -282,7 +283,8 @@ class NewsController extends Controller
         return response(["message" => "Noticia eliminada correctamente"]);
     }
 
-    // GET LATEST - Retorna las últimas 9 noticias publicadas (público, sin token)
+    // GET LATEST - Retorna las últimas 9 noticias publicadas (público, token opcional)
+    // Sin token: solo plan 1. Con token válido: planes 1 y 2.
     public function latest(Request $request)
     {
         $message = "Error al obtener las últimas noticias";
@@ -290,7 +292,20 @@ class NewsController extends Controller
         $data = null;
 
         try {
+            $id_plan = [1];
+
+            if ($request->bearerToken()) {
+                try {
+                    if (JWTAuth::parseToken()->authenticate()) {
+                        $id_plan = [1, 2];
+                    }
+                } catch (Exception $e) {
+                    // Token inválido o expirado: se continúa como invitado (plan 1)
+                }
+            }
+
             $data = News::where('status_id', 1)
+                ->whereIn('id_plan', $id_plan)
                 ->orderBy('date', 'desc')
                 ->with(['plan'])
                 ->take(9)
