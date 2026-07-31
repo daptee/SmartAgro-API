@@ -8,9 +8,48 @@ use App\Http\Controllers\MarketGeneralControlController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Exception;
+use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
 
 class InsightController extends Controller
 {
+    // GET LATEST - Retorna los últimos 9 insights publicados (público, token opcional)
+    // Sin token: solo plan 1. Con token válido: planes 1 y 2.
+    public function latest(Request $request)
+    {
+        $message = "Error al obtener los últimos insights";
+        $action = "Últimos insights (público)";
+        $data = null;
+
+        try {
+            $id_plan = [1];
+
+            if ($request->bearerToken()) {
+                try {
+                    if (JWTAuth::parseToken()->authenticate()) {
+                        $id_plan = [1, 2];
+                    }
+                } catch (Exception $e) {
+                    // Token inválido o expirado: se continúa como invitado (plan 1)
+                }
+            }
+
+            $data = Insight::where('status_id', 1)
+                ->whereIn('id_plan', $id_plan)
+                ->orderBy('date', 'desc')
+                ->with(['plan', 'status', 'user', 'iconData'])
+                ->take(9)
+                ->get();
+
+            Audith::new(Auth::user()->id ?? null, $action, $request->all(), 200, compact("data"));
+
+        } catch (Exception $e) {
+            Audith::new(Auth::user()->id ?? null, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage()], 500);
+        }
+
+        return response(compact("data"));
+    }
+
     // GET ALL - Retorna todos los insights con filtros
     public function index(Request $request)
     {

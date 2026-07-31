@@ -18,6 +18,7 @@ use App\Http\Controllers\ActiveIngredientController;
 use App\Http\Controllers\ClassificationController;
 use App\Http\Controllers\FaqController;
 use App\Http\Controllers\ImageController;
+use App\Http\Controllers\InsightController;
 use App\Http\Controllers\GeneralImportController;
 use App\Http\Controllers\GetsFunctionsController;
 use App\Http\Controllers\IconController;
@@ -233,6 +234,9 @@ Route::get('weather/forecast/by-locality', [WeatherController::class, 'by_locali
 
 // Últimas noticias (sin token)
 Route::get('news/latest', [NewsController::class, 'latest']);
+
+// Últimos insights (sin token)
+Route::get('insights/latest', [InsightController::class, 'latest']);
 
 // Último mes de principales cultivos (sin token)
 Route::get('major-crops/latest', [MajorCropController::class, 'latest']);
