@@ -280,6 +280,7 @@ Route::controller(ProductController::class)->group(function () {
 Route::get('/advertising-status', [AdvertisingStatusController::class, 'index']);
 Route::get('/advertising-space', [AdvertisingSpaceController::class, 'index']);
 Route::get('/advertising-companies', [CompaniesAdvertisingController::class, 'index']);
+Route::get('/advertising-companies/current', [CompaniesAdvertisingController::class, 'currentBySpace']);
 Route::get('/advertising-interactions', [AdvertisingReportController::class, 'index']);
 
 // Company Plan Publicity Report
