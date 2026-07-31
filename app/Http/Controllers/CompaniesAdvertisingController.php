@@ -108,7 +108,13 @@ class CompaniesAdvertisingController extends Controller
             $today = now()->toDateString();
 
             // id_advertising_status = 2 => "En circulación" (misma convención usada en el frontend, services/ads.ts)
-            $ads = CompanyAdvertising::with(['advertising_space', 'company.category', 'company.status', 'company.locality', 'company.plan', 'status'])
+            // Nota: es un endpoint público, por eso se restringen las columnas de "company"
+            // para no exponer datos sensibles como api_key/api_permissions.
+            $ads = CompanyAdvertising::select(['id', 'id_advertising_space', 'id_company', 'date_start', 'date_end', 'file', 'link', 'id_advertising_status'])
+                ->with([
+                    'advertising_space:id,name',
+                    'company:id,company_name,logo,main_color,secondary_color,website',
+                ])
                 ->whereIn('id_advertising_space', $spaceIds)
                 ->where('id_advertising_status', 2)
                 ->whereDate('date_start', '<=', $today)
