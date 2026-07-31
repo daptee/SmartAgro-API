@@ -91,6 +91,54 @@ class CompaniesAdvertisingController extends Controller
         }
     }
 
+    public function currentBySpace(Request $request)
+    {
+        $message = "Error al obtener las publicidades vigentes";
+        $action = "Listado de publicidades vigentes por espacio";
+        $id_user = Auth::user()->id ?? null;
+        $data = null;
+
+        try {
+            $spaceIds = collect(explode(',', $request->query('spaces', '1,2,3,4')))
+                ->map(fn ($id) => (int) trim($id))
+                ->filter()
+                ->unique()
+                ->values();
+
+            $today = now()->toDateString();
+
+            // id_advertising_status = 2 => "En circulación" (misma convención usada en el frontend, services/ads.ts)
+            // Nota: es un endpoint público, por eso se restringen las columnas de "company"
+            // para no exponer datos sensibles como api_key/api_permissions.
+            $ads = CompanyAdvertising::select(['id', 'id_advertising_space', 'id_company', 'date_start', 'date_end', 'file', 'link', 'id_advertising_status'])
+                ->with([
+                    'advertising_space:id,name',
+                    'company:id,company_name,logo,main_color,secondary_color,website',
+                ])
+                ->whereIn('id_advertising_space', $spaceIds)
+                ->where('id_advertising_status', 2)
+                ->whereDate('date_start', '<=', $today)
+                ->whereDate('date_end', '>=', $today)
+                ->orderByDesc('id')
+                ->get()
+                ->unique('id_advertising_space')
+                ->keyBy('id_advertising_space');
+
+            $data = $spaceIds->map(function ($spaceId) use ($ads) {
+                return [
+                    'id_advertising_space' => $spaceId,
+                    'ad' => $ads->get($spaceId),
+                ];
+            })->values();
+
+            Audith::new($id_user, $action, $request->all(), 200, compact('data'));
+            return response(compact('data'));
+        } catch (Exception $e) {
+            Audith::new($id_user, $action, $request->all(), 500, $e->getMessage());
+            return response(["message" => $message, "error" => $e->getMessage()], 500);
+        }
+    }
+
     public function store(Request $request)
     {
         $message = "Error al crear la publicidad contratada";
