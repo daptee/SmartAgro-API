@@ -187,23 +187,11 @@ class UserController extends Controller
                 }
             };
 
-            // --- Closure con los filtros "selector de métrica" (solo acotan data, NO recalculan metrics) ---
-            $applyMetricFilters = function ($q) use (
-                $subscriptionType, $freeTrialUsed,
-                $paidSiembra, $siembraConPagos, $activeFreeTrialFilter, $conRegistroFreeTrial,
-                $subscriptionManual, $paidChurnedFilter, $bajaAnyIds,
-                $cancelledViaAppFilter, $bajaAppIds,
-                $cancelledViaMercadoPagoFilter, $bajaMercadoPagoIds,
-                $autoCancelledDebtorFilter, $bajaDeudorIds,
-                $unsubscribedFilter
+            // --- Closure con paid_siembra y active_free_trial: además de acotar data, también
+            // recalculan metrics (se aplica sobre $metricsQuery más abajo) ---
+            $applyMetricsRecalcFilters = function ($q) use (
+                $paidSiembra, $siembraConPagos, $activeFreeTrialFilter, $conRegistroFreeTrial
             ) {
-                if (!empty($subscriptionType)) { $q->where('subscription_type', $subscriptionType); }
-                if ($freeTrialUsed !== null && $freeTrialUsed !== '') {
-                    $q->where('free_trial_used', (bool) $freeTrialUsed);
-                }
-                if ($subscriptionManual !== null && $subscriptionManual !== '') {
-                    $q->where('subscription_manual', (bool) $subscriptionManual);
-                }
                 // Filtro Siembra reales vs habilitados manualmente
                 // Solo aplica si el filtro se envía explícitamente
                 if ($paidSiembra !== null && $paidSiembra !== '') {
@@ -229,6 +217,26 @@ class UserController extends Controller
                           ->whereIn('id', $siembraConPagos);
                     }
                 }
+            };
+
+            // --- Closure con el resto de los filtros "selector de métrica" (solo acotan data, NO recalculan metrics) ---
+            $applyMetricFilters = function ($q) use (
+                $subscriptionType, $freeTrialUsed,
+                $applyMetricsRecalcFilters,
+                $subscriptionManual, $paidChurnedFilter, $bajaAnyIds,
+                $cancelledViaAppFilter, $bajaAppIds,
+                $cancelledViaMercadoPagoFilter, $bajaMercadoPagoIds,
+                $autoCancelledDebtorFilter, $bajaDeudorIds,
+                $unsubscribedFilter
+            ) {
+                if (!empty($subscriptionType)) { $q->where('subscription_type', $subscriptionType); }
+                if ($freeTrialUsed !== null && $freeTrialUsed !== '') {
+                    $q->where('free_trial_used', (bool) $freeTrialUsed);
+                }
+                if ($subscriptionManual !== null && $subscriptionManual !== '') {
+                    $q->where('subscription_manual', (bool) $subscriptionManual);
+                }
+                $applyMetricsRecalcFilters($q);
                 // Filtro pagaron y se dieron de baja: tuvieron al menos un pago real y hoy están en plan gratuito
                 if ($paidChurnedFilter !== null && $paidChurnedFilter !== '') {
                     if ((bool) $paidChurnedFilter) {
@@ -270,11 +278,12 @@ class UserController extends Controller
                 }
             };
 
-            // --- Query para métricas (sin paginación, sobre los resultados de los filtros genéricos) ---
-            // No se le aplican los filtros "selector de métrica": clickear una tarjeta de métrica
-            // no debe cambiar los valores del propio panel de métricas, solo acotar el listado.
+            // --- Query para métricas (sin paginación, sobre los resultados de los filtros aplicados) ---
+            // Los filtros genéricos y paid_siembra/active_free_trial sí recalculan metrics.
+            // El resto de los filtros "selector de métrica" solo acotan el listado (data).
             $metricsQuery = User::query();
             $applyBaseFilters($metricsQuery);
+            $applyMetricsRecalcFilters($metricsQuery);
 
             $metrics = [
                 'plan_semilla'               => (clone $metricsQuery)->where('id_plan', 1)->count(),
