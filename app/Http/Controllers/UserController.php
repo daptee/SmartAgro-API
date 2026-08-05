@@ -223,7 +223,7 @@ class UserController extends Controller
             $applyMetricFilters = function ($q) use (
                 $subscriptionType, $freeTrialUsed,
                 $applyMetricsRecalcFilters,
-                $subscriptionManual, $paidChurnedFilter, $bajaAnyIds,
+                $subscriptionManual, $paidChurnedFilter, $bajaAnyIds, $siembraConPagos,
                 $cancelledViaAppFilter, $bajaAppIds,
                 $cancelledViaMercadoPagoFilter, $bajaMercadoPagoIds,
                 $autoCancelledDebtorFilter, $bajaDeudorIds,
