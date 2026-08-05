@@ -332,16 +332,25 @@ class UserController extends Controller
                 LIMIT 1
             ) AS last_payment_date'));
 
-            // Próximo pago: último pago + 1 mes o 1 año según subscription_type
-            $query->addSelect(DB::raw('(
-                SELECT CASE users.subscription_type
-                    WHEN \'yearly\' THEN DATE_ADD(ph.created_at, INTERVAL 1 YEAR)
-                    ELSE DATE_ADD(ph.created_at, INTERVAL 1 MONTH)
+            // Próximo pago: último pago + 1 mes o 1 año según subscription_type.
+            // Si el usuario todavía no tiene pagos (está en el mes de free trial), se estima
+            // como plan_start_date + 1 mes, ya que el free trial de MercadoPago es siempre mensual.
+            $query->addSelect(DB::raw('COALESCE(
+                (
+                    SELECT CASE users.subscription_type
+                        WHEN \'yearly\' THEN DATE_ADD(ph.created_at, INTERVAL 1 YEAR)
+                        ELSE DATE_ADD(ph.created_at, INTERVAL 1 MONTH)
+                    END
+                    FROM payment_history ph
+                    WHERE ph.id_user = users.id AND ph.type IN (\'payment\', \'approved\')
+                    ORDER BY ph.created_at DESC
+                    LIMIT 1
+                ),
+                CASE
+                    WHEN users.free_trial_used = 1 AND users.plan_start_date IS NOT NULL
+                    THEN DATE_ADD(users.plan_start_date, INTERVAL 1 MONTH)
+                    ELSE NULL
                 END
-                FROM payment_history ph
-                WHERE ph.id_user = users.id AND ph.type IN (\'payment\', \'approved\')
-                ORDER BY ph.created_at DESC
-                LIMIT 1
             ) AS next_payment_date'));
 
             // Fecha de la última baja (downgrade a plan gratuito) registrada en el historial de planes
@@ -689,7 +698,9 @@ class UserController extends Controller
                 ? Carbon::parse($lastPaymentDate)->add(
                     $data['subscription_type'] === 'yearly' ? '1 year' : '1 month'
                 )
-                : null;
+                : ($data['free_trial_used'] && $data['plan_start_date']
+                    ? Carbon::parse($data['plan_start_date'])->addMonth()
+                    : null);
 
             if ($data['id_plan'] == 3) {
                 $company = UsersCompany::where('id_user', $data['id'])
