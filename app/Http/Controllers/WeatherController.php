@@ -32,7 +32,7 @@ class WeatherController extends Controller
                 'longitude' => $request->lng,
                 'daily' => 'weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,windspeed_10m_max',
                 'timezone' => 'auto',
-                'forecast_days' => 7,
+                'forecast_days' => 8,
             ]);
 
             if (!$response->successful()) {
@@ -218,7 +218,7 @@ class WeatherController extends Controller
                 'longitude' => $match['longitude'],
                 'daily' => 'weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,windspeed_10m_max',
                 'timezone' => 'auto',
-                'forecast_days' => 7,
+                'forecast_days' => 8,
             ]);
 
             if (!$response->successful()) {
