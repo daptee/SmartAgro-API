@@ -161,8 +161,15 @@ class UserController extends Controller
             // baja por Mercado Pago (evita que aparezca en más de una categoría de baja en las métricas).
             $bajaMercadoPagoIds = $bajaMercadoPagoIds->diff($bajaAppIds)->diff($bajaDeudorIds)->values();
 
-            // Unión de las 3 fuentes de baja, sin importar si el usuario está hoy en plan 1 o volvió a suscribirse
-            $bajaAnyIds = $bajaAppIds->merge($bajaMercadoPagoIds)->merge($bajaDeudorIds)->unique();
+            // Baja manual: cambio de plan a Semilla hecho a mano desde el panel de admin (UserController::change_plan),
+            // que no registra ningún 'reason' en el JSON de users_plans (a diferencia de las 3 fuentes anteriores).
+            $bajaManualIds = UserPlan::where('id_plan', 1)
+                ->whereRaw("JSON_EXTRACT(data, '$.reason') IS NULL")
+                ->distinct()
+                ->pluck('id_user');
+
+            // Unión de las 4 fuentes de baja, sin importar si el usuario está hoy en plan 1 o volvió a suscribirse
+            $bajaAnyIds = $bajaAppIds->merge($bajaMercadoPagoIds)->merge($bajaDeudorIds)->merge($bajaManualIds)->unique();
 
             // --- Closure con los filtros "genéricos" de datos (afectan tanto data como metrics) ---
             $applyBaseFilters = function ($q) use (
