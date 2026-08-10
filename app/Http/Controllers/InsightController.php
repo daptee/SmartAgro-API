@@ -19,6 +19,7 @@ class InsightController extends Controller
         $message = "Error al obtener los últimos insights";
         $action = "Últimos insights (público)";
         $data = null;
+        $classifications = null;
 
         try {
             $id_plan = [1];
@@ -36,9 +37,11 @@ class InsightController extends Controller
             $data = Insight::where('status_id', 1)
                 ->whereIn('id_plan', $id_plan)
                 ->orderBy('date', 'desc')
-                ->with(['plan', 'status', 'user', 'iconData'])
+                ->with(['plan', 'classification', 'status', 'user', 'iconData'])
                 ->take(9)
                 ->get();
+
+            $classifications = $data->pluck('classification')->filter()->unique('id')->values();
 
             Audith::new(Auth::user()->id ?? null, $action, $request->all(), 200, compact("data"));
 
@@ -47,7 +50,7 @@ class InsightController extends Controller
             return response(["message" => $message, "error" => $e->getMessage()], 500);
         }
 
-        return response(compact("data"));
+        return response(compact("data", "classifications"));
     }
 
     // GET ALL - Retorna todos los insights con filtros
@@ -57,6 +60,7 @@ class InsightController extends Controller
         $action = "Listado de insights";
         $data = null;
         $meta = null;
+        $classifications = null;
 
         try {
             $perPage = $request->query('per_page');
@@ -83,6 +87,11 @@ class InsightController extends Controller
                 $query->where('id_plan', $request->id_plan);
             }
 
+            // Filtro por clasificación
+            if ($request->has('id_classification') && $request->id_classification) {
+                $query->where('id_classification', $request->id_classification);
+            }
+
             // Campo de búsqueda por título o descripción
             if ($request->has('search') && $request->search) {
                 $search = $request->search;
@@ -97,10 +106,10 @@ class InsightController extends Controller
 
             // Si no se pasa per_page => devolver todo
             if (is_null($perPage)) {
-                $insights = $query->with(['plan', 'status', 'user', 'iconData'])->get();
+                $insights = $query->with(['plan', 'classification', 'status', 'user', 'iconData'])->get();
                 $data = $insights;
             } else {
-                $insights = $query->with(['plan', 'status', 'user', 'iconData'])->paginate($perPage, ['*'], 'page', $page);
+                $insights = $query->with(['plan', 'classification', 'status', 'user', 'iconData'])->paginate($perPage, ['*'], 'page', $page);
                 $data = $insights->items();
                 $meta = [
                     'page' => $insights->currentPage(),
@@ -110,6 +119,8 @@ class InsightController extends Controller
                 ];
             }
 
+            $classifications = collect($data)->pluck('classification')->filter()->unique('id')->values();
+
             Audith::new(Auth::user()->id ?? null, $action, $request->all(), 200, compact("action", "data", "meta"));
 
         } catch (Exception $e) {
@@ -117,7 +128,7 @@ class InsightController extends Controller
             return response(["message" => $message, "error" => $e->getMessage()], 500);
         }
 
-        return response(compact("data", "meta"));
+        return response(compact("data", "meta", "classifications"));
     }
 
     // POST - Crear nuevo insight
@@ -149,6 +160,7 @@ class InsightController extends Controller
             }
 
             $rules['additional_info'] = 'nullable';
+            $rules['id_classification'] = 'nullable|exists:classifications,id';
 
             $request->validate($rules);
 
@@ -158,12 +170,13 @@ class InsightController extends Controller
                 'icon' => $request->icon,
                 'date' => $request->date,
                 'id_plan' => $request->id_plan,
+                'id_classification' => $request->id_classification,
                 'status_id' => $request->status_id,
                 'id_user' => $id_user,
                 'additional_info' => is_string($request->input('additional_info')) ? json_decode($request->input('additional_info'), true) : $request->input('additional_info'),
             ]);
 
-            $data->load(['plan', 'status', 'user', 'iconData']);
+            $data->load(['plan', 'classification', 'status', 'user', 'iconData']);
 
             // Sincronizar con control general de mercado
             $insightMonth = (int) date('m', strtotime($data->date));
@@ -211,6 +224,7 @@ class InsightController extends Controller
             }
 
             $rules['additional_info'] = 'nullable';
+            $rules['id_classification'] = 'nullable|exists:classifications,id';
 
             $request->validate($rules);
 
@@ -229,13 +243,14 @@ class InsightController extends Controller
                 'icon' => $request->has('icon') ? $request->icon : $insight->icon,
                 'date' => $request->date,
                 'id_plan' => $request->id_plan,
+                'id_classification' => $request->id_classification,
                 'status_id' => $request->status_id,
                 'id_user' => $id_user,
                 'additional_info' => is_string($request->input('additional_info')) ? json_decode($request->input('additional_info'), true) : $request->input('additional_info'),
             ]);
 
             $data = $insight;
-            $data->load(['plan', 'status', 'user', 'iconData']);
+            $data->load(['plan', 'classification', 'status', 'user', 'iconData']);
 
             // Sincronizar con control general de mercado
             $insightMonth = (int) date('m', strtotime($data->date));
@@ -281,7 +296,7 @@ class InsightController extends Controller
             ]);
 
             $data = $insight;
-            $data->load(['plan', 'status', 'user', 'iconData']);
+            $data->load(['plan', 'classification', 'status', 'user', 'iconData']);
 
             // Sincronizar con control general de mercado
             $insightMonth = (int) date('m', strtotime($data->date));

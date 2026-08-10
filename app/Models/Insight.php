@@ -19,6 +19,7 @@ class Insight extends Model
         'title',
         'description',
         'additional_info',
+        'id_classification',
         'status_id',
         'id_user',
     ];
@@ -35,6 +36,11 @@ class Insight extends Model
     public function plan(): BelongsTo
     {
         return $this->belongsTo(Plan::class, 'id_plan', 'id');
+    }
+
+    public function classification(): BelongsTo
+    {
+        return $this->belongsTo(Classification::class, 'id_classification', 'id');
     }
 
     public function status(): BelongsTo

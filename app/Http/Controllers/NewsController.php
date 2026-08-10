@@ -20,6 +20,7 @@ class NewsController extends Controller
         $action = "Listado de noticias";
         $data = null;
         $meta = null;
+        $classifications = null;
 
         try {
             $perPage = $request->query('per_page'); // ahora sin valor por defecto
@@ -78,6 +79,8 @@ class NewsController extends Controller
                 ];
             }
 
+            $classifications = collect($data)->pluck('classification')->filter()->unique('id')->values();
+
             Audith::new(Auth::user()->id ?? null, $action, $request->all(), 200, compact("action", "data", "meta"));
 
         } catch (Exception $e) {
@@ -85,7 +88,7 @@ class NewsController extends Controller
             return response(["message" => $message, "error" => $e->getMessage()], 500);
         }
 
-        return response(compact("data", "meta"));
+        return response(compact("data", "meta", "classifications"));
     }
 
     // POST - Crear nueva noticia
@@ -299,6 +302,7 @@ class NewsController extends Controller
         $message = "Error al obtener las últimas noticias";
         $action = "Últimas noticias (público)";
         $data = null;
+        $classifications = null;
 
         try {
             $id_plan = [1];
@@ -316,9 +320,11 @@ class NewsController extends Controller
             $data = News::where('status_id', 1)
                 ->whereIn('id_plan', $id_plan)
                 ->orderBy('date', 'desc')
-                ->with(['plan'])
+                ->with(['plan', 'classification'])
                 ->take(9)
                 ->get();
+
+            $classifications = $data->pluck('classification')->filter()->unique('id')->values();
 
             Audith::new(Auth::user()->id ?? null, $action, $request->all(), 200, compact("data"));
 
@@ -327,7 +333,7 @@ class NewsController extends Controller
             return response(["message" => $message, "error" => $e->getMessage()], 500);
         }
 
-        return response(compact("data"));
+        return response(compact("data", "classifications"));
     }
 
     // GET GALLERY - Retorna galería de imágenes de noticias
