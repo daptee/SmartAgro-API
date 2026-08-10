@@ -1271,7 +1271,7 @@ class UserController extends Controller
             $user->subscription_manual = ((int) $request->id_plan === 2);
             $user->save();
 
-            UserPlan::save_history($user->id, $request->id_plan, null, null);
+            UserPlan::save_history($user->id, $request->id_plan, null, null, null);
 
             $data = $this->model::getAllDataUser($id);
             Audith::new($id_user, $action, ["id_user" => $id, "data" => $request->all()], 200, compact("message", "data"));
