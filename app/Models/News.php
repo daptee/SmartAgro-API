@@ -20,6 +20,7 @@ class News extends Model
         'date',
         'additional_info',
         'id_plan',
+        'id_classification',
         'status_id',
         'id_user',
     ];
@@ -36,6 +37,11 @@ class News extends Model
     public function plan(): BelongsTo
     {
         return $this->belongsTo(Plan::class, 'id_plan', 'id');
+    }
+
+    public function classification(): BelongsTo
+    {
+        return $this->belongsTo(Classification::class, 'id_classification', 'id');
     }
 
     public function status(): BelongsTo
