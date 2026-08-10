@@ -168,8 +168,17 @@ class UserController extends Controller
                 ->distinct()
                 ->pluck('id_user');
 
-            // Unión de las 4 fuentes de baja, sin importar si el usuario está hoy en plan 1 o volvió a suscribirse
-            $bajaAnyIds = $bajaAppIds->merge($bajaMercadoPagoIds)->merge($bajaDeudorIds)->merge($bajaManualIds)->unique();
+            // Red de seguridad: cualquier usuario que hoy está en Semilla y tiene algún registro de pago
+            // (payment, approved o free_trial) obviamente tuvo una baja en algún momento, aunque no haya
+            // quedado un registro en users_plans que lo explique (ej. otros endpoints que cambian id_plan
+            // sin pasar por UserPlan::save_history). Sin esto, esos usuarios no caen ni en "se dieron de
+            // baja" ni en "nunca se suscribieron", y el total de Semilla no cierra.
+            $bajaSinRegistroIds = User::where('id_plan', 1)
+                ->whereIn('id', $conCualquierRegistroPagos)
+                ->pluck('id');
+
+            // Unión de todas las fuentes de baja, sin importar si el usuario está hoy en plan 1 o volvió a suscribirse
+            $bajaAnyIds = $bajaAppIds->merge($bajaMercadoPagoIds)->merge($bajaDeudorIds)->merge($bajaManualIds)->merge($bajaSinRegistroIds)->unique();
 
             // --- Closure con los filtros "genéricos" de datos (afectan tanto data como metrics) ---
             $applyBaseFilters = function ($q) use (
