@@ -46,6 +46,11 @@ class NewsController extends Controller
                 $query->where('id_plan', $request->id_plan);
             }
 
+            // Filtro por clasificación
+            if ($request->has('id_classification') && $request->id_classification) {
+                $query->where('id_classification', $request->id_classification);
+            }
+
             // Campo de búsqueda por título o contenido
             if ($request->has('search') && $request->search) {
                 $search = $request->search;
@@ -60,10 +65,10 @@ class NewsController extends Controller
 
             // Si no se pasa per_page => devolver todo
             if (is_null($perPage)) {
-                $news = $query->with(['plan', 'status', 'user'])->get();
+                $news = $query->with(['plan', 'classification', 'status', 'user'])->get();
                 $data = $news;
             } else {
-                $news = $query->with(['plan', 'status', 'user'])->paginate($perPage, ['*'], 'page', $page);
+                $news = $query->with(['plan', 'classification', 'status', 'user'])->paginate($perPage, ['*'], 'page', $page);
                 $data = $news->items();
                 $meta = [
                     'page' => $news->currentPage(),
@@ -112,6 +117,7 @@ class NewsController extends Controller
             }
 
             $rules['additional_info'] = 'nullable';
+            $rules['id_classification'] = 'nullable|exists:classifications,id';
 
             $request->validate($rules);
 
@@ -121,12 +127,13 @@ class NewsController extends Controller
                 'img' => $request->img,
                 'date' => $request->date,
                 'id_plan' => $request->id_plan,
+                'id_classification' => $request->id_classification,
                 'status_id' => $request->status_id,
                 'id_user' => $id_user,
                 'additional_info' => is_string($request->input('additional_info')) ? json_decode($request->input('additional_info'), true) : $request->input('additional_info'),
             ]);
 
-            $data->load(['plan', 'status', 'user']);
+            $data->load(['plan', 'classification', 'status', 'user']);
 
             // Sincronizar con control general de mercado
             $newsMonth = (int) date('m', strtotime($data->date));
@@ -174,6 +181,7 @@ class NewsController extends Controller
             }
 
             $rules['additional_info'] = 'nullable';
+            $rules['id_classification'] = 'nullable|exists:classifications,id';
 
             $request->validate($rules);
 
@@ -193,13 +201,14 @@ class NewsController extends Controller
                 'img' => $request->has('img') ? $request->img : $news->img,
                 'date' => $request->date,
                 'id_plan' => $request->id_plan,
+                'id_classification' => $request->id_classification,
                 'status_id' => $request->status_id,
                 'id_user' => $id_user,
                 'additional_info' => is_string($request->input('additional_info')) ? json_decode($request->input('additional_info'), true) : $request->input('additional_info'),
             ]);
 
             $data = $news;
-            $data->load(['plan', 'status', 'user']);
+            $data->load(['plan', 'classification', 'status', 'user']);
 
             // Sincronizar con control general de mercado
             $newsMonth = (int) date('m', strtotime($data->date));
@@ -245,7 +254,7 @@ class NewsController extends Controller
             ]);
 
             $data = $news;
-            $data->load(['plan', 'status', 'user']);
+            $data->load(['plan', 'classification', 'status', 'user']);
 
             // Sincronizar con control general de mercado
             $newsMonth = (int) date('m', strtotime($data->date));
@@ -390,7 +399,7 @@ class NewsController extends Controller
 
             $news->save();
 
-            $news->load(['plan', 'status', 'user']);
+            $news->load(['plan', 'classification', 'status', 'user']);
 
             $data = $news;
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));
@@ -422,7 +431,7 @@ class NewsController extends Controller
             $news->img = null;
             $news->save();
 
-            $news->load(['plan', 'status', 'user']);
+            $news->load(['plan', 'classification', 'status', 'user']);
 
             $data = $news;
             Audith::new($id_user, $action, $request->all(), 200, compact("data"));

@@ -52,6 +52,7 @@ class UserController extends Controller
      *   cancelled_via_mercadopago (1|0) — 1: cancelaron la suscripción directamente en Mercado Pago; 0: el resto
      *   auto_cancelled_debtor (1|0) — 1: baja automática del sistema por impago; 0: el resto
      *   unsubscribed (1|0) — 1: tuvieron alguna baja de suscripción (app, MP o automática), hayan pagado o no; 0: el resto
+     *   never_subscribed (1|0) — 1: nunca tuvieron ningún registro de suscripción (ni pago, ni free trial, ni baja); 0: el resto
      *
      * Respuesta:
      *   data    → campos básicos de los usuarios paginados (o todos si no hay per_page)
@@ -96,11 +97,16 @@ class UserController extends Controller
             $autoCancelledDebtorFilter = $request->input('auto_cancelled_debtor');
             // unsubscribed: 1 = usuarios con alguna baja de suscripción registrada (por app, por Mercado Pago o automática), hayan pagado o no
             $unsubscribedFilter = $request->input('unsubscribed');
+            // never_subscribed: 1 = usuarios que nunca tuvieron ningún registro de suscripción (ni pago, ni free trial, ni baja); 0 = el resto
+            $neverSubscribedFilter = $request->input('never_subscribed');
 
             // IDs de usuarios Siembra con pagos reales (type payment o approved en payment_history)
             $siembraConPagos = PaymentHistory::whereIn('type', ['payment', 'approved'])
                 ->distinct()
                 ->pluck('id_user');
+
+            // IDs de usuarios con cualquier registro en payment_history, sin importar el tipo
+            $conCualquierRegistroPagos = PaymentHistory::distinct()->pluck('id_user');
 
             // IDs de usuarios que tienen un registro free_trial en payment_history
             // (activaron el período gratuito formalmente a través del sistema de pagos)
@@ -227,7 +233,7 @@ class UserController extends Controller
                 $cancelledViaAppFilter, $bajaAppIds,
                 $cancelledViaMercadoPagoFilter, $bajaMercadoPagoIds,
                 $autoCancelledDebtorFilter, $bajaDeudorIds,
-                $unsubscribedFilter
+                $unsubscribedFilter, $neverSubscribedFilter, $conCualquierRegistroPagos
             ) {
                 if (!empty($subscriptionType)) { $q->where('subscription_type', $subscriptionType); }
                 if ($freeTrialUsed !== null && $freeTrialUsed !== '') {
@@ -274,6 +280,16 @@ class UserController extends Controller
                         $q->whereIn('id', $bajaAnyIds);
                     } else {
                         $q->whereNotIn('id', $bajaAnyIds);
+                    }
+                }
+                // Filtro nunca se suscribieron: sin baja registrada y sin ningún registro en payment_history
+                if ($neverSubscribedFilter !== null && $neverSubscribedFilter !== '') {
+                    if ((bool) $neverSubscribedFilter) {
+                        $q->whereNotIn('id', $bajaAnyIds)->whereNotIn('id', $conCualquierRegistroPagos);
+                    } else {
+                        $q->where(function ($sq) use ($bajaAnyIds, $conCualquierRegistroPagos) {
+                            $sq->whereIn('id', $bajaAnyIds)->orWhereIn('id', $conCualquierRegistroPagos);
+                        });
                     }
                 }
             };
