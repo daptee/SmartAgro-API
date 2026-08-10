@@ -154,6 +154,10 @@ class UserController extends Controller
                 ->distinct()
                 ->pluck('id_user');
 
+            // Un usuario con baja por app o baja automática por deudor no debe contarse también como
+            // baja por Mercado Pago (evita que aparezca en más de una categoría de baja en las métricas).
+            $bajaMercadoPagoIds = $bajaMercadoPagoIds->diff($bajaAppIds)->diff($bajaDeudorIds)->values();
+
             // Unión de las 3 fuentes de baja, sin importar si el usuario está hoy en plan 1 o volvió a suscribirse
             $bajaAnyIds = $bajaAppIds->merge($bajaMercadoPagoIds)->merge($bajaDeudorIds)->unique();
 
