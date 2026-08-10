@@ -48,6 +48,7 @@ class UserController extends Controller
      *   email_confirmation (1|0),
      *   paid_siembra (1|0) — 1: solo Siembra con pagos reales; 0: solo Siembra habilitados manualmente
      *   paid_churned (1|0) — 1: pagaron al menos una vez y tuvieron alguna baja (app, MP o automática); 0: el resto
+     *   unsubscribed_without_payment (1|0) — 1: tuvieron alguna baja sin haber pagado nunca; 0: el resto
      *   cancelled_via_app (1|0) — 1: cancelaron la suscripción desde la app; 0: el resto
      *   cancelled_via_mercadopago (1|0) — 1: cancelaron la suscripción directamente en Mercado Pago; 0: el resto
      *   auto_cancelled_debtor (1|0) — 1: baja automática del sistema por impago; 0: el resto
@@ -95,6 +96,8 @@ class UserController extends Controller
             $cancelledViaMercadoPagoFilter = $request->input('cancelled_via_mercadopago');
             // auto_cancelled_debtor: 1 = usuarios dados de baja automáticamente por el sistema por impago
             $autoCancelledDebtorFilter = $request->input('auto_cancelled_debtor');
+            // unsubscribed_without_payment: 1 = usuarios que tuvieron alguna baja sin haber pagado nunca
+            $unsubscribedWithoutPaymentFilter = $request->input('unsubscribed_without_payment');
             // unsubscribed: 1 = usuarios con alguna baja de suscripción registrada (por app, por Mercado Pago o automática), hayan pagado o no
             $unsubscribedFilter = $request->input('unsubscribed');
             // never_subscribed: 1 = usuarios que nunca tuvieron ningún registro de suscripción (ni pago, ni free trial, ni baja); 0 = el resto
@@ -237,7 +240,8 @@ class UserController extends Controller
                 $cancelledViaAppFilter, $bajaAppIds,
                 $cancelledViaMercadoPagoFilter, $bajaMercadoPagoIds,
                 $autoCancelledDebtorFilter, $bajaDeudorIds,
-                $unsubscribedFilter, $neverSubscribedFilter, $conCualquierRegistroPagos
+                $unsubscribedFilter, $neverSubscribedFilter, $conCualquierRegistroPagos,
+                $unsubscribedWithoutPaymentFilter
             ) {
                 if (!empty($subscriptionType)) { $q->where('subscription_type', $subscriptionType); }
                 if ($freeTrialUsed !== null && $freeTrialUsed !== '') {
@@ -279,6 +283,16 @@ class UserController extends Controller
                         $q->whereNotIn('id', $bajaDeudorIds);
                     }
                 }
+                // Filtro se dieron de baja sin pagar: tuvieron alguna baja y nunca pagaron (misma base que la métrica se_dieron_de_baja_sin_pagar)
+                if ($unsubscribedWithoutPaymentFilter !== null && $unsubscribedWithoutPaymentFilter !== '') {
+                    if ((bool) $unsubscribedWithoutPaymentFilter) {
+                        $q->whereIn('id', $bajaAnyIds)->whereNotIn('id', $siembraConPagos);
+                    } else {
+                        $q->where(function ($sq) use ($bajaAnyIds, $siembraConPagos) {
+                            $sq->whereNotIn('id', $bajaAnyIds)->orWhereIn('id', $siembraConPagos);
+                        });
+                    }
+                }
                 if ($unsubscribedFilter !== null && $unsubscribedFilter !== '') {
                     if ((bool) $unsubscribedFilter) {
                         $q->whereIn('id', $bajaAnyIds);
@@ -315,6 +329,7 @@ class UserController extends Controller
                 'siembra_periodo_gratis'     => (clone $metricsQuery)->where('id_plan', 2)->where('free_trial_used', true)->count(),
                 'siembra_free_trial_activo'  => (clone $metricsQuery)->where('id_plan', 2)->where('free_trial_used', true)->whereIn('id', $conRegistroFreeTrial)->whereNotIn('id', $siembraConPagos)->count(),
                 'pagaron_y_se_dieron_de_baja' => (clone $metricsQuery)->whereIn('id', $bajaAnyIds)->whereIn('id', $siembraConPagos)->count(),
+                'se_dieron_de_baja_sin_pagar' => (clone $metricsQuery)->whereIn('id', $bajaAnyIds)->whereNotIn('id', $siembraConPagos)->count(),
                 'se_dieron_de_baja'          => (clone $metricsQuery)->whereIn('id', $bajaAnyIds)->count(),
                 'baja_por_app'               => (clone $metricsQuery)->whereIn('id', $bajaAppIds)->count(),
                 'baja_por_mercadopago'       => (clone $metricsQuery)->whereIn('id', $bajaMercadoPagoIds)->count(),
