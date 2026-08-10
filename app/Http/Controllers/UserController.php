@@ -589,7 +589,28 @@ class UserController extends Controller
                 $meta  = null;
             }
 
-            $data = $items->map(function ($plan) {
+            // Método de pago usado en cada preapproval: se toma del último pago real (payment/approved)
+            // registrado en payment_history para ese preapproval_id, ya que el registro de UserPlan
+            // (preapproval de Mercado Pago) no incluye el medio de pago utilizado.
+            $preapprovalIds = $items->pluck('preapproval_id')->filter()->unique()->values();
+
+            $paymentMethodByPreapproval = PaymentHistory::whereIn('preapproval_id', $preapprovalIds)
+                ->whereIn('type', ['payment', 'approved'])
+                ->orderBy('created_at', 'desc')
+                ->get(['preapproval_id', 'data'])
+                ->groupBy('preapproval_id')
+                ->map(function ($payments) {
+                    foreach ($payments as $payment) {
+                        $paymentData = is_string($payment->data) ? json_decode($payment->data, true) : (array) ($payment->data ?? []);
+                        $type = $paymentData['payment_method']['type'] ?? null;
+                        if ($type) {
+                            return $type;
+                        }
+                    }
+                    return null;
+                });
+
+            $data = $items->map(function ($plan) use ($paymentMethodByPreapproval) {
                 $raw      = is_string($plan->data) ? json_decode($plan->data, true) : (array) ($plan->data ?? []);
                 $status   = $raw['status'] ?? null;
                 $freqType = $raw['auto_recurring']['frequency_type'] ?? null;
@@ -617,6 +638,7 @@ class UserController extends Controller
                     'preapproval_id'    => $plan->preapproval_id,
                     'next_payment_date' => $plan->next_payment_date,
                     'reason'            => $raw['reason'] ?? $raw['_note'] ?? null,
+                    'payment_method'    => $plan->preapproval_id ? ($paymentMethodByPreapproval[$plan->preapproval_id] ?? null) : null,
                     'date'              => $plan->created_at,
                 ];
             });
