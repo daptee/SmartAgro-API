@@ -23,6 +23,7 @@ use App\Http\Controllers\InsightController;
 use App\Http\Controllers\GeneralImportController;
 use App\Http\Controllers\GetsFunctionsController;
 use App\Http\Controllers\IconController;
+use App\Http\Controllers\LivestockPriceController;
 use App\Http\Controllers\LocalityProvinceController;
 use App\Http\Controllers\MajorCropController;
 use App\Http\Controllers\NewsController;
@@ -64,6 +65,9 @@ Route::get('/notify-expiring-plans', [CompanyPlanController::class, 'notifyExpir
 
 // scrape flash de cotizaciones (bolsa de cereales) and update current month
 Route::get('/refresh-grain-quotes', [GrainQuoteController::class, 'refresh'])->name('refresh-grain-quotes');
+
+// scrape cotizaciones de ganadería (mercado agroganadero + entre surcos y corrales ya) and update current month
+Route::get('/refresh-livestock-prices', [LivestockPriceController::class, 'refresh'])->name('refresh-livestock-prices');
 
 // faq sin token
 Route::get('faqs', [FaqController::class, 'index']);
@@ -247,6 +251,9 @@ Route::get('major-crops/latest', [MajorCropController::class, 'latest']);
 
 // Últimas cotizaciones de granos (sin token)
 Route::get('grain-quotes/latest', [GrainQuoteController::class, 'latest']);
+
+// Últimas cotizaciones de ganadería (sin token)
+Route::get('livestock-prices/latest', [LivestockPriceController::class, 'latest']);
 
 // Ícono por id (sin token)
 Route::get('icons/{id}', [IconController::class, 'show']);
