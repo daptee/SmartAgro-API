@@ -8,6 +8,7 @@ use App\Models\Audith;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Carbon;
 use DOMDocument;
 use DOMXPath;
@@ -99,6 +100,17 @@ class LivestockPriceController extends Controller
                     ['price' => $entry['price'], 'source' => $entry['source']]
                 )->load('product');
             }
+
+            Log::info('Refresh de cotizaciones de ganadería', [
+                'periodo' => $periodo,
+                'cantidad' => count($data),
+                'cotizaciones' => array_map(fn ($lp) => [
+                    'product_id' => $lp->product_id,
+                    'producto' => $lp->product->name,
+                    'price' => $lp->price,
+                    'source' => $lp->source,
+                ], $data),
+            ]);
 
             Audith::new(Auth::user()->id ?? null, $action, $request->all(), 200, compact("data"));
         } catch (Exception $e) {
