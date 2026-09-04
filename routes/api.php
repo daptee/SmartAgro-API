@@ -17,6 +17,7 @@ use App\Http\Controllers\CropController;
 use App\Http\Controllers\ActiveIngredientController;
 use App\Http\Controllers\ClassificationController;
 use App\Http\Controllers\FaqController;
+use App\Http\Controllers\GrainQuoteController;
 use App\Http\Controllers\ImageController;
 use App\Http\Controllers\InsightController;
 use App\Http\Controllers\GeneralImportController;
@@ -60,6 +61,9 @@ Route::get('/finalize-expired', [CompanyPlanController::class, 'finalizeExpired'
 
 // notify companies with plans expiring in 30 days
 Route::get('/notify-expiring-plans', [CompanyPlanController::class, 'notifyExpiringPlans'])->name('notify-expiring-plans');
+
+// scrape flash de cotizaciones (bolsa de cereales) and update current month
+Route::get('/refresh-grain-quotes', [GrainQuoteController::class, 'refresh'])->name('refresh-grain-quotes');
 
 // faq sin token
 Route::get('faqs', [FaqController::class, 'index']);
@@ -241,6 +245,9 @@ Route::get('insights/latest', [InsightController::class, 'latest']);
 // Último mes de principales cultivos (sin token)
 Route::get('major-crops/latest', [MajorCropController::class, 'latest']);
 
+// Últimas cotizaciones de granos (sin token)
+Route::get('grain-quotes/latest', [GrainQuoteController::class, 'latest']);
+
 // Ícono por id (sin token)
 Route::get('icons/{id}', [IconController::class, 'show']);
 
@@ -328,6 +335,7 @@ Route::get('/clear-cache', function () {
     Artisan::call('config:cache');
     Artisan::call('route:cache');
     Artisan::call('view:cache');
+    Artisan::call('migrate', ['--force' => true]);
 
     return response()->json([
         "message" => "Cache cleared successfully"
