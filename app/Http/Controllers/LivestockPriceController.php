@@ -27,10 +27,11 @@ class LivestockPriceController extends Controller
     private const ESC_BASE_URL = 'https://www.entresurcosycorralesya.com/';
     private const ESC_SOURCE = 'entresurcosycorralesya';
 
-    // Un módulo por página de precios del sitio. value_index = columna a usar como precio (0-based, sin contar Categoría)
+    // Un módulo por página de precios del sitio. Los índices son la posición real de la celda <td>, contando la Categoría como 0.
     private const ESC_MODULES = [
         'ternera' => [
             'endpoint' => 'ajax-modulo-ternera.php',
+            'quantity_index' => 1, // Cantidad
             'value_index' => 2, // Prom. Kilo
             'products' => [
                 'Terneras 130-150 Kg.' => 'Ternera 130-150 Kg',
@@ -40,6 +41,7 @@ class LivestockPriceController extends Controller
         ],
         'ternero' => [
             'endpoint' => 'ajax-modulo-ternero.php',
+            'quantity_index' => 1, // Cantidad
             'value_index' => 2, // Prom. Kilo
             'products' => [
                 'Terneros 130-160 Kg.' => 'Ternero 130-160 Kg',
@@ -49,6 +51,7 @@ class LivestockPriceController extends Controller
         ],
         'vientre' => [
             'endpoint' => 'ajax-modulo-vientre.php',
+            'quantity_index' => 1, // Cantidad
             'value_index' => 2, // Prom. Bulto (no tiene precio por kilo)
             'products' => [
                 'Vacas C. Gtia. Preñez Nueva' => 'Vaca Gtía. Preñez Nueva',
@@ -56,6 +59,7 @@ class LivestockPriceController extends Controller
         ],
         'toros' => [
             'endpoint' => 'ajax-modulo-precio-toros.php',
+            'quantity_index' => 2, // Vendidos (no "A venta", que sólo indica que fue ofrecido)
             'value_index' => 3, // Promedio
             'products' => [
                 'A.ANGUS PC. NEGRO' => 'A.ANGUS PC. NEGRO',
@@ -228,7 +232,7 @@ class LivestockPriceController extends Controller
                 throw new Exception("No se pudo acceder a Entre Surcos y Corrales Ya - {$module['endpoint']} (HTTP {$response->status()})");
             }
 
-            $rows = $this->parseEscTable($response->body(), $module['value_index']);
+            $rows = $this->parseEscTable($response->body(), $module['quantity_index'], $module['value_index']);
 
             foreach ($module['products'] as $sourceLabel => $productName) {
                 if (!isset($rows[$sourceLabel])) {
@@ -251,8 +255,8 @@ class LivestockPriceController extends Controller
         return $results;
     }
 
-    // Devuelve, por cada categoría de la tabla, ['cantidad' => .., 'value' => ..] tomando la columna $valueIndex (0-based, tras la Categoría)
-    private function parseEscTable(string $html, int $valueIndex): array
+    // Devuelve, por cada categoría de la tabla, ['cantidad' => .., 'value' => ..] tomando las celdas $quantityIndex/$valueIndex (posición real de <td>, Categoría = 0)
+    private function parseEscTable(string $html, int $quantityIndex, int $valueIndex): array
     {
         $dom = new DOMDocument();
         libxml_use_internal_errors(true);
@@ -265,7 +269,7 @@ class LivestockPriceController extends Controller
         $data = [];
         foreach ($rows as $row) {
             $cells = $row->getElementsByTagName('td');
-            if ($cells->length < 2) {
+            if ($cells->length <= max($quantityIndex, $valueIndex)) {
                 continue;
             }
 
@@ -274,10 +278,8 @@ class LivestockPriceController extends Controller
                 continue;
             }
 
-            $cantidad = $this->parseArgentineNumber(trim($cells->item(1)->textContent));
-            $value = $cells->length > $valueIndex + 1
-                ? $this->parseArgentineNumber(trim($cells->item($valueIndex + 1)->textContent))
-                : null;
+            $cantidad = $this->parseArgentineNumber(trim($cells->item($quantityIndex)->textContent));
+            $value = $this->parseArgentineNumber(trim($cells->item($valueIndex)->textContent));
 
             if ($cantidad !== null && $cantidad > 0 && $value !== null) {
                 $data[$label] = ['cantidad' => $cantidad, 'value' => $value];
