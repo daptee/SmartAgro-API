@@ -46,6 +46,9 @@ class GrainQuoteController extends Controller
                 ['periodo' => $periodo],
                 ['data' => $granos]
             );
+            // updateOrCreate no toca updated_at si el JSON no cambió respecto a la última corrida;
+            // se fuerza para que updated_at siempre refleje la última vez que el refresh trajo este dato.
+            $data->touch();
 
             Audith::new(Auth::user()->id ?? null, $action, $request->all(), 200, compact("data"));
         } catch (Exception $e) {

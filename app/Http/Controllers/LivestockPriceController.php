@@ -82,10 +82,18 @@ class LivestockPriceController extends Controller
             $hasta = Carbon::now();
             $desde = Carbon::now()->subDays(6); // últimos 7 días
 
-            $prices = array_merge(
-                $this->fetchMagPrices($desde, $hasta),
-                $this->fetchEscPrices($desde, $hasta)
-            );
+            $mag = $this->fetchMagPrices($desde, $hasta);
+            $esc = $this->fetchEscPrices($desde, $hasta);
+
+            // Todo lo que se leyó de las páginas de origen, tenga o no producto asociado en el catálogo
+            Log::info('Scraping de ganadería - datos crudos de las páginas de origen', [
+                'desde' => $desde->format('Y-m-d'),
+                'hasta' => $hasta->format('Y-m-d'),
+                'mercadoagroganadero' => $mag['raw'],
+                'entresurcosycorralesya' => $esc['raw'],
+            ]);
+
+            $prices = array_merge($mag['matched'], $esc['matched']);
 
             if (empty($prices)) {
                 throw new Exception("No se pudieron extraer cotizaciones de ganadería de ninguna fuente (posible bloqueo o cambio de estructura del HTML)");
@@ -95,22 +103,15 @@ class LivestockPriceController extends Controller
             $data = [];
 
             foreach ($prices as $entry) {
-                $data[] = LivestockPrice::updateOrCreate(
+                $livestockPrice = LivestockPrice::updateOrCreate(
                     ['product_id' => $entry['product_id'], 'periodo' => $periodo],
                     ['price' => $entry['price'], 'source' => $entry['source']]
-                )->load('product');
+                );
+                // updateOrCreate no toca updated_at si el precio no cambió respecto a la última corrida;
+                // se fuerza para que updated_at siempre refleje la última vez que el refresh trajo este dato.
+                $livestockPrice->touch();
+                $data[] = $livestockPrice->load('product');
             }
-
-            Log::info('Refresh de cotizaciones de ganadería', [
-                'periodo' => $periodo,
-                'cantidad' => count($data),
-                'cotizaciones' => array_map(fn ($lp) => [
-                    'product_id' => $lp->product_id,
-                    'producto' => $lp->product->name,
-                    'price' => $lp->price,
-                    'source' => $lp->source,
-                ], $data),
-            ]);
 
             Audith::new(Auth::user()->id ?? null, $action, $request->all(), 200, compact("data"));
         } catch (Exception $e) {
@@ -147,7 +148,7 @@ class LivestockPriceController extends Controller
     }
 
     /**
-     * @return array<int, array{product_id: int, price: float, source: string}>
+     * @return array{raw: array<string, float>, matched: array<int, array{product_id: int, price: float, source: string}>}
      */
     private function fetchMagPrices(Carbon $desde, Carbon $hasta): array
     {
@@ -162,6 +163,7 @@ class LivestockPriceController extends Controller
             throw new Exception("No se pudo acceder a Mercado Agroganadero (HTTP {$response->status()})");
         }
 
+        // Promedio por cada grupo de categorías que trajo la página (NOVILLOS, NOVILLITOS, VAQUILLONAS, VACAS, TOROS, MEJ...)
         $promedios = $this->parseMagPromedios($response->body());
 
         $results = [];
@@ -182,7 +184,7 @@ class LivestockPriceController extends Controller
             ];
         }
 
-        return $results;
+        return ['raw' => $promedios, 'matched' => $results];
     }
 
     // Devuelve, por cada grupo de categorías (ej. "NOVILLOS"), el valor "Promedio" de su fila de subtotal
@@ -228,13 +230,14 @@ class LivestockPriceController extends Controller
     }
 
     /**
-     * @return array<int, array{product_id: int, price: float, source: string}>
+     * @return array{raw: array<string, array<string, array{cantidad: float, value: float}>>, matched: array<int, array{product_id: int, price: float, source: string}>}
      */
     private function fetchEscPrices(Carbon $desde, Carbon $hasta): array
     {
+        $raw = [];
         $results = [];
 
-        foreach (self::ESC_MODULES as $module) {
+        foreach (self::ESC_MODULES as $key => $module) {
             $response = Http::timeout(30)->get(self::ESC_BASE_URL . $module['endpoint'], [
                 'desde' => $desde->format('Y-m-d'),
                 'hasta' => $hasta->format('Y-m-d'),
@@ -244,7 +247,9 @@ class LivestockPriceController extends Controller
                 throw new Exception("No se pudo acceder a Entre Surcos y Corrales Ya - {$module['endpoint']} (HTTP {$response->status()})");
             }
 
+            // Todas las categorías con ventas que trajo este módulo (no sólo las que tienen producto asociado)
             $rows = $this->parseEscTable($response->body(), $module['quantity_index'], $module['value_index']);
+            $raw[$key] = $rows;
 
             foreach ($module['products'] as $sourceLabel => $productName) {
                 if (!isset($rows[$sourceLabel])) {
@@ -264,7 +269,7 @@ class LivestockPriceController extends Controller
             }
         }
 
-        return $results;
+        return ['raw' => $raw, 'matched' => $results];
     }
 
     // Devuelve, por cada categoría de la tabla, ['cantidad' => .., 'value' => ..] tomando las celdas $quantityIndex/$valueIndex (posición real de <td>, Categoría = 0)
