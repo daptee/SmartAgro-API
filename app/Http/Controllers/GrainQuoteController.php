@@ -35,8 +35,8 @@ class GrainQuoteController extends Controller
             $html = $this->fetchSourceHtml();
             $granos = $this->parseFlashCotizaciones($html);
 
-            if (empty(array_filter($granos))) {
-                throw new Exception("No se encontraron datos de cotizaciones en la página de origen");
+            if ($this->countQuotes($granos) === 0) {
+                throw new Exception("No se pudieron extraer cotizaciones de la página de origen (posible bloqueo del sitio o cambio de estructura del HTML)");
             }
 
             // Solo se actualiza el registro del mes en curso; los meses anteriores quedan como historial
@@ -81,7 +81,8 @@ class GrainQuoteController extends Controller
     {
         $process = new Process([
             'curl',
-            '-s',
+            '-sS',
+            '-f',
             '-L',
             '-A', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36',
             self::SOURCE_URL,
@@ -100,6 +101,19 @@ class GrainQuoteController extends Controller
         }
 
         return $html;
+    }
+
+    private function countQuotes(array $granos): int
+    {
+        $total = 0;
+
+        foreach ($granos['granos'] ?? [] as $sections) {
+            foreach ($sections as $rows) {
+                $total += count($rows);
+            }
+        }
+
+        return $total;
     }
 
     private function parseFlashCotizaciones(string $html): array
