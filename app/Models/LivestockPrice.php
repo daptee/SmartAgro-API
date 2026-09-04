@@ -17,6 +17,13 @@ class LivestockPrice extends Model
         'source',
     ];
 
+    protected function casts(): array
+    {
+        return [
+            'price' => 'decimal:2',
+        ];
+    }
+
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class, 'product_id');
