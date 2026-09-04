@@ -6,8 +6,8 @@ use App\Models\GrainQuote;
 use App\Models\Audith;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Carbon;
-use Symfony\Component\Process\Process;
 use DOMDocument;
 use DOMElement;
 use DOMXPath;
@@ -75,26 +75,27 @@ class GrainQuoteController extends Controller
         return response(compact("data"));
     }
 
-    // La página bloquea (403) las peticiones hechas con el cliente HTTP de PHP (Guzzle/curl-ext),
-    // por lo que se delega la descarga al binario curl del sistema, igual que en BackupController.
+    // El sitio está protegido por un challenge anti-bot de Cloudflare que bloquea las peticiones
+    // hechas directamente desde IPs de datacenter, así que la descarga se delega a ScraperAPI
+    // (resuelve el challenge y devuelve el HTML ya renderizado).
     private function fetchSourceHtml(): string
     {
-        $process = new Process([
-            'curl',
-            '-sS',
-            '-f',
-            '-L',
-            '-A', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36',
-            self::SOURCE_URL,
-        ]);
-        $process->setTimeout(20);
-        $process->run();
+        $apiKey = config('services.scraperapi.key');
 
-        if (!$process->isSuccessful()) {
-            throw new Exception("No se pudo acceder a la Bolsa de Cereales: " . $process->getErrorOutput());
+        if (empty($apiKey)) {
+            throw new Exception("Falta configurar SCRAPERAPI_KEY en el entorno");
         }
 
-        $html = $process->getOutput();
+        $response = Http::timeout(30)->get('https://api.scraperapi.com/', [
+            'api_key' => $apiKey,
+            'url' => self::SOURCE_URL,
+        ]);
+
+        if (!$response->successful()) {
+            throw new Exception("No se pudo acceder a la Bolsa de Cereales vía ScraperAPI (HTTP {$response->status()})");
+        }
+
+        $html = $response->body();
 
         if (trim($html) === '') {
             throw new Exception("La Bolsa de Cereales devolvió una respuesta vacía");
