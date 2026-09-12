@@ -226,9 +226,13 @@ class UserController extends Controller
                 if ($paidSiembra !== null && $paidSiembra !== '') {
                     $q->where('id_plan', 2); // solo Siembra
                     if ((bool) $paidSiembra) {
-                        $q->whereIn('id', $siembraConPagos);
+                        // subscription_manual=true es excluyente: si el plan fue habilitado a mano,
+                        // no debe contar como pago real aunque tenga un pago histórico registrado.
+                        $q->where('subscription_manual', false)->whereIn('id', $siembraConPagos);
                     } else {
-                        $q->whereNotIn('id', $siembraConPagos);
+                        $q->where(function ($sq) use ($siembraConPagos) {
+                            $sq->where('subscription_manual', true)->orWhereNotIn('id', $siembraConPagos);
+                        });
                     }
                 }
                 // Filtro período de prueba gratuito activo:
@@ -338,7 +342,7 @@ class UserController extends Controller
             $metrics = [
                 'plan_semilla'               => (clone $metricsQuery)->where('id_plan', 1)->count(),
                 'plan_siembra'               => (clone $metricsQuery)->where('id_plan', 2)->count(),
-                'plan_siembra_pagos'         => (clone $metricsQuery)->where('id_plan', 2)->whereIn('id', $siembraConPagos)->count(),
+                'plan_siembra_pagos'         => (clone $metricsQuery)->where('id_plan', 2)->where('subscription_manual', false)->whereIn('id', $siembraConPagos)->count(),
                 'plan_siembra_manual'        => (clone $metricsQuery)->where('id_plan', 2)->where('subscription_manual', true)->count(),
                 'siembra_mensual'            => (clone $metricsQuery)->where('id_plan', 2)->where('subscription_type', 'monthly')->count(),
                 'siembra_anual'              => (clone $metricsQuery)->where('id_plan', 2)->where('subscription_type', 'yearly')->count(),
@@ -371,7 +375,7 @@ class UserController extends Controller
 
             // Agregar campo virtual: indica si el usuario Siembra tiene pagos reales
             $query->addSelect(DB::raw(
-                'CASE WHEN id_plan = 2 AND id IN (' . implode(',', $siembraConPagos->isEmpty() ? [0] : $siembraConPagos->toArray()) . ') THEN 1 ELSE 0 END AS is_paid_siembra'
+                'CASE WHEN id_plan = 2 AND subscription_manual = 0 AND id IN (' . implode(',', $siembraConPagos->isEmpty() ? [0] : $siembraConPagos->toArray()) . ') THEN 1 ELSE 0 END AS is_paid_siembra'
             ));
 
             // Último pago registrado
