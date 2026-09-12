@@ -263,7 +263,7 @@ class UserController extends Controller
                 $unsubscribedFilter, $neverSubscribedFilter, $conCualquierRegistroPagos,
                 $unsubscribedWithoutPaymentFilter
             ) {
-                if (!empty($subscriptionType)) { $q->where('subscription_type', $subscriptionType); }
+                if (!empty($subscriptionType)) { $q->where('subscription_manual', false)->where('subscription_type', $subscriptionType); }
                 if ($freeTrialUsed !== null && $freeTrialUsed !== '') {
                     $q->where('free_trial_used', (bool) $freeTrialUsed);
                 }
@@ -344,8 +344,8 @@ class UserController extends Controller
                 'plan_siembra'               => (clone $metricsQuery)->where('id_plan', 2)->count(),
                 'plan_siembra_pagos'         => (clone $metricsQuery)->where('id_plan', 2)->where('subscription_manual', false)->whereIn('id', $siembraConPagos)->count(),
                 'plan_siembra_manual'        => (clone $metricsQuery)->where('id_plan', 2)->where('subscription_manual', true)->count(),
-                'siembra_mensual'            => (clone $metricsQuery)->where('id_plan', 2)->where('subscription_type', 'monthly')->count(),
-                'siembra_anual'              => (clone $metricsQuery)->where('id_plan', 2)->where('subscription_type', 'yearly')->count(),
+                'siembra_mensual'            => (clone $metricsQuery)->where('id_plan', 2)->where('subscription_manual', false)->where('subscription_type', 'monthly')->count(),
+                'siembra_anual'              => (clone $metricsQuery)->where('id_plan', 2)->where('subscription_manual', false)->where('subscription_type', 'yearly')->count(),
                 'siembra_periodo_gratis'     => (clone $metricsQuery)->where('id_plan', 2)->where('free_trial_used', true)->count(),
                 'siembra_free_trial_activo'  => (clone $metricsQuery)->where('id_plan', 2)->where('free_trial_used', true)->whereIn('id', $conRegistroFreeTrial)->whereNotIn('id', $siembraConPagos)->count(),
                 'pagaron_y_se_dieron_de_baja' => (clone $metricsQuery)->whereIn('id', $bajaAnyIds)->whereIn('id', $siembraConPagos)->count(),
