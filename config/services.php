@@ -44,6 +44,9 @@ return [
     'research_on_demand' => [
         'email' => env('RESEARCH_ON_DEMAND_EMAIL')
     ],
+    'scraperapi' => [
+        'key' => env('SCRAPERAPI_KEY'),
+    ],
     'data_base' => [
         'database' => env('DB_DATABASE'),
         'username' => env('DB_USERNAME'),
