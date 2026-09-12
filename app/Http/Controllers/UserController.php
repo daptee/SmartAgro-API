@@ -871,6 +871,7 @@ class UserController extends Controller
             'event_id' => 'nullable|integer|exists:events,id',
             'is_debtor' => 'nullable|boolean',
             'grace_period_used' => 'nullable|boolean',
+            'subscription_manual' => 'nullable|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -919,6 +920,13 @@ class UserController extends Controller
 
             if ($request->has('grace_period_used')) {
                 $updateData['grace_period_used'] = $request->boolean('grace_period_used');
+            }
+
+            // subscription_manual solo puede modificarse desde la edición de usuario si quien
+            // realiza la acción tiene rol superadmin (is_admin_role = 1)
+            $isSuperAdmin = Auth::user()->roles->contains('is_admin_role', true);
+            if ($request->has('subscription_manual') && $isSuperAdmin) {
+                $updateData['subscription_manual'] = $request->boolean('subscription_manual');
             }
 
             $user->update($updateData);
