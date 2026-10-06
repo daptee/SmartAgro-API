@@ -99,19 +99,26 @@ class LivestockPriceController extends Controller
                 throw new Exception("No se pudieron extraer cotizaciones de ganadería de ninguna fuente (posible bloqueo o cambio de estructura del HTML)");
             }
 
-            $periodo = Carbon::now()->format('Y-m');
+            $fecha = Carbon::now()->format('Y-m-d');
+            $periodo = Carbon::now()->format('Y-m'); // informativo, para reportes por mes; la clave real ahora es (product_id, fecha)
             $data = [];
 
             foreach ($prices as $entry) {
+                $var = $this->calculateVariacion($entry['product_id'], $fecha, $entry['price']);
+
                 $livestockPrice = LivestockPrice::updateOrCreate(
-                    ['product_id' => $entry['product_id'], 'periodo' => $periodo],
-                    ['price' => $entry['price'], 'source' => $entry['source']]
+                    ['product_id' => $entry['product_id'], 'fecha' => $fecha],
+                    ['periodo' => $periodo, 'price' => $entry['price'], 'source' => $entry['source'], 'var' => $var]
                 );
                 // updateOrCreate no toca updated_at si el precio no cambió respecto a la última corrida;
                 // se fuerza para que updated_at siempre refleje la última vez que el refresh trajo este dato.
                 $livestockPrice->touch();
                 $data[] = $livestockPrice->load('product');
             }
+
+            // Solo se retienen los últimos 3 días (hoy, ayer y antier) para que la tabla no crezca sin límite;
+            // alcanza y sobra para que "var" siempre pueda comparar contra el día anterior.
+            LivestockPrice::where('fecha', '<', Carbon::now()->subDays(2)->format('Y-m-d'))->delete();
 
             Audith::new(Auth::user()->id ?? null, $action, $request->all(), 200, compact("data"));
         } catch (Exception $e) {
@@ -304,6 +311,29 @@ class LivestockPriceController extends Controller
         }
 
         return $data;
+    }
+
+    // Compara contra el precio del día anterior más reciente (estrictamente anterior a $fecha, nunca el de hoy
+    // aunque el cron ya haya corrido antes hoy mismo) y devuelve 'up' | 'down' | 'equal' | null (sin dato previo)
+    private function calculateVariacion(int $productId, string $fecha, float $newPrice): ?string
+    {
+        $previous = LivestockPrice::where('product_id', $productId)
+            ->where('fecha', '<', $fecha)
+            ->orderByDesc('fecha')
+            ->first();
+
+        if (!$previous) {
+            return null;
+        }
+
+        $oldPrice = (float) $previous->price;
+        $newPrice = round($newPrice, 2); // mismo redondeo que el cast decimal:2, para no marcar "up/down" por ruido de precisión que ni se ve en el price guardado
+
+        return match (true) {
+            $newPrice > $oldPrice => 'up',
+            $newPrice < $oldPrice => 'down',
+            default => 'equal',
+        };
     }
 
     // Convierte números en formato argentino ("4.202,636" o "51.375.000") a float. Devuelve null si no es numérico (ej. "-------")

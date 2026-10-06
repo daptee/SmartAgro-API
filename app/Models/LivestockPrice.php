@@ -13,7 +13,9 @@ class LivestockPrice extends Model
     protected $fillable = [
         'product_id',
         'periodo',
+        'fecha',
         'price',
+        'var',
         'source',
     ];
 
@@ -21,6 +23,7 @@ class LivestockPrice extends Model
     {
         return [
             'price' => 'decimal:2',
+            'fecha' => 'date:Y-m-d',
         ];
     }
 
