@@ -47,6 +47,9 @@ return [
     'scraperapi' => [
         'key' => env('SCRAPERAPI_KEY'),
     ],
+    'scrapingbee' => [
+        'key' => env('SCRAPINGBEE_KEY'),
+    ],
     'data_base' => [
         'database' => env('DB_DATABASE'),
         'username' => env('DB_USERNAME'),

@@ -31,6 +31,8 @@ class GrainQuoteController extends Controller
         $action = "Actualizar cotizaciones de granos (público)";
         $data = null;
 
+        set_time_limit(90); // la resolución del challenge anti-bot vía stealth_proxy puede tardar ~50s
+
         try {
             $html = $this->fetchSourceHtml();
             $granos = $this->parseFlashCotizaciones($html);
@@ -79,23 +81,24 @@ class GrainQuoteController extends Controller
     }
 
     // El sitio está protegido por un challenge anti-bot de Cloudflare que bloquea las peticiones
-    // hechas directamente desde IPs de datacenter, así que la descarga se delega a ScraperAPI
-    // (resuelve el challenge y devuelve el HTML ya renderizado).
+    // hechas directamente desde IPs de datacenter. ScraperAPI (proxy estándar) dejó de alcanzar;
+    // ahora se usa ScrapingBee con stealth_proxy (su tier anti-detección más alto, ~50s de respuesta).
     private function fetchSourceHtml(): string
     {
-        $apiKey = config('services.scraperapi.key');
+        $apiKey = config('services.scrapingbee.key');
 
         if (empty($apiKey)) {
-            throw new Exception("Falta configurar SCRAPERAPI_KEY en el entorno");
+            throw new Exception("Falta configurar SCRAPINGBEE_KEY en el entorno");
         }
 
-        $response = Http::timeout(30)->get('https://api.scraperapi.com/', [
+        $response = Http::timeout(80)->get('https://app.scrapingbee.com/api/v1/', [
             'api_key' => $apiKey,
             'url' => self::SOURCE_URL,
+            'stealth_proxy' => 'True',
         ]);
 
         if (!$response->successful()) {
-            throw new Exception("No se pudo acceder a la Bolsa de Cereales vía ScraperAPI (HTTP {$response->status()})");
+            throw new Exception("No se pudo acceder a la Bolsa de Cereales vía ScrapingBee (HTTP {$response->status()}): {$response->body()}");
         }
 
         $html = $response->body();
