@@ -692,6 +692,22 @@ class SubscriptionController extends Controller
                             return response()->json(['message' => 'Suscripción pausada ignorada - plan asignado manualmente'], 200);
                         }
 
+                        // MP manda el mismo evento de pausa más de una vez (distinto id de notificación,
+                        // mismo preapproval y mismo last_modified). Sin esto, el primero otorgaba la gracia
+                        // y el duplicado, al ver grace_period_used = true, bajaba al usuario a plan gratuito.
+                        $lastModified = $subscriptionData['last_modified'] ?? null;
+                        if ($lastModified) {
+                            $pauseAlreadyProcessed = PaymentHistory::where('preapproval_id', $this->preapprovalId)
+                                ->where('type', 'paused')
+                                ->where('data->last_modified', $lastModified)
+                                ->exists();
+
+                            if ($pauseAlreadyProcessed) {
+                                Log::channel('mercadopago')->info("Webhook pausa duplicado ignorado para usuario $userId ({$this->preapprovalId}, last_modified $lastModified).");
+                                return response()->json(['message' => 'Suscripción pausada — evento duplicado ignorado'], 200);
+                            }
+                        }
+
                         // Verificar si ya usó su período de gracia
                         if ($user->grace_period_used) {
                             // Solo bajar si sigue en plan 2 — evita repetir downgrade y mail
@@ -735,9 +751,8 @@ class SubscriptionController extends Controller
                             // Primera vez pausada, mantener plan (período de gracia)
                             Log::channel('mercadopago')->info("Suscripción pausada para usuario $userId. Otorgando período de gracia (manteniendo Plan Siembra).");
 
-                            // Marcar que usó su período de gracia
-                            $user->update(['grace_period_used' => true]);
-
+                            // Registrar la pausa ANTES de marcar la gracia: este registro es el que
+                            // permite detectar el webhook duplicado del mismo evento (ver arriba)
                             PaymentHistory::create([
                                 'id_user' => $userId,
                                 'type' => $status,
@@ -746,6 +761,9 @@ class SubscriptionController extends Controller
                                 'subscription_type' => $this->deriveSubscriptionType($subscriptionData),
                                 'error_message' => "Suscripción pausada - Período de gracia otorgado (se intentará cobrar en próximo ciclo)",
                             ]);
+
+                            // Marcar que usó su período de gracia
+                            $user->update(['grace_period_used' => true]);
 
                             // Enviar emails de período de gracia
                             $this->sendEmailSafely($user->email, new GracePeriodGranted($user), 'Período de gracia otorgado - usuario');

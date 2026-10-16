@@ -23,6 +23,15 @@ class UserPlan extends Model
     protected $table = "users_plans";
 
     /**
+     * Si `data` llega como array (ej. respuesta de MercadoPago) se guarda como JSON,
+     * igual que hace save_history(). La lectura sigue devolviendo el string.
+     */
+    public function setDataAttribute($value): void
+    {
+        $this->attributes['data'] = is_array($value) || is_object($value) ? json_encode($value) : $value;
+    }
+
+    /**
      * Relación con el modelo User
      */
     public function user()
