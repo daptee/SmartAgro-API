@@ -1071,7 +1071,9 @@ class SubscriptionController extends Controller
                     return response()->json(['status' => 'duplicate ignored']);
                 }
             } else {
-                Log::channel('mercadopago')->error("No se pudo fetchear el pago $webhookDataId (tipo: $webhookType). HTTP " . $preapprovalResponse->status() . " — intentando fallback con datos de authorized_payment.");
+                Log::channel('mercadopago')->error("No se pudo fetchear el pago $webhookDataId (tipo: $webhookType). HTTP " . $preapprovalResponse->status() . " — intentando fallback con datos de authorized_payment.", [
+                    'response' => $preapprovalResponse->json(),
+                ]);
 
                 // Fallback para subscription_authorized_payment: /v1/payments/{id} devuelve 401
                 // consistentemente en pagos de suscripciones recurrentes. Usamos los datos del
@@ -1553,7 +1555,7 @@ class SubscriptionController extends Controller
         ]);
 
         $userPlans = $userPlans
-            ->map(function ($plan) use ($priceMonthly, $priceYearly, $accessToken) {
+            ->map(function ($plan) use ($priceMonthly, $priceYearly, $accessToken, $dollarRate) {
                 $data = json_decode($plan->data, true);
                 $preapprovalId = $plan->preapproval_id;
                 $userId = $plan->id_user;
@@ -1561,10 +1563,19 @@ class SubscriptionController extends Controller
                 // Obtener el estado ACTUAL de MercadoPago (no confiar en la BD que puede estar desactualizada)
                 Log::channel('mercadopago')->info("Consultando estado actual en MercadoPago para usuario: $userId, preapproval: $preapprovalId");
 
-                $preapprovalResponse = Http::withToken($accessToken)->get("https://api.mercadopago.com/preapproval/{$preapprovalId}");
+                // Reintentar solo ante errores transitorios (5xx, 429 o fallos de conexión)
+                $preapprovalResponse = Http::withToken($accessToken)
+                    ->retry(3, 1000, function ($exception) {
+                        $status = $exception->response?->status();
+                        return $status === null || $status === 429 || $status >= 500;
+                    }, throw: false)
+                    ->get("https://api.mercadopago.com/preapproval/{$preapprovalId}");
 
                 if (!$preapprovalResponse->successful()) {
-                    Log::channel('mercadopago')->error("No se pudo consultar MercadoPago para preapproval: $preapprovalId");
+                    Log::channel('mercadopago')->error("No se pudo consultar MercadoPago para preapproval: $preapprovalId", [
+                        'http_status' => $preapprovalResponse->status(),
+                        'response'    => $preapprovalResponse->json(),
+                    ]);
                     $data['error'] = 'No se pudo consultar estado en MercadoPago';
                     return [
                         'id' => $plan->id,
