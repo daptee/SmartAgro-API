@@ -50,6 +50,42 @@ class SubscriptionController extends Controller
         return 'monthly';
     }
 
+    /**
+     * El authorized_payment (cobro recurrente) no trae auto_recurring ni invoice_period, así que
+     * deriveSubscriptionType() caía siempre en 'monthly' aunque la suscripción fuera anual.
+     * Se resuelve con la frecuencia del preapproval: primero la guardada en users_plans y,
+     * si no está, consultándolo en MercadoPago.
+     */
+    private function deriveSubscriptionTypeForAuthorizedPayment(array $ap): string
+    {
+        $hasOwnFrequency = isset($ap['point_of_interaction']['transaction_data']['invoice_period']['period'])
+            || isset($ap['auto_recurring']['frequency']);
+        $preapprovalId = $ap['preapproval_id'] ?? null;
+
+        if ($hasOwnFrequency || !$preapprovalId) {
+            return $this->deriveSubscriptionType($ap);
+        }
+
+        $plans = UserPlan::where('preapproval_id', $preapprovalId)->orderBy('id', 'desc')->get();
+        foreach ($plans as $plan) {
+            $planData = json_decode($plan->data, true);
+            if (is_array($planData) && isset($planData['auto_recurring']['frequency'])) {
+                return $this->deriveSubscriptionType($planData);
+            }
+        }
+
+        $response = Http::withToken(config('app.mercadopago_token'))
+            ->get("https://api.mercadopago.com/preapproval/{$preapprovalId}");
+        if ($response->successful() && isset($response->json()['auto_recurring']['frequency'])) {
+            return $this->deriveSubscriptionType($response->json());
+        }
+
+        Log::channel('mercadopago')->warning("No se pudo determinar la frecuencia del preapproval $preapprovalId, se asume mensual.", [
+            'http_status' => $response->status(),
+        ]);
+        return 'monthly';
+    }
+
     private function buildPaymentDataFromAuthorizedPayment(array $ap, int $paymentId): array
     {
         $amount    = $ap['transaction_amount'] ?? 0;
@@ -790,7 +826,7 @@ class SubscriptionController extends Controller
                                     'preapproval_id' => $apPreapprovalId,
                                     'payment_id' => $apAuthorizedId,
                                     'amount' => $authorizedPaymentData['transaction_amount'] ?? null,
-                                    'subscription_type' => $this->deriveSubscriptionType($authorizedPaymentData),
+                                    'subscription_type' => $this->deriveSubscriptionTypeForAuthorizedPayment($authorizedPaymentData),
                                     'error_message' => $authorizedPaymentData['payment']['status_detail'] ?? $authorizedPaymentData['rejection_code'] ?? 'Pago rechazado sin payment_id',
                                 ]);
 
@@ -1071,7 +1107,9 @@ class SubscriptionController extends Controller
                     return response()->json(['status' => 'duplicate ignored']);
                 }
             } else {
-                Log::channel('mercadopago')->error("No se pudo fetchear el pago $webhookDataId (tipo: $webhookType). HTTP " . $preapprovalResponse->status() . " — intentando fallback con datos de authorized_payment.");
+                Log::channel('mercadopago')->error("No se pudo fetchear el pago $webhookDataId (tipo: $webhookType). HTTP " . $preapprovalResponse->status() . " — intentando fallback con datos de authorized_payment.", [
+                    'response' => $preapprovalResponse->json(),
+                ]);
 
                 // Fallback para subscription_authorized_payment: /v1/payments/{id} devuelve 401
                 // consistentemente en pagos de suscripciones recurrentes. Usamos los datos del
@@ -1093,7 +1131,7 @@ class SubscriptionController extends Controller
                                 'preapproval_id'    => $apPreapprovalId,
                                 'payment_id'        => $paymentId,
                                 'amount'            => $authorizedPaymentData['transaction_amount'] ?? null,
-                                'subscription_type' => $this->deriveSubscriptionType($authorizedPaymentData),
+                                'subscription_type' => $this->deriveSubscriptionTypeForAuthorizedPayment($authorizedPaymentData),
                                 'error_message'     => $isSuccess ? null : ($authorizedPaymentData['payment']['status_detail'] ?? $authorizedPaymentData['rejection_code'] ?? 'Pago no exitoso'),
                             ]);
                             Log::channel('mercadopago')->info("PaymentHistory creado vía fallback (authorized_payment) para usuario $apUserId, payment_id: $paymentId, status: $apPaymentStatus");
@@ -1142,7 +1180,7 @@ class SubscriptionController extends Controller
                                     'data'              => json_encode($this->buildPaymentDataFromAuthorizedPayment($authorizedPaymentData, $paymentId)),
                                     'type'              => $apPaymentStatus,
                                     'amount'            => $authorizedPaymentData['transaction_amount'] ?? null,
-                                    'subscription_type' => $this->deriveSubscriptionType($authorizedPaymentData),
+                                    'subscription_type' => $this->deriveSubscriptionTypeForAuthorizedPayment($authorizedPaymentData),
                                     'error_message'     => null,
                                 ]);
                                 Log::channel('mercadopago')->info("PaymentHistory actualizado vía fallback ($oldType → $apPaymentStatus) para usuario $apUserId");
@@ -1163,7 +1201,7 @@ class SubscriptionController extends Controller
                                     'data'              => json_encode($this->buildPaymentDataFromAuthorizedPayment($authorizedPaymentData, $paymentId)),
                                     'type'              => $apPaymentStatus,
                                     'amount'            => $authorizedPaymentData['transaction_amount'] ?? null,
-                                    'subscription_type' => $this->deriveSubscriptionType($authorizedPaymentData),
+                                    'subscription_type' => $this->deriveSubscriptionTypeForAuthorizedPayment($authorizedPaymentData),
                                     'error_message'     => $authorizedPaymentData['payment']['status_detail'] ?? $authorizedPaymentData['rejection_code'] ?? 'Pago rechazado',
                                 ]);
                                 Log::channel('mercadopago')->info("PaymentHistory actualizado vía fallback ($oldType → $apPaymentStatus) para usuario $apUserId");
@@ -1553,7 +1591,7 @@ class SubscriptionController extends Controller
         ]);
 
         $userPlans = $userPlans
-            ->map(function ($plan) use ($priceMonthly, $priceYearly, $accessToken) {
+            ->map(function ($plan) use ($priceMonthly, $priceYearly, $accessToken, $dollarRate) {
                 $data = json_decode($plan->data, true);
                 $preapprovalId = $plan->preapproval_id;
                 $userId = $plan->id_user;
@@ -1561,10 +1599,19 @@ class SubscriptionController extends Controller
                 // Obtener el estado ACTUAL de MercadoPago (no confiar en la BD que puede estar desactualizada)
                 Log::channel('mercadopago')->info("Consultando estado actual en MercadoPago para usuario: $userId, preapproval: $preapprovalId");
 
-                $preapprovalResponse = Http::withToken($accessToken)->get("https://api.mercadopago.com/preapproval/{$preapprovalId}");
+                // Reintentar solo ante errores transitorios (5xx, 429 o fallos de conexión)
+                $preapprovalResponse = Http::withToken($accessToken)
+                    ->retry(3, 1000, function ($exception) {
+                        $status = $exception->response?->status();
+                        return $status === null || $status === 429 || $status >= 500;
+                    }, throw: false)
+                    ->get("https://api.mercadopago.com/preapproval/{$preapprovalId}");
 
                 if (!$preapprovalResponse->successful()) {
-                    Log::channel('mercadopago')->error("No se pudo consultar MercadoPago para preapproval: $preapprovalId");
+                    Log::channel('mercadopago')->error("No se pudo consultar MercadoPago para preapproval: $preapprovalId", [
+                        'http_status' => $preapprovalResponse->status(),
+                        'response'    => $preapprovalResponse->json(),
+                    ]);
                     $data['error'] = 'No se pudo consultar estado en MercadoPago';
                     return [
                         'id' => $plan->id,

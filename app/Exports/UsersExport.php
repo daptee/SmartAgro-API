@@ -68,7 +68,11 @@ class UsersExport implements FromCollection, WithHeadings, WithMapping, WithStyl
             $user->locality?->province_id ? ($user->locality->province->name ?? $user->province_name ?? '') : ($user->province_name ?? ''),
             $user->country?->name ?? '',
             $user->event?->name ?? '',
-            $user->subscription_type === 'monthly' ? 'Mensual' : ($user->subscription_type === 'yearly' ? 'Anual' : ''),
+            match ($user->effective_subscription_type ?? $user->subscription_type) {
+                'monthly' => 'Mensual',
+                'yearly'  => 'Anual',
+                default   => '',
+            },
             $user->plan_start_date ? $user->plan_start_date->format('d/m/Y H:i') : '',
             $user->free_trial_used ? 'Sí' : 'No',
             $user->is_debtor ? 'Sí' : 'No',
