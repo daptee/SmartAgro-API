@@ -39,6 +39,25 @@ class UserController extends Controller
     public $prp = "los";
 
     /**
+     * Tipo de suscripción efectivo (monthly|yearly) según el ÚLTIMO cobro real del usuario.
+     * users.subscription_type no se actualiza si el usuario cambia de mensual a anual
+     * estando ya en Siembra, así que se toma el del último pago en payment_history.
+     * Si todavía no tiene cobros (ej. free trial) se usa users.subscription_type.
+     */
+    private const EFFECTIVE_SUBSCRIPTION_TYPE_SQL = "COALESCE(
+        (
+            SELECT ph_st.subscription_type
+            FROM payment_history ph_st
+            WHERE ph_st.id_user = users.id
+              AND ph_st.type IN ('payment', 'approved')
+              AND ph_st.subscription_type IS NOT NULL
+            ORDER BY ph_st.created_at DESC, ph_st.id DESC
+            LIMIT 1
+        ),
+        users.subscription_type
+    )";
+
+    /**
      * Display a listing of the resource.
      *
      * Filtros disponibles:
@@ -263,7 +282,7 @@ class UserController extends Controller
                 $unsubscribedFilter, $neverSubscribedFilter, $conCualquierRegistroPagos,
                 $unsubscribedWithoutPaymentFilter
             ) {
-                if (!empty($subscriptionType)) { $q->where('subscription_manual', false)->where('subscription_type', $subscriptionType); }
+                if (!empty($subscriptionType)) { $q->where('subscription_manual', false)->whereRaw(self::EFFECTIVE_SUBSCRIPTION_TYPE_SQL . ' = ?', [$subscriptionType]); }
                 if ($freeTrialUsed !== null && $freeTrialUsed !== '') {
                     $q->where('free_trial_used', (bool) $freeTrialUsed);
                 }
@@ -344,8 +363,8 @@ class UserController extends Controller
                 'plan_siembra'               => (clone $metricsQuery)->where('id_plan', 2)->count(),
                 'plan_siembra_pagos'         => (clone $metricsQuery)->where('id_plan', 2)->where('subscription_manual', false)->whereIn('id', $siembraConPagos)->count(),
                 'plan_siembra_manual'        => (clone $metricsQuery)->where('id_plan', 2)->where('subscription_manual', true)->count(),
-                'siembra_mensual'            => (clone $metricsQuery)->where('id_plan', 2)->where('subscription_manual', false)->where('subscription_type', 'monthly')->count(),
-                'siembra_anual'              => (clone $metricsQuery)->where('id_plan', 2)->where('subscription_manual', false)->where('subscription_type', 'yearly')->count(),
+                'siembra_mensual'            => (clone $metricsQuery)->where('id_plan', 2)->where('subscription_manual', false)->whereRaw(self::EFFECTIVE_SUBSCRIPTION_TYPE_SQL . ' = ?', ['monthly'])->count(),
+                'siembra_anual'              => (clone $metricsQuery)->where('id_plan', 2)->where('subscription_manual', false)->whereRaw(self::EFFECTIVE_SUBSCRIPTION_TYPE_SQL . ' = ?', ['yearly'])->count(),
                 'siembra_periodo_gratis'     => (clone $metricsQuery)->where('id_plan', 2)->where('free_trial_used', true)->count(),
                 'siembra_free_trial_activo'  => (clone $metricsQuery)->where('id_plan', 2)->where('free_trial_used', true)->whereIn('id', $conRegistroFreeTrial)->whereNotIn('id', $siembraConPagos)->count(),
                 'pagaron_y_se_dieron_de_baja' => (clone $metricsQuery)->whereIn('id', $bajaAnyIds)->whereIn('id', $siembraConPagos)->count(),
@@ -361,7 +380,7 @@ class UserController extends Controller
                 ->select([
                     'id', 'name', 'last_name', 'email', 'phone',
                     'id_plan', 'id_status', 'id_user_profile',
-                    'plan_start_date', 'subscription_type', 'subscription_manual', 'free_trial_used',
+                    'plan_start_date', 'subscription_manual', 'free_trial_used',
                     'is_debtor', 'grace_period_used',
                     'email_confirmation', 'profile_picture',
                     'locality_name', 'province_name',
@@ -378,6 +397,9 @@ class UserController extends Controller
                 'CASE WHEN id_plan = 2 AND subscription_manual = 0 AND id IN (' . implode(',', $siembraConPagos->isEmpty() ? [0] : $siembraConPagos->toArray()) . ') THEN 1 ELSE 0 END AS is_paid_siembra'
             ));
 
+            // Tipo de suscripción según el último cobro (mismo criterio que el filtro y las métricas)
+            $query->addSelect(DB::raw(self::EFFECTIVE_SUBSCRIPTION_TYPE_SQL . ' AS subscription_type'));
+
             // Último pago registrado
             $query->addSelect(DB::raw('(
                 SELECT created_at
@@ -387,12 +409,12 @@ class UserController extends Controller
                 LIMIT 1
             ) AS last_payment_date'));
 
-            // Próximo pago: último pago + 1 mes o 1 año según subscription_type.
+            // Próximo pago: último pago + 1 mes o 1 año según el subscription_type de ese pago.
             // Si el usuario todavía no tiene pagos (está en el mes de free trial), se estima
             // como plan_start_date + 1 mes, ya que el free trial de MercadoPago es siempre mensual.
             $query->addSelect(DB::raw('COALESCE(
                 (
-                    SELECT CASE users.subscription_type
+                    SELECT CASE COALESCE(ph.subscription_type, users.subscription_type)
                         WHEN \'yearly\' THEN DATE_ADD(ph.created_at, INTERVAL 1 YEAR)
                         ELSE DATE_ADD(ph.created_at, INTERVAL 1 MONTH)
                     END
@@ -1539,6 +1561,8 @@ class UserController extends Controller
             $emailConfirmation = $request->input('email_confirmation');
 
             $query = User::with(['status', 'plan', 'locality', 'locality.province', 'country', 'profile', 'event'])
+                ->select('users.*')
+                ->addSelect(DB::raw(self::EFFECTIVE_SUBSCRIPTION_TYPE_SQL . ' AS effective_subscription_type'))
                 ->orderBy('name', 'asc');
 
             if (!empty($search)) {
@@ -1562,7 +1586,7 @@ class UserController extends Controller
             if (!empty($eventId))          { $query->where('event_id', $eventId); }
             if (!empty($planStartFrom))    { $query->where('plan_start_date', '>=', $planStartFrom . ' 00:00:00'); }
             if (!empty($planStartTo))      { $query->where('plan_start_date', '<=', $planStartTo . ' 23:59:59'); }
-            if (!empty($subscriptionType)) { $query->where('subscription_type', $subscriptionType); }
+            if (!empty($subscriptionType)) { $query->whereRaw(self::EFFECTIVE_SUBSCRIPTION_TYPE_SQL . ' = ?', [$subscriptionType]); }
             if ($freeTrialUsed !== null && $freeTrialUsed !== '') {
                 $query->where('free_trial_used', (bool) $freeTrialUsed);
             }
