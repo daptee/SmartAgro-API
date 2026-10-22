@@ -786,6 +786,7 @@ class UserController extends Controller
 
         try {
             $data = $this->model::getAllDataUser($id);
+            $data->load('roles');
 
             $lastPaymentDate = PaymentHistory::where('id_user', $id)
                 ->where('type', 'payment')
