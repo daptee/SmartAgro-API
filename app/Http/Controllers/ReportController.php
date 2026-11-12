@@ -214,11 +214,11 @@ class ReportController extends Controller
 
             // Realizar las consultas a todas las tablas
             $data = [
-                'news' => News::where($filters)->with('plan')->get(),
+                'news' => News::where($filters)->with('plan')->orderBy('date', 'desc')->get(),
                 'major_crops' => MajorCrop::where($majorCropsFilters)->with('plan')->get(),
                 'mag_lease_index' => $mag_lease_with_plan,
                 'mag_steer_index' => $mag_steer_with_plan,
-                'insights' => Insight::where($filters)->with(['plan', 'iconData'])->get(),
+                'insights' => Insight::where($filters)->with(['plan', 'iconData'])->orderBy('date', 'desc')->get(),
                 'price_main_active_ingredients_producers' => PriceMainActiveIngredientsProducer::where($majorCropsFilters)->with(['plan', 'segment'])->get(),
                 'producer_segment_prices' => ProducerSegmentPrice::where($majorCropsFilters)->with('plan')->get(),
                 'rainfall_records_provinces' => RainfallRecordProvince::where($majorCropsFilters)->with('plan')->get(),
