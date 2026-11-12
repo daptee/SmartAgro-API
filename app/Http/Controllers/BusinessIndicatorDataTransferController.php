@@ -14,7 +14,9 @@ use App\Models\PitIndicator;
 use App\Models\ProductPrice;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 class BusinessIndicatorDataTransferController extends Controller
 {
@@ -90,12 +92,15 @@ class BusinessIndicatorDataTransferController extends Controller
     /**
      * POST /import-business-indicator-data
      * Importa datos de indicadores comerciales desde un archivo JSON exportado previamente.
-     * Solo inserta los bloques que NO tengan datos para ese mes/año.
+     * Por defecto solo inserta los bloques que NO tengan datos para ese mes/año.
+     * Con overwrite=true reemplaza los datos existentes del mes/año (soft delete + insert),
+     * lo que permite sincronizar en ambos sentidos (dev -> prod y prod -> dev).
      */
     public function import(Request $request)
     {
         $request->validate([
             'file' => 'required|file|mimes:json,txt',
+            'overwrite' => 'sometimes|in:0,1,true,false',
         ]);
 
         try {
@@ -111,43 +116,49 @@ class BusinessIndicatorDataTransferController extends Controller
             $blocks = $data['blocks'];
             $now    = now()->toDateTimeString();
             $results = [];
+            $overwrite = $request->boolean('overwrite');
 
-            // business_indicator_controls
-            $results['business_indicator_controls'] = $this->importBlock(
-                'business_indicator_controls',
-                $blocks['business_indicator_controls'] ?? [],
-                BusinessIndicatorControl::class,
-                fn($m) => $m::where('month', $month)->where('year', $year)->exists(),
-                $now
-            );
-
-            // Todos los bloques usan month/year
-            foreach ($this->monthYearModels as $key => $model) {
-                $results[$key] = $this->importBlock(
-                    $key,
-                    $blocks[$key] ?? [],
-                    $model,
-                    fn($m) => $m::where('month', $month)->where('year', $year)->exists(),
-                    $now
+            DB::transaction(function () use ($blocks, $month, $year, $now, $overwrite, &$results) {
+                // business_indicator_controls
+                $results['business_indicator_controls'] = $this->importBlock(
+                    'business_indicator_controls',
+                    $blocks['business_indicator_controls'] ?? [],
+                    BusinessIndicatorControl::class,
+                    fn($m) => $m::where('month', $month)->where('year', $year),
+                    $now,
+                    $overwrite
                 );
-            }
 
-            // Recalcular y sincronizar el control general tras la importación
-            $newData = BusinessIndicatorControlController::calculateBlockStatuses($month, $year);
-            $control = BusinessIndicatorControl::firstOrCreate(
-                ['month' => $month, 'year' => $year],
-                ['status_id' => 2]
-            );
-            $updates = ['data' => $newData];
-            if (!in_array(true, $newData, true)) {
-                $updates['status_id'] = 2;
-            }
-            $control->update($updates);
+                // Todos los bloques usan month/year
+                foreach ($this->monthYearModels as $key => $model) {
+                    $results[$key] = $this->importBlock(
+                        $key,
+                        $blocks[$key] ?? [],
+                        $model,
+                        fn($m) => $m::where('month', $month)->where('year', $year),
+                        $now,
+                        $overwrite
+                    );
+                }
+
+                // Recalcular y sincronizar el control general tras la importación
+                $newData = BusinessIndicatorControlController::calculateBlockStatuses($month, $year);
+                $control = BusinessIndicatorControl::firstOrCreate(
+                    ['month' => $month, 'year' => $year],
+                    ['status_id' => 2]
+                );
+                $updates = ['data' => $newData];
+                if (!in_array(true, $newData, true)) {
+                    $updates['status_id'] = 2;
+                }
+                $control->update($updates);
+            });
 
             return response()->json([
                 'message' => 'Importación completada.',
                 'month'   => $month,
                 'year'    => $year,
+                'overwrite' => $overwrite,
                 'results' => $results,
             ], 200);
         } catch (Exception $e) {
@@ -160,16 +171,24 @@ class BusinessIndicatorDataTransferController extends Controller
     }
 
     /**
-     * Importa un bloque de registros si no existen datos para el mes/año en la tabla.
+     * Importa un bloque de registros para el mes/año.
+     * - Sin overwrite: solo inserta si no existen datos para el mes/año en la tabla.
+     * - Con overwrite: elimina (soft delete) los datos existentes del mes/año y luego inserta.
+     *
+     * @param callable $scope Recibe la clase del modelo y devuelve el query filtrado por mes/año.
      */
-    private function importBlock(string $key, array $records, string $model, callable $existsCheck, string $now): string
+    private function importBlock(string $key, array $records, string $model, callable $scope, string $now, bool $overwrite = false): string
     {
         if (empty($records)) {
             return 'skipped (no data in file)';
         }
 
-        if ($existsCheck($model)) {
-            return 'skipped (already exists)';
+        $removed = 0;
+        if ($scope($model)->exists()) {
+            if (!$overwrite) {
+                return 'skipped (already exists)';
+            }
+            $removed = $scope($model)->delete();
         }
 
         $toInsert = array_map(function ($record) use ($now) {
@@ -191,8 +210,27 @@ class BusinessIndicatorDataTransferController extends Controller
             return $record;
         }, $records);
 
+        // Descartar columnas que no existen en la tabla destino (los esquemas de dev y prod pueden diferir)
+        $instance = new $model;
+        $columns  = array_flip(Schema::connection($instance->getConnectionName())->getColumnListing($instance->getTable()));
+        $ignored  = [];
+        $toInsert = array_map(function ($record) use ($columns, &$ignored) {
+            foreach (array_diff_key($record, $columns) as $column => $_) {
+                $ignored[$column] = true;
+            }
+            return array_intersect_key($record, $columns);
+        }, $toInsert);
+
         $model::insert($toInsert);
 
-        return 'imported (' . count($toInsert) . ' records)';
+        $result = $removed > 0
+            ? 'replaced (' . count($toInsert) . ' records imported, ' . $removed . ' removed)'
+            : 'imported (' . count($toInsert) . ' records)';
+
+        if (!empty($ignored)) {
+            $result .= ' [ignored columns: ' . implode(', ', array_keys($ignored)) . ']';
+        }
+
+        return $result;
     }
 }
